@@ -1,0 +1,8 @@
+# Xcode build products
+build/
+*.ipa
+*.xcarchive
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside

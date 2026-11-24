@@ -1,0 +1,882 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+		03A046C9868E7DF683A009BF /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 1B442E42980596EBCD246D51;
+		};
+		0661F517A86C8F5C87C0EDBA /* PBXNativeTarget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8EB251B5FEF9F9B925BE1907;
+			buildPhases = (
+				37A859133C5B7A49CE597D35,
+				11EF39465FB5B37CF41E367D,
+				B56E96530BC9DC2EBA288692,
+			);
+			buildRules = ( );
+			dependencies = ( );
+			name = "TrollLyricsWidget";
+			productName = "TrollLyricsWidget";
+			productReference = 1B442E42980596EBCD246D51;
+			productType = "com.apple.product-type.app-extension";
+		};
+		0AA74765B3B0AA9557D4381E /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "text.plist.entitlements";
+			name = "TrollLyricsDesk.entitlements";
+			path = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
+			sourceTree = "<group>";
+		};
+		0D78DA3D97FA4958CF7FB5C2 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 16B26EED19369FAE327C9742;
+		};
+		10D4BFE57B6BD8055DFF9ABE /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 75CB3A7FA5C11AD58711D856;
+		};
+		11EF39465FB5B37CF41E367D /* PBXFrameworksBuildPhase */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ( );
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		16B26EED19369FAE327C9742 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricParser.swift";
+			path = "Lyrics/LyricParser.swift";
+			sourceTree = "<group>";
+		};
+		1A243A453E6C0E753151005E /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 9F24D2D2B9AF6F28DFDB9996;
+		};
+		1B442E42980596EBCD246D51 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			explicitFileType = "wrapper.app-extension";
+			includeInIndex = 0;
+			path = "TrollLyricsWidget.appex";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		1DDD6F9267456969B4998302 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 75CB3A7FA5C11AD58711D856;
+		};
+		355B7EA3EE92E42363E543E3 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = E13FB429120342405BAC69F8;
+		};
+		37A859133C5B7A49CE597D35 /* PBXSourcesBuildPhase */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A243A453E6C0E753151005E,
+				CA623AD6E96C2C52F42693A4,
+				355B7EA3EE92E42363E543E3,
+				1DDD6F9267456969B4998302,
+				DDE58E6DE8C3A7107DE018F9,
+				FA1547BE6665B5B7A6F44013,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		46F86FAA6BBF9AC94A7E4595 /* PBXProject */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+				E3435DDA2687639586BF0B70 = {
+				CreatedOnToolsVersion = 15.0;
+				LastSwiftMigration = 1500;
+				SystemCapabilities = {
+				com.apple.ApplicationGroups = {
+				enabled = 1;
+			};
+			};
+			};
+				0661F517A86C8F5C87C0EDBA = {
+				CreatedOnToolsVersion = 15.0;
+				LastSwiftMigration = 1500;
+				SystemCapabilities = {
+				com.apple.ApplicationGroups = {
+				enabled = 1;
+			};
+			};
+			};
+			};
+			};
+			buildConfigurationList = 7EF2517A8FE63F4681EC5EEA;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh_CN;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				zh_CN,
+			);
+			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			productRefGroup = 547D009064F7C3F13BEF3460;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E3435DDA2687639586BF0B70,
+				0661F517A86C8F5C87C0EDBA,
+			);
+		};
+		4821909E9BF9E73E471FEA84 /* PBXSourcesBuildPhase */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (				779A8DD19473D66876760A6E,
+				933503AE1761DC1CE9E3744D,
+				AF9E7CE481560CF8C41F7831,
+				F7439C015FB65F1255275CC9,
+				10D4BFE57B6BD8055DFF9ABE,
+				0D78DA3D97FA4958CF7FB5C2,
+				805E755E2BD108BEF308E612,
+				EA7013E51E12FAD9F3D57AFE,
+				7FFFABB19112DCA3F5BF0614,
+				39823A3A426E23B5CA106498,
+				20BBD06BF1BA1D6A9109BC0A,
+				02A74E8FB4C81A26B3FEF233,
+				7EFF6DE70C4084586B490205,
+				DCD5B062F5E8C7F2012D07B6,
+				0B931B4B8DEB1A1A5735FD12,
+				6F4A4823F3E1BBFC1EB878AE,
+				AABA923186D81470B8B6B41C,
+				FCD37FEEC7516D5886D12EBB,
+				21DEEF057D306BBAA1F17545,
+				EE1D905DCB2D5195E2CC455A,
+				DD5812107D213C881F5B0227,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		496AF46EC2762DDF91F78F13 /* PBXCopyFilesBuildPhase */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				03A046C9868E7DF683A009BF,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			name = "Embed App Extensions";
+		};
+		4C95F91A6D5CD87BB5DB8FDD /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFS = "";
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+				"$(inherited)",
+			);
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = "Release";
+		};
+		518DA81DB9B99529C0C0AEBE /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (				AE4ABEF48D5CF8F88DB9CE04,
+				82CF2A43A7100F086D7FCFDD,
+				9D74F0FEE640EE6B11049A7E,
+				28ECAF0875BA5C25A1D36BB2,
+				BD9039214C2D61D74846CF65,
+				EC21069A65F2CA977FE14A64,
+				547D009064F7C3F13BEF3460,
+			);
+			sourceTree = "<group>";
+		};
+		547D009064F7C3F13BEF3460 /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				84337AD8D27FCD69AF2C4FC2,
+				1B442E42980596EBCD246D51,
+			);
+			name = "Products";
+			sourceTree = "<group>";
+		};
+		5505F9AF814A7F0992DE2402 /* XCConfigurationList */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DD1C3E4BFC124D878FE440,
+				699FCDBED06EC64C8A6B513F,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		5522E08A4D890721DC2BFA94 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "text.plist.xml";
+			name = "Info.plist";
+			path = "TrollLyricsDesk/Info.plist";
+			sourceTree = "<group>";
+		};
+		699FCDBED06EC64C8A6B513F /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+			);
+			OTHER_LDFLAGS = (
+				"$(inherited)",
+				"-F$(SDKROOT)/System/Library/PrivateFrameworks",
+				"-framework",
+				"MediaRemote",
+			);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release";
+		};
+		6EFAB1ECC0D092E20FE51FCD /* PBXFrameworksBuildPhase */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1EC1FE630EABD0B29C5446FA,
+			)
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		75CB3A7FA5C11AD58711D856 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricLine.swift";
+			path = "Lyrics/LyricLine.swift";
+			sourceTree = "<group>";
+		};
+		779A8DD19473D66876760A6E /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = BAA79374B26D7FC55566EFDA;
+		};
+		7EF2517A8FE63F4681EC5EEA /* XCConfigurationList */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				969595A508627F35A110362C,
+				4C95F91A6D5CD87BB5DB8FDD,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		805E755E2BD108BEF308E612 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 8E0552BAECDB3BCFB47E0445;
+		};
+		8288C25D6913E196289FDB9F /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "text.plist.xml";
+			name = "Info.plist";
+			path = "TrollLyricsWidget/Info.plist";
+			sourceTree = "<group>";
+		};
+		82CF2A43A7100F086D7FCFDD /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				875EFB4F4F5825BF7C923752,
+				8D7DB2EFDE7A82AE21A67119,
+				5522E08A4D890721DC2BFA94,
+				0AA74765B3B0AA9557D4381E,
+			);
+			name = "TrollLyricsDesk";
+			path = "TrollLyricsDesk";
+			sourceTree = "<group>";
+		};
+		84337AD8D27FCD69AF2C4FC2 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			explicitFileType = "wrapper.application";
+			includeInIndex = 0;
+			path = "TrollLyricsDesk.app";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		875EFB4F4F5825BF7C923752 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricLogger.swift";
+			path = "TrollLyricsDesk/LyricLogger.swift";
+			sourceTree = "<group>";
+		};
+		8D7DB2EFDE7A82AE21A67119 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "folder.assetcatalog";
+			name = "Assets.xcassets";
+			path = "TrollLyricsDesk/Assets.xcassets";
+			sourceTree = "<group>";
+		};
+		8E0552BAECDB3BCFB47E0445 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricStore.swift";
+			path = "Lyrics/LyricStore.swift";
+			sourceTree = "<group>";
+		};
+		8EB251B5FEF9F9B925BE1907 /* XCConfigurationList */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D575AB479E12FC2A0F74F307,
+				F4E296410894D8ED26377CE5,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
+		8EE1902288272940B27133BD /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "WidgetView.swift";
+			path = "TrollLyricsWidget/WidgetView.swift";
+			sourceTree = "<group>";
+		};
+		933503AE1761DC1CE9E3744D /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = B5BF97F0F477B61FCDF6EF09;
+		};
+		969595A508627F35A110362C /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFS = "";
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+				"DEBUG=1",
+				"$(inherited)",
+			);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = "Debug";
+		};
+		9F24D2D2B9AF6F28DFDB9996 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "TrollLyricsWidget.swift";
+			path = "TrollLyricsWidget/TrollLyricsWidget.swift";
+			sourceTree = "<group>";
+		};
+		AE2440210090CD5DBCAD0A7C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595;
+			proxyType = 1;
+			remoteGlobalIDString = 0661F517A86C8F5C87C0EDBA;
+			remoteInfo = "TrollLyricsWidget";
+		};
+		AF9E7CE481560CF8C41F7831 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = D5C30227B891262EA40DBB04;
+		};
+		B56E96530BC9DC2EBA288692 /* PBXResourcesBuildPhase */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ( );
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5BF97F0F477B61FCDF6EF09 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "ContentView.swift";
+			path = "App/ContentView.swift";
+			sourceTree = "<group>";
+		};
+		B9C172B11C922BDC2533F6FD /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 8D7DB2EFDE7A82AE21A67119;
+		};
+		BAA79374B26D7FC55566EFDA /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "TrollLyricsDeskApp.swift";
+			path = "App/TrollLyricsDeskApp.swift";
+			sourceTree = "<group>";
+		};
+		C0DD1C3E4BFC124D878FE440 /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+			);
+			OTHER_LDFLAGS = (
+				"$(inherited)",
+				"-F$(SDKROOT)/System/Library/PrivateFrameworks",
+				"-framework",
+				"MediaRemote",
+			);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug";
+		};
+		C38AA9F8993AC07401EB9701 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "text.plist.entitlements";
+			name = "TrollLyricsWidget.entitlements";
+			path = "TrollLyricsWidget/TrollLyricsWidget.entitlements";
+			sourceTree = "<group>";
+		};
+		CA623AD6E96C2C52F42693A4 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 8EE1902288272940B27133BD;
+		};
+		D575AB479E12FC2A0F74F307 /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "TrollLyricsWidget/TrollLyricsWidget.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+				"@executable_path/../../Frameworks",
+			);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk.TrollLyricsWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug";
+		};
+		D5C30227B891262EA40DBB04 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "SettingsView.swift";
+			path = "App/SettingsView.swift";
+			sourceTree = "<group>";
+		};
+		DDE58E6DE8C3A7107DE018F9 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 16B26EED19369FAE327C9742;
+		};
+		E13FB429120342405BAC69F8 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "TrollLyricsWidgetBundle.swift";
+			path = "TrollLyricsWidget/TrollLyricsWidgetBundle.swift";
+			sourceTree = "<group>";
+		};
+		E3435DDA2687639586BF0B70 /* PBXNativeTarget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5505F9AF814A7F0992DE2402;
+			buildPhases = (
+				4821909E9BF9E73E471FEA84,
+				6EFAB1ECC0D092E20FE51FCD,
+				F667297ED3AB90EAC07798D4,
+				496AF46EC2762DDF91F78F13,
+			);
+			buildRules = ( );
+			dependencies = (
+				EE1DEC3FECAFB049B3EB4C70,
+			);
+			name = "TrollLyricsDesk";
+			productName = "TrollLyricsDesk";
+			productReference = 84337AD8D27FCD69AF2C4FC2;
+			productType = "com.apple.product-type.application";
+		};
+		EC21069A65F2CA977FE14A64 /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				9F24D2D2B9AF6F28DFDB9996,
+				8EE1902288272940B27133BD,
+				E13FB429120342405BAC69F8,
+				8288C25D6913E196289FDB9F,
+				C38AA9F8993AC07401EB9701,
+			);
+			name = "TrollLyricsWidget";
+			path = "TrollLyricsWidget";
+			sourceTree = "<group>";
+		};
+		EE1DEC3FECAFB049B3EB4C70 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0661F517A86C8F5C87C0EDBA;
+			targetProxy = AE2440210090CD5DBCAD0A7C;
+		};
+		F4E296410894D8ED26377CE5 /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "TrollLyricsWidget/TrollLyricsWidget.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+				"@executable_path/../../Frameworks",
+			);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk.TrollLyricsWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release";
+		};
+		F667297ED3AB90EAC07798D4 /* PBXResourcesBuildPhase */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B9C172B11C922BDC2533F6FD,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F7439C015FB65F1255275CC9 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 875EFB4F4F5825BF7C923752;
+		};
+		FA1547BE6665B5B7A6F44013 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 8E0552BAECDB3BCFB47E0445;
+		};
+		053A923D6F7E0C764EED0AD8 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "MusicTrack.swift";
+			path = "MusicProviders/MusicTrack.swift";
+			sourceTree = "<group>";
+		};
+		EA7013E51E12FAD9F3D57AFE /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 053A923D6F7E0C764EED0AD8;
+		};
+		6055343D06D8E9EAD5B6E21C /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "NetEaseAdapter.swift";
+			path = "MusicProviders/NetEaseAdapter.swift";
+			sourceTree = "<group>";
+		};
+		7FFFABB19112DCA3F5BF0614 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 6055343D06D8E9EAD5B6E21C;
+		};
+		D9D3626C46186711AAD2E6FC /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "QQMusicAdapter.swift";
+			path = "MusicProviders/QQMusicAdapter.swift";
+			sourceTree = "<group>";
+		};
+		39823A3A426E23B5CA106498 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = D9D3626C46186711AAD2E6FC;
+		};
+		98857288F7DA7A7CFBB7B5F5 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LRCLibClient.swift";
+			path = "Lyrics/LRCLibClient.swift";
+			sourceTree = "<group>";
+		};
+		20BBD06BF1BA1D6A9109BC0A /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 98857288F7DA7A7CFBB7B5F5;
+		};
+		C5804B63D538707624047F54 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LocalLRCImporter.swift";
+			path = "Lyrics/LocalLRCImporter.swift";
+			sourceTree = "<group>";
+		};
+		02A74E8FB4C81A26B3FEF233 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = C5804B63D538707624047F54;
+		};
+		F66887D7CE8530865B6EA804 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricsSearchView.swift";
+			path = "App/LyricsSearchView.swift";
+			sourceTree = "<group>";
+		};
+		7EFF6DE70C4084586B490205 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = F66887D7CE8530865B6EA804;
+		};
+		28ECAF0875BA5C25A1D36BB2 /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (				053A923D6F7E0C764EED0AD8,
+				6055343D06D8E9EAD5B6E21C,
+				D9D3626C46186711AAD2E6FC,
+				EF9B402A958DCAD9996E4E1F,
+				0C29F9E72757F396FB7043CF,
+				A1368DE2883A1131B5FB796C,
+			);
+			name = "MusicProviders";
+			path = "MusicProviders";
+			sourceTree = "<group>";
+		};
+		D4A44524DE66F42C6367AC6A /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "PlaybackState.swift";
+			path = "PlaybackEngine/PlaybackState.swift";
+			sourceTree = "<group>";
+		};
+		6A9901F5FCD567967120B084 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "PlaybackAdapter.swift";
+			path = "PlaybackEngine/PlaybackAdapter.swift";
+			sourceTree = "<group>";
+		};
+		6038967E13DB67BD18CA8497 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "PlaybackCoordinator.swift";
+			path = "PlaybackEngine/PlaybackCoordinator.swift";
+			sourceTree = "<group>";
+		};
+		73293C10668581785FDEF158 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LyricMatcher.swift";
+			path = "PlaybackEngine/LyricMatcher.swift";
+			sourceTree = "<group>";
+		};
+		EF9B402A958DCAD9996E4E1F /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "AppleMusicAdapter.swift";
+			path = "MusicProviders/AppleMusicAdapter.swift";
+			sourceTree = "<group>";
+		};
+		A1368DE2883A1131B5FB796C /* MediaRemoteAdapter.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "MediaRemoteAdapter.swift";
+			path = "MusicProviders/MediaRemoteAdapter.swift";
+			sourceTree = "<group>";
+		};
+		0C29F9E72757F396FB7043CF /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "ExternalTrackInput.swift";
+			path = "MusicProviders/ExternalTrackInput.swift";
+			sourceTree = "<group>";
+		};
+		67E34E88AD31EF35553B75A1 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "PlaybackDashboardView.swift";
+			path = "App/PlaybackDashboardView.swift";
+			sourceTree = "<group>";
+		};
+		DCD5B062F5E8C7F2012D07B6 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = D4A44524DE66F42C6367AC6A;
+		};
+		0B931B4B8DEB1A1A5735FD12 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 6A9901F5FCD567967120B084;
+		};
+		6F4A4823F3E1BBFC1EB878AE /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 6038967E13DB67BD18CA8497;
+		};
+		AABA923186D81470B8B6B41C /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 73293C10668581785FDEF158;
+		};
+		FCD37FEEC7516D5886D12EBB /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = EF9B402A958DCAD9996E4E1F;
+		};
+		DD5812107D213C881F5B0227 /* MediaRemoteAdapter.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = A1368DE2883A1131B5FB796C /* MediaRemoteAdapter.swift */;
+		};
+		21DEEF057D306BBAA1F17545 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 0C29F9E72757F396FB7043CF;
+		};
+		EE1D905DCB2D5195E2CC455A /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 67E34E88AD31EF35553B75A1;
+		};
+		989E25F9A1CCED4919EFEA31 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = wrapper.framework;
+			name = MediaPlayer.framework;
+			path = System/Library/Frameworks/MediaPlayer.framework;
+			sourceTree = SDKROOT;
+		};
+		1EC1FE630EABD0B29C5446FA /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 989E25F9A1CCED4919EFEA31;
+		};
+		AE4ABEF48D5CF8F88DB9CE04 /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				BAA79374B26D7FC55566EFDA,
+				B5BF97F0F477B61FCDF6EF09,
+				67E34E88AD31EF35553B75A1,
+				F66887D7CE8530865B6EA804,
+				D5C30227B891262EA40DBB04,
+			);
+			name = "App";
+			path = "App";
+			sourceTree = "<group>";
+		};
+		9D74F0FEE640EE6B11049A7E /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				D4A44524DE66F42C6367AC6A,
+				6A9901F5FCD567967120B084,
+				6038967E13DB67BD18CA8497,
+				73293C10668581785FDEF158,
+			);
+			name = "PlaybackEngine";
+			path = "PlaybackEngine";
+			sourceTree = "<group>";
+		};
+		BD9039214C2D61D74846CF65 /* PBXGroup */ = {
+			isa = PBXGroup;
+			children = (
+				75CB3A7FA5C11AD58711D856,
+				16B26EED19369FAE327C9742,
+				8E0552BAECDB3BCFB47E0445,
+				C5804B63D538707624047F54,
+				98857288F7DA7A7CFBB7B5F5,
+			);
+			name = "Lyrics";
+			path = "Lyrics";
+			sourceTree = "<group>";
+		};
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595;
+}

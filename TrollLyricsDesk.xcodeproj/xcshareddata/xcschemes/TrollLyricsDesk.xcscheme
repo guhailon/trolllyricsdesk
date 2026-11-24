@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1500"
+   version = "1.7">
+	<BuildAction
+		parallelizeBuildables = "YES"
+		buildImplicitDependencies = "YES">
+		<BuildActionEntries>
+			<BuildActionEntry
+				buildForTesting = "YES"
+				buildForRunning = "YES"
+				buildForProfiling = "YES"
+				buildForArchiving = "YES"
+				buildForAnalyzing = "YES">
+				<BuildableReference
+					BuildableIdentifier = "primary"
+					BlueprintIdentifier = "E3435DDA2687639586BF0B70"
+					BuildableName = "TrollLyricsDesk.app"
+					BlueprintName = "TrollLyricsDesk"
+					ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
+				</BuildableReference>
+			</BuildActionEntry>
+			<BuildActionEntry
+				buildForTesting = "YES"
+				buildForRunning = "YES"
+				buildForProfiling = "YES"
+				buildForArchiving = "YES"
+				buildForAnalyzing = "YES">
+				<BuildableReference
+					BuildableIdentifier = "primary"
+					BlueprintIdentifier = "0661F517A86C8F5C87C0EDBA"
+					BuildableName = "TrollLyricsWidget.appex"
+					BlueprintName = "TrollLyricsWidget"
+					ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
+				</BuildableReference>
+			</BuildActionEntry>
+		</BuildActionEntries>
+	</BuildAction>
+	<LaunchAction
+		buildConfiguration = "Debug"
+		selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+		selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+		launchStyle = "0"
+		useCustomWorkingDirectory = "NO"
+		ignoresPersistentStateOnLaunch = "NO"
+		debugDocumentVersioning = "YES"
+		debugServiceExtension = "internal"
+		allowLocationSimulation = "YES">
+		<BuildableProductRunnable
+			runnableDebuggingMode = "0">
+			<BuildableReference
+				BuildableIdentifier = "primary"
+				BlueprintIdentifier = "E3435DDA2687639586BF0B70"
+				BuildableName = "TrollLyricsDesk.app"
+				BlueprintName = "TrollLyricsDesk"
+				ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
+			</BuildableReference>
+		</BuildableProductRunnable>
+	</LaunchAction>
+	<ProfileAction
+		buildConfiguration = "Release"
+		shouldUseLaunchSchemeArgsEnv = "YES"
+		savedToolIdentifier = ""
+		useCustomWorkingDirectory = "NO"
+		debugDocumentVersioning = "YES">
+		<BuildableProductRunnable
+			runnableDebuggingMode = "0">
+			<BuildableReference
+				BuildableIdentifier = "primary"
+				BlueprintIdentifier = "E3435DDA2687639586BF0B70"
+				BuildableName = "TrollLyricsDesk.app"
+				BlueprintName = "TrollLyricsDesk"
+				ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
+			</BuildableReference>
+		</BuildableProductRunnable>
+	</ProfileAction>
+	<AnalyzeAction
+		buildConfiguration = "Debug">
+	</AnalyzeAction>
+	<ArchiveAction
+		buildConfiguration = "Release"
+		revealArchiveInOrganizer = "YES">
+	</ArchiveAction>
+</Scheme>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Groups：跟 App 用同一个组 group.com.hailong.TrollLyricsDesk
+	     共享歌词状态（见 Lyrics/LyricStore.swift 的 groupID）。 -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hailong.TrollLyricsDesk</string>
+	</array>
+</dict>
+</plist>

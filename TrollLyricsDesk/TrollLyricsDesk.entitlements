@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Groups：App 和 Widget 共用 group.com.hailong.TrollLyricsDesk
+	     共享歌词状态（见 Lyrics/LyricStore.swift 的 groupID）。 -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hailong.TrollLyricsDesk</string>
+	</array>
+	<!-- 跟随播放读正在放的歌要用的两项（LyricFever #94 里 Mx-Iris 对
+	     mediaremoted 的逆向：读权限就看这两个；iOS 16.5 查不查，
+	     只有真机说了算——读不到就留在自己的歌上，只记日志）。
+	     注意：这两个不是标准 entitlements，Xcode 正常签名会报；
+	     本项目走 TrollStore 路线：xcodebuild 不签名导出，
+	     再用 ldid 按这个文件签名（见 .github/workflows/build.yml）。 -->
+	<key>com.apple.mediaremote.now-playing-read-access</key>
+	<true/>
+	<key>com.apple.mediaremote.full-now-playing-read-access</key>
+	<true/>
+</dict>
+</plist>

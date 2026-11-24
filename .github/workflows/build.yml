@@ -1,0 +1,69 @@
+# TrollStore 云端编译：TrollLyricsDesk v1.0.0
+# 做法照分屏那套（macOS runner + ldid，不需要任何密钥/ Secret，不需要 Mac）。
+# 区别：这是 Xcode 工程（SwiftUI App + Widget Extension），不用 Theos；
+# 先 xcodebuild 不签名导出（archive），再用 ldid 按 entitlements 签名，
+# 最后打成 .ipa。推代码就自动跑；跑完在该次运行的 Artifacts 里下载
+# TrollLyricsDesk-1.0.0.ipa。
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Install ldid
+        uses: dhinakg/procursus-action@main
+        with:
+          packages: ldid
+
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild -project TrollLyricsDesk.xcodeproj \
+            -scheme TrollLyricsDesk \
+            -configuration Release \
+            -archivePath build/TrollLyricsDesk.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Verify archive layout
+        run: |
+          APP=build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app
+          ls -la "$APP"
+          ls -la "$APP/PlugIns/"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/PlugIns/TrollLyricsWidget.appex/Info.plist"
+
+      - name: Sign with ldid (TrollStore)
+        run: |
+          APP=build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app
+          ldid -S TrollLyricsDesk/TrollLyricsDesk.entitlements "$APP/TrollLyricsDesk"
+          ldid -S TrollLyricsWidget/TrollLyricsWidget.entitlements "$APP/PlugIns/TrollLyricsWidget.appex/TrollLyricsWidget"
+          echo "--- app entitlements ---"
+          ldid -e "$APP/TrollLyricsDesk"
+          echo "--- widget entitlements ---"
+          ldid -e "$APP/PlugIns/TrollLyricsWidget.appex/TrollLyricsWidget"
+
+      - name: Package IPA
+        run: |
+          rm -rf Payload TrollLyricsDesk-1.0.0.ipa
+          mkdir Payload
+          cp -r build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app Payload/
+          zip -qr TrollLyricsDesk-1.0.0.ipa Payload
+          ls -la TrollLyricsDesk-1.0.0.ipa
+          unzip -l TrollLyricsDesk-1.0.0.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrollLyricsDesk-1.0.0
+          path: TrollLyricsDesk-1.0.0.ipa
