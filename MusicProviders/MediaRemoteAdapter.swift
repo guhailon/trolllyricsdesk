@@ -26,6 +26,8 @@ private let bridge = MediaRemoteBridge()
 private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
 private var fetching = false
+private var requestStarted = Date.distantPast
+private var requestID = UUID()
 
 /// 缓存保鲜 0.3 秒：换歌/开始播放要「即播即显」，2 秒缓存会让歌词慢半拍。
 /// MediaRemote 是本机 XPC，读取很快，0.3 秒足够去重且不会拖慢检测。
@@ -35,7 +37,7 @@ func currentState() -> PlaybackState? {
 
 refreshIfNeeded()
 
-guard let info = cachedInfo else {
+guard let info = cachedInfo, let cachedAt, Date().timeIntervalSince(cachedAt) < 3 else {
 return nil
 }
 
@@ -63,18 +65,13 @@ let rate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double
 ?? 0
 
 // 时间戳反推当前进度（和歌词墙跟随同一公式）。
-let position: TimeInterval
-if let timestamp {
-position = max(
-0,
-Date().timeIntervalSince(timestamp) + elapsed
-)
-} else {
-position = max(0, elapsed)
-}
-
-let status: PlaybackStatus =
-rate == 0 ? .paused : .playing
+let now = Date()
+let safeRate = rate.isFinite ? rate : 0
+let safeElapsed = elapsed.isFinite ? max(0, elapsed) : 0
+let delta = timestamp.map { max(0, now.timeIntervalSince($0)) } ?? 0
+let projected = max(0, safeElapsed + delta * safeRate)
+let position = duration.flatMap { $0.isFinite && $0 > 0 ? min(projected, $0) : nil } ?? projected
+let status: PlaybackStatus = safeRate == 0 ? .paused : .playing
 
 // 歌名先清洗再查词（面板上显示的也是清洗后的名字）。
 let title = Self.cleanTitle(rawTitle)
@@ -93,13 +90,13 @@ track: track,
 status: status,
 position: position,
 duration: duration,
-observedAt: Date()
+observedAt: now
 )
 }
 
 private func refreshIfNeeded() {
 
-if fetching {
+if fetching && Date().timeIntervalSince(requestStarted) < 2 {
 return
 }
 
@@ -109,6 +106,9 @@ return
 }
 
 fetching = true
+requestStarted = Date()
+requestID = UUID()
+let token = requestID
 
 guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingInfo) else {
     fetching = false
@@ -120,7 +120,7 @@ DispatchQueue.global(qos: .background)
 ) { [weak self] info in
 
 Task { @MainActor in
-guard let self else { return}
+guard let self, self.requestID == token else { return }
 
 self.cachedInfo = info as? [String: Any]
 self.cachedAt = Date()

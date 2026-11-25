@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk lockscreen lyrics (1.0.0 build 16, overlay-base):
+"""Verify TrollLyricsDesk lockscreen lyrics (1.0.4 build 17, overlay-base):
 A Live Activities + B lock-screen widget, per hidden_files/lockscreen-design/PLAN.md §6.
-Build 16 = ChatGPT 审查修复（P0＋P1＋P2 小项，见 PLAN/REVIEW 全文）。
+Build 17 = Engine V2 并进锁屏线（build 16 锁屏修复＋1.0.4 引擎重做，版本 1.0.4）。
 
 FAILED: none is the goal. OPEN items are recorded, not failures:
 things that cannot be verified on Linux (macOS compile, device) or that
@@ -135,9 +135,9 @@ for rel in ["LiveActivity/LyricsLiveActivity.swift",
 print("\n== 2. 版本 / MinOS ==")
 for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
-    check(f"{rel}: version 1.0.0", pl.get("CFBundleShortVersionString") == "1.0.0",
+    check(f"{rel}: version 1.0.4", pl.get("CFBundleShortVersionString") == "1.0.4",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 16", pl.get("CFBundleVersion") == "16",
+    check(f"{rel}: build 17", pl.get("CFBundleVersion") == "17",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -147,6 +147,50 @@ check("app Info.plist: NSSupportsLiveActivities = true",
       app_pl.get("NSSupportsLiveActivities") is True)
 check("app Info.plist: bundle id still Desk2",
       app_pl.get("CFBundleIdentifier") == "com.hailong.TrollLyricsDesk2")
+
+print("\n== 2.5 Engine V2（1.0.4 引擎重做，并进锁屏线） ==")
+# 底子是皇上的 1.0.0 副本；改的 4 个文件照搬，coordinator 上重新接了锁屏。
+# 注意：这条线（overlay-base／lockscreen）的 pbxproj 用 .tbd 直链（OTHER_LDFLAGS 里
+# 4 个 .tbd 路径），没有 dynamic_lookup——overlay-base run 45665147066 已编过；
+# dynamic_lookup 是 v1.0.6 那条线的写法，两条线不要混。
+for rel in ["Tests/MatcherChecks.swift", "Tests/run-matcher.sh", "ENGINE_V2.md"]:
+    check(f"exists: {rel}", os.path.exists(os.path.join(ROOT, rel)))
+build_yml = read(".github/workflows/build.yml")
+check("build.yml: artifact 桌面歌词-1.0.4",
+      "name: 桌面歌词-1.0.4" in build_yml
+      and "path: 桌面歌词-1.0.4.ipa" in build_yml)
+_e2pc = read("PlaybackEngine/PlaybackCoordinator.swift")
+check("Engine V2 coordinator: nextPoll gating 0.25/0.75",
+      "nextPoll = now.addingTimeInterval" in _e2pc
+      and "state?.status == .playing ? 0.25 : 0.75" in _e2pc
+      and "newState.status == .playing ? 0.25 : 0.75" in _e2pc)
+check("Engine V2 coordinator: generation UUID + token guards stale search",
+      "private var generation = UUID()" in _e2pc
+      and "let token = generation" in _e2pc
+      and "generation == token" in _e2pc)
+check("Engine V2 coordinator: 2s missing cleanup (freezeSnapshot clearLyrics)",
+      "missingSince" in _e2pc
+      and "timeIntervalSince(missingSince) >= 2" in _e2pc
+      and "freezeSnapshot(clearLyrics: true)" in _e2pc)
+check("Engine V2 coordinator: 0.8s re-anchor (同曲进度跳转，审查第 7 项已实现）",
+      "syncPlaybackState(newState, previous: previous, reloadWidget: false)" in _e2pc
+      and "abs(LyricStore.currentElapsed(snapshot, at: newState.observedAt) - newState.position) > 0.8" in _e2pc)
+check("Engine V2 coordinator: cache hit skips network search",
+      "LyricStore.cachedLyrics(title: newState.track.title, artist: newState.track.artist) == nil" in _e2pc)
+_ad = read("MusicProviders/MediaRemoteAdapter.swift")
+check("Engine V2 adapter: pause stops progress accumulation (rate 0)",
+      "delta * safeRate" in _ad and "safeRate == 0 ? .paused" in _ad)
+check("Engine V2 adapter: cache expiry 3s + timeout retry fields",
+      "Date().timeIntervalSince(cachedAt) < 3" in _ad
+      and "requestStarted" in _ad and "requestID" in _ad)
+_lm = read("PlaybackEngine/LyricMatcher.swift")
+check("Engine V2 matcher: 80-point threshold + strict title/artist + 15s duration",
+      "score($0, track: track) >= 80" in _lm
+      and "guard targetTitle == resultTitle else { return 0 }" in _lm
+      and "abs(duration - record.duration) > 15" in _lm)
+_ls = read("Lyrics/LyricStore.swift")
+check("Engine V2 store: no negative time delta",
+      "max(0, date.timeIntervalSince(snapshot.startedAt))" in _ls)
 
 print("\n== 3. 路子 A：Live Activities ==")
 live = read("LiveActivity/LyricsLiveActivity.swift")
@@ -239,7 +283,7 @@ check("coordinator: staleDate = next line + 5s",
       "addingTimeInterval(nextIn + 5)" in pc)
 check("coordinator: call sites guarded by if #available(iOS 16.1, *)",
       "if #available(iOS 16.1, *)" in pc)
-check("coordinator: poll() detection logic untouched (no-state branch still returns early)",
+check("coordinator: poll() no-state branch still returns early (Engine V2)",
       'message = "没有检测到可读取的音乐"' in pc)
 
 cv = read("App/ContentView.swift")
@@ -305,11 +349,18 @@ check("pbxproj: ActivityKit weak-linked (4x: App 2 + Widget 2)",
       f"weak={pbx.count(chr(34) + '-weak_framework' + chr(34))}")
 check("pbxproj: no strong ActivityKit link phase entry",
       "ActivityKit.framework" not in pbx)
+check("pbxproj: .tbd direct links kept (overlay-base line), no dynamic_lookup",
+      pbx.count("$(SRCROOT)/Overlay/Private/FrontBoard.tbd") == 2
+      and pbx.count("$(SRCROOT)/Overlay/Private/FrontBoardServices.tbd") == 2
+      and pbx.count("$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd") == 2
+      and pbx.count("$(SRCROOT)/Overlay/Private/AppleAccount.tbd") == 2
+      and "dynamic_lookup" not in pbx,
+      "dynamic_lookup present" if "dynamic_lookup" in pbx else "tbd x4 in App configs")
 check("pbxproj: MinOS still 15.0 everywhere",
       "IPHONEOS_DEPLOYMENT_TARGET = 15.0" in pbx
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: MARKETING_VERSION still 1.0.0",
-      "MARKETING_VERSION = 1.0.0" in pbx)
+check("pbxproj: MARKETING_VERSION still 1.0.4",
+      "MARKETING_VERSION = 1.0.4" in pbx)
 _resolved = pbx_resolved_files(pbx)
 for f in ["LiveActivity/LyricsLiveActivity.swift",
           "PlaybackEngine/LyricsLiveActivityController.swift"]:
@@ -360,11 +411,14 @@ for f in ["LiveActivity/LyricsLiveActivity.swift",
 
 print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
-          "build 16 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
-          "展开区、if #available 组合条件，都要 macOS 构建那一步才见分晓")
+          "build 17 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
+          "展开区、if #available 组合条件、Engine V2 的新 coordinator，都要 macOS 构建那一步才见分晓")
 open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")
+open_item("Engine V2 的 .tbd 直链在新 Xcode 下能不能编（已知：overlay-base 编过）",
+          "这条线 pbxproj 用 .tbd 直链（无 dynamic_lookup），overlay-base run 45665147066 "
+          "已在云端编过；若将来 Xcode 升级导致链接失败，再改回 dynamic_lookup 那套")
 open_item("Activity 更新会不会被系统节流（PLAN §8.1）",
           "设计上变行才推（一行 4–5 秒一次）远低于上限，理论上不会被节流；"
           "iOS 27 下的实际节流阈值没验过，真机连续听 10 首歌看横幅跟不跟")
@@ -392,14 +446,26 @@ open_item("iPhone 11 没有常亮显示（PLAN §8.10）",
           "「关屏一直显示」在 iPhone 11 上做不到，任何路子都做不到；只有 15 Pro 的常亮显示能做到")
 open_item("真机必验 12 项（PLAN §7）都没验",
           "横幅／灵动岛三态／常亮／限流／滑掉同步／暂停／LiveContainer／小组件添加与延迟／外观／iOS 15")
-open_item("同曲进度跳转同步（审查第 7 项，未做，独立修复）",
-          "同一首歌内拖动进度条、播放状态不变时，快照可能仍沿用旧时间基准；"
-          "这也影响原有桌面歌词，审查建议独立处理，等皇上定再做")
+open_item("同曲进度跳转同步（Engine V2 已实现 0.8 秒重锚，等真机验）",
+          "同一首歌内拖动进度条、播放状态不变时，Engine V2 用 0.8 秒偏差重锚 "
+          "syncPlaybackState(reloadWidget: false)；这也影响原有桌面歌词，等皇上真机拖进度条验")
+open_item("Engine V2 严格匹配可能漏别名（ChatGPT 自认限制）",
+          "80 分门槛＋歌名必须完全一致，别名／不同语言歌词可能被拒；真机多听几首带别名的歌看")
+open_item("旧缓存可能串同名不同版本（ChatGPT 自认限制）",
+          "缓存仍按歌名＋歌手区分，不同版本同名歌可能串词；真机注意")
+open_item("非 1 倍速播放仍按 1 倍速推进（ChatGPT 自认限制）",
+          "Engine V2 只靠周期校准，倍速下歌词仍会飘")
+open_item("Tests 的 5 项匹配断言这台机跑不了（没 swiftc）",
+          "MatcherChecks.swift 读过（正确／错歌名／错歌手／错时长／纯音乐 5 项），"
+          "需 macOS 上 swiftc 跑 Tests/run-matcher.sh")
+open_item("2 秒读不到歌清快照时不推锁屏（已知出入）",
+          "Engine V2 的 no-state 2 秒清理会清掉快照标题／歌词，但 publishLiveLyrics "
+          "没在那条分支推——锁屏上会留着旧词直到下一首歌；不推是为避免推空标题的「♪ 」占位")
 open_item("默认白色在浅色锁屏上清不清晰（ChatGPT 问题 4，需真机）",
           "第 51、110 行默认白色在浅色／深色锁屏背景下不一定清晰，真机测了再定要不要改默认色")
 open_item("横幅与展开态两套布局，未按设计共用三行歌词子视图（已知出入）",
           "设计原文要求共用，实际代码是两套布局——不是编译错误，与设计原文不一致；"
-          "统一是重构项，build 16 先不动，等皇上定")
+          "统一是重构项，build 17 先不动，等皇上定")
 
 print()
 print("FAILED:", fails if fails else "none")

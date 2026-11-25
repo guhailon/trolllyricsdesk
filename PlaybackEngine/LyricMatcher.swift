@@ -16,7 +16,8 @@ struct LyricMatcher {
                 && $0.instrumental != true
         }
 
-        return candidates.max { lhs, rhs in
+        let eligible = candidates.filter { score($0, track: track) >= 80 }
+        return eligible.max { lhs, rhs in
 
             score(lhs, track: track)
                 < score(rhs, track: track)
@@ -44,6 +45,11 @@ struct LyricMatcher {
         let resultTitle = normalize(record.trackName)
         let resultArtist = normalize(record.artistName)
 
+        guard !targetTitle.isEmpty, !resultTitle.isEmpty else { return 0 }
+        guard targetTitle == resultTitle else { return 0 }
+        guard !targetArtist.isEmpty, !resultArtist.isEmpty,
+              targetArtist == resultArtist || targetArtist.contains(resultArtist) || resultArtist.contains(targetArtist) else { return 0 }
+        if let duration = track.duration, duration > 0, record.duration > 0, abs(duration - record.duration) > 15 { return 0 }
         var value = 0.0
 
         if targetTitle == resultTitle {
@@ -53,10 +59,10 @@ struct LyricMatcher {
             value += 30
         }
 
-        if targetArtist == resultArtist {
+        if !targetArtist.isEmpty && targetArtist == resultArtist {
             value += 40
-        } else if resultArtist.contains(targetArtist)
-            || targetArtist.contains(resultArtist) {
+        } else if !targetArtist.isEmpty && !resultArtist.isEmpty && (resultArtist.contains(targetArtist)
+            || targetArtist.contains(resultArtist)) {
             value += 20
         }
 

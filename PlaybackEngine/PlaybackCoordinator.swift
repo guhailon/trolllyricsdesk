@@ -13,20 +13,10 @@ final class PlaybackCoordinator: ObservableObject {
     private var timer: Timer?
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
-
-    /// 播放状态检测间隔：播放中 0.25 秒（即播即显）；
-    /// 空闲时 1.0 秒（节能：没歌或暂停时一直 0.25 秒问 MediaRemote，费电）。
-    private let activePollInterval: TimeInterval = 0.25
-    private let idlePollInterval: TimeInterval = 1.0
-
-    private var pollInterval: TimeInterval = 0.25
-
-    /// 连续多少次轮询没读到歌；满 4 次（约 1 秒）才降到空闲档，
-    /// 刚切歌/刚开始播的那 1 秒内保持 0.25 秒快档，不漏歌。
-    private var idlePolls = 0
-
-    /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
-    private var searchTask: Task<Void, Never>?
+    private var missingSince: Date?
+    private var generation = UUID()
+    private var running = false
+    private var nextPoll = Date.distantPast
 
     /// 锁屏歌词（路子 A）：上一次推给 Live Activity 的完整状态＋Activity id；
     /// 状态没变不推（系统限流：歌词一行 4–5 秒才切一次，远低于每秒一次的上限）。
@@ -34,6 +24,9 @@ final class PlaybackCoordinator: ObservableObject {
     /// Activity 换实例都会推；一行没变时不推。
     private var lastLiveState: LyricsLiveAttributes.ContentState?
     private var lastLiveActivityID: String?
+
+    /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
+    private var searchTask: Task<Void, Never>?
 
     init(adapter: any PlaybackAdapter) {
         self.adapter = adapter
@@ -43,23 +36,41 @@ final class PlaybackCoordinator: ObservableObject {
 
         stop()
 
+        running = true
         message = "正在检测音乐..."
         LyricLogger.log("开始检测音乐")
 
         // 立即检测一次，不等第一个 tick —— 打开 App/点开始时立刻出画面
         poll()
 
-        scheduleTimer(interval: activePollInterval)
+        // 0.25 秒轮询：播放一开始就能在 1/4 秒内捕获，做到「即播即显」
+        let pollingTimer = Timer(
+            withTimeInterval: 0.25,
+            repeats: true
+        ) { [weak self] _ in
+
+            Task { @MainActor in
+                self?.poll()
+            }
+        }
+        timer = pollingTimer
+        RunLoop.main.add(pollingTimer, forMode: .common)
     }
 
     func stop() {
 
+        running = false
+        generation = UUID()
+        lastTrackKey = nil
+        lastStatus = nil
+        missingSince = nil
+        nextPoll = .distantPast
+        state = nil
+        freezeSnapshot()
         timer?.invalidate()
         timer = nil
         searchTask?.cancel()
         searchTask = nil
-        idlePolls = 0
-        pollInterval = activePollInterval
     }
 
     /// 检测引擎是否在跑（timer 在位）。锁屏开关用 ensureRunning() 幂等启动，
@@ -72,46 +83,27 @@ final class PlaybackCoordinator: ObservableObject {
         }
     }
 
-    private func scheduleTimer(interval: TimeInterval) {
-
-        timer?.invalidate()
-        pollInterval = interval
-
-        timer = Timer.scheduledTimer(
-            withTimeInterval: interval,
-            repeats: true
-        ) { [weak self] _ in
-
-            Task { @MainActor in
-                self?.poll()
-            }
-        }
-    }
-
     private func poll() {
 
+        let now = Date()
+        guard running, now >= nextPoll else { return }
+        nextPoll = now.addingTimeInterval(state?.status == .playing ? 0.25 : 0.75)
         guard let newState = adapter.currentState() else {
-            message = "没有检测到可读取的音乐"
-
-            // 空闲节能：连续 4 次读不到歌（约 1 秒），降到 1.0 秒档。
-            idlePolls += 1
-            if idlePolls >= 4 && pollInterval != idlePollInterval {
-                scheduleTimer(interval: idlePollInterval)
+            if missingSince == nil { missingSince = now }
+            if let missingSince, now.timeIntervalSince(missingSince) >= 2 {
+                if state != nil || lastTrackKey != nil || LyricStore.load()?.title.isEmpty == false { freezeSnapshot(clearLyrics: true) }
+                generation = UUID()
+                searchTask?.cancel()
+                searchTask = nil
+                state = nil
+                lastTrackKey = nil
+                lastStatus = nil
+                message = "没有检测到可读取的音乐"
             }
-
             return
         }
-
-        idlePolls = 0
-
-        // 空闲节能：暂停/停止时降到 1.0 秒档；恢复播放立刻回 0.25 秒档。
-        if newState.status == .playing {
-            if pollInterval != activePollInterval {
-                scheduleTimer(interval: activePollInterval)
-            }
-        } else if pollInterval != idlePollInterval {
-            scheduleTimer(interval: idlePollInterval)
-        }
+        missingSince = nil
+        nextPoll = now.addingTimeInterval(newState.status == .playing ? 0.25 : 0.75)
 
         let previous = state
         state = newState
@@ -134,8 +126,12 @@ final class PlaybackCoordinator: ObservableObject {
             // 命中本地缓存则直接带歌词 -> 桌面歌词与播放同时出现。
             publishImmediately(newState)
 
-            searchTask = Task {
-                await loadLyrics(for: newState.track)
+            generation = UUID()
+            let token = generation
+            if LyricStore.cachedLyrics(title: newState.track.title, artist: newState.track.artist) == nil {
+                searchTask = Task {
+                    await loadLyrics(for: newState.track, token: token)
+                }
             }
 
             // 换歌立刻推一次新歌（标题／♪ 占位），不等下一轮 poll。
@@ -171,9 +167,14 @@ final class PlaybackCoordinator: ObservableObject {
             syncPlaybackState(newState, previous: previous)
 
             LyricLogger.log(message)
+        } else if let snapshot = LyricStore.load(),
+                  snapshot.title == newState.track.title,
+                  snapshot.artist == newState.track.artist,
+                  abs(LyricStore.currentElapsed(snapshot, at: newState.observedAt) - newState.position) > 0.8 {
+            syncPlaybackState(newState, previous: previous, reloadWidget: false)
         }
 
-        // ---- 锁屏歌词（路子 A）：变行才推给 Live Activity ----
+        // ---- 锁屏歌词（路子 A）：完整状态变了才推给 Live Activity ----
         publishLiveLyrics()
     }
 
@@ -273,6 +274,17 @@ final class PlaybackCoordinator: ObservableObject {
         text.count > 120 ? String(text.prefix(120)) : text
     }
 
+    private func freezeSnapshot(clearLyrics: Bool = false) {
+        guard var snapshot = LyricStore.load() else { return }
+        let now = Date()
+        snapshot.elapsedWhenPaused = LyricStore.currentElapsed(snapshot, at: now)
+        snapshot.startedAt = now
+        snapshot.isPlaying = false
+        if clearLyrics { snapshot.lyrics = []; snapshot.title = ""; snapshot.artist = "" }
+        LyricStore.save(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     /// 检测到新歌时立即发布快照：进度基准对齐当前 position，
     /// 歌词优先用本地缓存，没有就留空（等联网结果），但歌名/进度不延迟。
     private func publishImmediately(_ newState: PlaybackState) {
@@ -292,7 +304,7 @@ final class PlaybackCoordinator: ObservableObject {
             title: title,
             artist: artist,
             lyrics: cached ?? [],
-            startedAt: Date(),
+            startedAt: newState.observedAt,
             isPlaying: newState.status == .playing,
             elapsedWhenPaused: newState.position,
             opacity: opacity,
@@ -311,7 +323,8 @@ final class PlaybackCoordinator: ObservableObject {
     /// 播放/暂停切换：更新快照里的进度基准，保证歌词跟着真实进度走。
     private func syncPlaybackState(
         _ newState: PlaybackState,
-        previous: PlaybackState?
+        previous: PlaybackState?,
+        reloadWidget: Bool = true
     ) {
         guard var snapshot = LyricStore.load() else {
             return
@@ -334,12 +347,12 @@ final class PlaybackCoordinator: ObservableObject {
             elapsed = newState.position
         }
 
-        snapshot.startedAt = Date()
+        snapshot.startedAt = newState.observedAt
         snapshot.elapsedWhenPaused = elapsed
         snapshot.isPlaying = newState.status == .playing
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if reloadWidget { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     private func currentAppearance() -> (opacity: Double, fontSize: Double) {
@@ -350,9 +363,10 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     private func loadLyrics(
-        for track: MusicTrack
+        for track: MusicTrack, token: UUID
     ) async {
 
+        guard running, generation == token, !Task.isCancelled else { return }
         message = "正在搜索歌词：\(track.title)"
 
         do {
@@ -362,6 +376,7 @@ final class PlaybackCoordinator: ObservableObject {
             )
 
             try Task.checkCancellation()
+            guard running, generation == token else { return }
 
             guard
                 let result = LyricMatcher.bestMatch(
@@ -388,7 +403,7 @@ final class PlaybackCoordinator: ObservableObject {
             }
 
             // 防止搜索期间歌曲已经切换
-            guard state?.trackKey == trackKey(track) else {
+            guard running, generation == token, state?.trackKey == trackKey(track) else {
                 return
             }
 
@@ -412,7 +427,7 @@ final class PlaybackCoordinator: ObservableObject {
             return
 
         } catch {
-
+            guard running, generation == token, !Task.isCancelled else { return }
             message = "歌词搜索失败：\(error.localizedDescription)"
             LyricLogger.log(message)
         }
@@ -443,7 +458,7 @@ final class PlaybackCoordinator: ObservableObject {
         }
 
         snapshot?.lyrics = lines
-        snapshot?.startedAt = Date()
+        snapshot?.startedAt = current.observedAt
         snapshot?.elapsedWhenPaused = current.position
         snapshot?.isPlaying = current.status == .playing
 

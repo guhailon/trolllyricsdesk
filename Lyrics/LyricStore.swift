@@ -62,9 +62,7 @@ enum LyricStore {
             return max(
                 0,
                 snapshot.elapsedWhenPaused
-                    + date.timeIntervalSince(
-                        snapshot.startedAt
-                    )
+                    + max(0, date.timeIntervalSince(snapshot.startedAt))
             )
         }
 

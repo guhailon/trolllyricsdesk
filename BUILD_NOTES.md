@@ -199,3 +199,39 @@ Widget Info.plist、MinOS 15.0、逐字同步（LyricWord.swift／LyricSyncEngin
 不存在，不许现编假实现）。
 
 检查：`python3 check_lockscreen.py`（PLAN 第 6 节清单＋基线不变量）。
+
+## 1.0.4 build 17（Engine V2 并进锁屏线，2026-11-26 约 03:20）
+
+皇上 03:17 点「并进锁屏线再推＋编」。基线 lockscreen d461b62（1.0.0 build 16，
+ChatGPT 审查修复），并进皇上从 ChatGPT 拿回的 Engine V2（`hidden_files/engine-v2/tree/`，
+基于 1.0.0 底子，版本名 1.0.4）。
+
+并进来的（照搬）：
+- `MusicProviders/MediaRemoteAdapter.swift`：暂停不再累加进度（`delta * safeRate`，rate 0
+  时进度冻结）；缓存 3 秒过期＋超时重试字段（requestStarted／requestID）。
+- `PlaybackEngine/LyricMatcher.swift`：80 分门槛＋歌名必须完全一致＋歌手包含匹配＋
+  时长差超 15 秒拒绝。
+- `Lyrics/LyricStore.swift`：防负时间增量（`max(0, date.timeIntervalSince(...))`）。
+- `Tests/MatcherChecks.swift`＋`Tests/run-matcher.sh`（5 项断言，这台机没 swiftc 跑不了）
+  ＋`ENGINE_V2.md`（说明文档）。
+- `.github/workflows/build.yml`：产物名改桌面歌词-1.0.4.ipa（其余与旧 build.yml 一字不差）。
+
+重新接的（coordinator 是 Engine V2 重写过的，锁屏 build 16 的东西重新接上去）：
+- `PlaybackEngine/PlaybackCoordinator.swift`：Engine V2 的 poll（0.25 秒定时器＋nextPoll
+  0.25／0.75 分档、missingSince 2 秒清理、freezeSnapshot、0.8 秒重锚、generation UUID
+  防旧搜词覆盖、缓存命中跳过联网）＋锁屏的 `lastLiveState`／`lastLiveActivityID`、
+  `isRunning`／`ensureRunning()`、`publishLiveLyrics()`（完整状态去重、♪ 占位、前奏推
+  第一句当 next、staleDate＝下一行＋5 秒、限长 120 字），调用点：换歌分支＋poll() 末尾。
+  `state = newState` 在位（Engine V2 自带，没 1.0.6 回归）。
+  已知出入：2 秒读不到歌清快照那条分支不推锁屏（避免推空标题的「♪ 」占位，锁屏留旧词
+  到下一首歌）；同曲进度跳转已由 Engine V2 的 0.8 秒重锚实现（审查第 7 项，不再是 OPEN 未做）。
+- 版本：**1.0.4／build 17**（两 Info.plist＋MARKETING_VERSION 四处；IPA 名桌面歌词-1.0.4.ipa）。
+  Engine V2 包里 Info.plist 还是 1.0.0 build 13，「1.0.4」只在 CI 产物名里——这里已实改。
+- pbxproj：**仍用 .tbd 直链（无 dynamic_lookup）**——这条线（overlay-base／lockscreen）
+  的 pbxproj 一直是本地底子那套，overlay-base run 45665147066 已在云端编过；
+  dynamic_lookup 是 v1.0.6 那条线的写法，两条线不要混。Engine V2 包里的 pbxproj
+  也是同一套，没采用（锁屏线的不动）。
+
+检查：`python3 check_lockscreen.py`：**109 PASS，FAILED: none，OPEN 22**（新增 Engine V2
+§2.5 检查 12 项；OPEN 新增：严格匹配漏别名、旧缓存串版本、非 1 倍速、Tests 跑不了、
+2 秒清理不推锁屏、.tbd 直链）。

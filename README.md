@@ -144,8 +144,15 @@ python3 check_1.0.3.py
 无 Textyl/AGPL 代码、LRC 样本解析、plist/entitlements/pbxproj 有效、
 图标尺寸。未验证的项（macOS 编译、真机）会如实列出来。
 
-## 锁屏歌词（1.0.0 build 15，两样都要）
+## 锁屏歌词（1.0.4 build 17，Engine V2＋两样都要）
 
+- **Engine V2（1.0.4）**：皇上从 ChatGPT 拿回的播放引擎重做，并进这条线——
+  轮询改 0.25 秒定时器＋0.25／0.75 秒分档、暂停不再累加进度（`delta * safeRate`）、
+  偏差超 0.8 秒重锚（同曲拖进度条也修了）、搜词加 UUID 防旧结果覆盖、
+  缓存命中跳过联网、匹配器 80 分门槛＋歌名／歌手／时长校验、Store 防负时间增量。
+  coordinator 上重新接了 build 16 的锁屏修复（publishLiveLyrics＋ensureRunning）；
+  pbxproj 仍用 .tbd 直链（这条线一直如此，overlay-base 云端编过）。
+  限制（ChatGPT 自认）：严格匹配可能漏别名、旧缓存可能串同名不同版本、非 1 倍速仍会飘。
 - **A 灵动岛 Live Activities（iOS 16.1+）**：设置页 ContentView「锁屏歌词」区，
   点「开启锁屏歌词」就在锁屏上常驻一张歌词横幅（15 Pro 还有灵动岛收起／展开／最小三态）。
   数据链路复用检测引擎：`PlaybackCoordinator.poll()` 末尾 `publishLiveLyrics()`，
