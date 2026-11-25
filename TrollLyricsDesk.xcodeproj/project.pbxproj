@@ -28,7 +28,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "text.plist.entitlements";
 			name = "TrollLyricsDesk.entitlements";
-			path = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
+			path = "TrollLyricsDesk.entitlements";
 			sourceTree = "<group>";
 		};
 		0D78DA3D97FA4958CF7FB5C2 /* PBXBuildFile */ = {
@@ -49,7 +49,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricParser.swift";
-			path = "Lyrics/LyricParser.swift";
+			path = "LyricParser.swift";
 			sourceTree = "<group>";
 		};
 		1A243A453E6C0E753151005E /* PBXBuildFile */ = {
@@ -259,7 +259,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "text.plist.xml";
 			name = "Info.plist";
-			path = "TrollLyricsDesk/Info.plist";
+			path = "Info.plist";
 			sourceTree = "<group>";
 		};
 		699FCDBED06EC64C8A6B513F /* XCBuildConfiguration */ = {
@@ -304,7 +304,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricLine.swift";
-			path = "Lyrics/LyricLine.swift";
+			path = "LyricLine.swift";
 			sourceTree = "<group>";
 		};
 		779A8DD19473D66876760A6E /* PBXBuildFile */ = {
@@ -328,7 +328,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "text.plist.xml";
 			name = "Info.plist";
-			path = "TrollLyricsWidget/Info.plist";
+			path = "Info.plist";
 			sourceTree = "<group>";
 		};
 		82CF2A43A7100F086D7FCFDD /* PBXGroup */ = {
@@ -354,21 +354,21 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricLogger.swift";
-			path = "TrollLyricsDesk/LyricLogger.swift";
+			path = "LyricLogger.swift";
 			sourceTree = "<group>";
 		};
 		8D7DB2EFDE7A82AE21A67119 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "folder.assetcatalog";
 			name = "Assets.xcassets";
-			path = "TrollLyricsDesk/Assets.xcassets";
+			path = "Assets.xcassets";
 			sourceTree = "<group>";
 		};
 		8E0552BAECDB3BCFB47E0445 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricStore.swift";
-			path = "Lyrics/LyricStore.swift";
+			path = "LyricStore.swift";
 			sourceTree = "<group>";
 		};
 		8EB251B5FEF9F9B925BE1907 /* XCConfigurationList */ = {
@@ -384,7 +384,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "WidgetView.swift";
-			path = "TrollLyricsWidget/WidgetView.swift";
+			path = "WidgetView.swift";
 			sourceTree = "<group>";
 		};
 		933503AE1761DC1CE9E3744D /* PBXBuildFile */ = {
@@ -457,7 +457,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "TrollLyricsWidget.swift";
-			path = "TrollLyricsWidget/TrollLyricsWidget.swift";
+			path = "TrollLyricsWidget.swift";
 			sourceTree = "<group>";
 		};
 		AE2440210090CD5DBCAD0A7C /* PBXContainerItemProxy */ = {
@@ -481,7 +481,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "ContentView.swift";
-			path = "App/ContentView.swift";
+			path = "ContentView.swift";
 			sourceTree = "<group>";
 		};
 		B9C172B11C922BDC2533F6FD /* PBXBuildFile */ = {
@@ -492,7 +492,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "TrollLyricsDeskApp.swift";
-			path = "App/TrollLyricsDeskApp.swift";
+			path = "TrollLyricsDeskApp.swift";
 			sourceTree = "<group>";
 		};
 		C0DD1C3E4BFC124D878FE440 /* XCBuildConfiguration */ = {
@@ -529,7 +529,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "text.plist.entitlements";
 			name = "TrollLyricsWidget.entitlements";
-			path = "TrollLyricsWidget/TrollLyricsWidget.entitlements";
+			path = "TrollLyricsWidget.entitlements";
 			sourceTree = "<group>";
 		};
 		CA623AD6E96C2C52F42693A4 /* PBXBuildFile */ = {
@@ -566,7 +566,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "SettingsView.swift";
-			path = "App/SettingsView.swift";
+			path = "SettingsView.swift";
 			sourceTree = "<group>";
 		};
 		DDE58E6DE8C3A7107DE018F9 /* PBXBuildFile */ = {
@@ -577,7 +577,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "TrollLyricsWidgetBundle.swift";
-			path = "TrollLyricsWidget/TrollLyricsWidgetBundle.swift";
+			path = "TrollLyricsWidgetBundle.swift";
 			sourceTree = "<group>";
 		};
 		E3435DDA2687639586BF0B70 /* PBXNativeTarget */ = {
@@ -662,7 +662,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "MusicTrack.swift";
-			path = "MusicProviders/MusicTrack.swift";
+			path = "MusicTrack.swift";
 			sourceTree = "<group>";
 		};
 		EA7013E51E12FAD9F3D57AFE /* PBXBuildFile */ = {
@@ -673,7 +673,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "NetEaseAdapter.swift";
-			path = "MusicProviders/NetEaseAdapter.swift";
+			path = "NetEaseAdapter.swift";
 			sourceTree = "<group>";
 		};
 		7FFFABB19112DCA3F5BF0614 /* PBXBuildFile */ = {
@@ -684,7 +684,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "QQMusicAdapter.swift";
-			path = "MusicProviders/QQMusicAdapter.swift";
+			path = "QQMusicAdapter.swift";
 			sourceTree = "<group>";
 		};
 		39823A3A426E23B5CA106498 /* PBXBuildFile */ = {
@@ -695,7 +695,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LRCLibClient.swift";
-			path = "Lyrics/LRCLibClient.swift";
+			path = "LRCLibClient.swift";
 			sourceTree = "<group>";
 		};
 		20BBD06BF1BA1D6A9109BC0A /* PBXBuildFile */ = {
@@ -706,7 +706,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LocalLRCImporter.swift";
-			path = "Lyrics/LocalLRCImporter.swift";
+			path = "LocalLRCImporter.swift";
 			sourceTree = "<group>";
 		};
 		02A74E8FB4C81A26B3FEF233 /* PBXBuildFile */ = {
@@ -717,7 +717,7 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricsSearchView.swift";
-			path = "App/LyricsSearchView.swift";
+			path = "LyricsSearchView.swift";
 			sourceTree = "<group>";
 		};
 		7EFF6DE70C4084586B490205 /* PBXBuildFile */ = {
@@ -741,56 +741,56 @@
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "PlaybackState.swift";
-			path = "PlaybackEngine/PlaybackState.swift";
+			path = "PlaybackState.swift";
 			sourceTree = "<group>";
 		};
 		6A9901F5FCD567967120B084 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "PlaybackAdapter.swift";
-			path = "PlaybackEngine/PlaybackAdapter.swift";
+			path = "PlaybackAdapter.swift";
 			sourceTree = "<group>";
 		};
 		6038967E13DB67BD18CA8497 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "PlaybackCoordinator.swift";
-			path = "PlaybackEngine/PlaybackCoordinator.swift";
+			path = "PlaybackCoordinator.swift";
 			sourceTree = "<group>";
 		};
 		73293C10668581785FDEF158 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "LyricMatcher.swift";
-			path = "PlaybackEngine/LyricMatcher.swift";
+			path = "LyricMatcher.swift";
 			sourceTree = "<group>";
 		};
 		EF9B402A958DCAD9996E4E1F /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "AppleMusicAdapter.swift";
-			path = "MusicProviders/AppleMusicAdapter.swift";
+			path = "AppleMusicAdapter.swift";
 			sourceTree = "<group>";
 		};
 		A1368DE2883A1131B5FB796C /* MediaRemoteAdapter.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "MediaRemoteAdapter.swift";
-			path = "MusicProviders/MediaRemoteAdapter.swift";
+			path = "MediaRemoteAdapter.swift";
 			sourceTree = "<group>";
 		};
 		0C29F9E72757F396FB7043CF /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "ExternalTrackInput.swift";
-			path = "MusicProviders/ExternalTrackInput.swift";
+			path = "ExternalTrackInput.swift";
 			sourceTree = "<group>";
 		};
 		67E34E88AD31EF35553B75A1 /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
 			name = "PlaybackDashboardView.swift";
-			path = "App/PlaybackDashboardView.swift";
+			path = "PlaybackDashboardView.swift";
 			sourceTree = "<group>";
 		};
 		DCD5B062F5E8C7F2012D07B6 /* PBXBuildFile */ = {

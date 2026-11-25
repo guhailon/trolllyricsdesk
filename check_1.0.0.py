@@ -35,6 +35,68 @@ def read(rel):
         return f.read()
 
 
+# A file ref's on-disk path is its parent group's path + the ref path
+# (Xcode semantics). The old checks assumed ref paths were
+# project-root-relative ("Lyrics/X.swift"); that assumption is exactly
+# the doubled-path bug (group path + ref path was "Lyrics/Lyrics/X.swift").
+# Resolve through the group tree instead.
+def pbx_resolved_files(pbx_text):
+    objs = {}
+    cur = None
+    for ln in pbx_text.split("\n"):
+        m = re.match(r"\t\t([0-9A-F]{24}) /\* (.*?) \*/ = \{$", ln)
+        if m:
+            cur = {"id": m.group(1), "children": [], "path": None}
+            objs[m.group(1)] = cur
+            continue
+        if cur is not None:
+            m2 = re.match(r"\t\t\tisa = (\w+);", ln)
+            if m2:
+                cur["isa"] = m2.group(1)
+            m3 = re.match(r'\t\t\tpath = "([^"]+)";', ln)
+            if m3:
+                cur["path"] = m3.group(1)
+            if re.match(r"\t\t\tchildren = \(", ln):
+                cur["in_children"] = True
+                cur["children"] += re.findall(r"[0-9A-F]{24}", ln.split("(", 1)[1])
+                if ");" in ln:
+                    cur["in_children"] = False
+                continue
+            if cur.get("in_children"):
+                cur["children"] += re.findall(r"[0-9A-F]{24}", ln)
+                if ");" in ln:
+                    cur["in_children"] = False
+                continue
+            if ln.strip() == "};":
+                cur = None
+    main_group = None
+    for ln in pbx_text.split("\n"):
+        m = re.match(r"\t\t\tmainGroup = ([0-9A-F]{24});", ln)
+        if m:
+            main_group = m.group(1)
+            break
+    resolved = []
+
+    def walk(gid, prefix):
+        g = objs.get(gid)
+        if not g:
+            return
+        base = os.path.join(prefix, g["path"]) if g.get("path") else prefix
+        for c in g.get("children", []):
+            o = objs.get(c)
+            if not o:
+                continue
+            if o.get("isa") == "PBXGroup":
+                walk(c, base)
+            elif o.get("isa") == "PBXFileReference" and o.get("path"):
+                if re.search(r"\.(swift|plist|entitlements|xcassets)$", o["path"]):
+                    resolved.append(os.path.join(base, o["path"]))
+
+    if main_group:
+        walk(main_group, "")
+    return resolved
+
+
 def sha256(b):
     return hashlib.sha256(b).hexdigest()
 
@@ -193,8 +255,8 @@ check("SettingsView.swift old placeholder gone",
       not os.path.exists(os.path.join(ROOT, "TrollLyricsDesk/SettingsView.swift")))
 check("SettingsView.swift: no placeholder text", "PLACEHOLDER" not in settings)
 check("SettingsView.swift in pbxproj at App/ path",
-      'path = "App/SettingsView.swift"' in
-      read("TrollLyricsDesk.xcodeproj/project.pbxproj"))
+      "App/SettingsView.swift" in
+      pbx_resolved_files(read("TrollLyricsDesk.xcodeproj/project.pbxproj")))
 for key in ["lyricsFontSize", "lyricsOpacity", "backgroundOpacity",
             "lyricsDisplayMode", "showNextLine", "animeBackgroundEnabled",
             "selectedBackgroundData"]:
@@ -305,6 +367,7 @@ check("pbxproj: new groups App/PlaybackEngine/Lyrics/MusicProviders",
 check("pbxproj: old groups Shared/LocalLyrics/LyricsSearch gone",
       all(g not in pbx for g in ['name = "Shared"', 'name = "LocalLyrics"',
                                   'name = "LyricsSearch"']))
+_resolved = pbx_resolved_files(pbx)
 for f in ["App/TrollLyricsDeskApp.swift", "App/ContentView.swift",
           "App/PlaybackDashboardView.swift", "App/LyricsSearchView.swift",
           "PlaybackEngine/PlaybackState.swift", "PlaybackEngine/PlaybackAdapter.swift",
@@ -315,7 +378,7 @@ for f in ["App/TrollLyricsDeskApp.swift", "App/ContentView.swift",
           "MusicProviders/ExternalTrackInput.swift", "Lyrics/LRCLibClient.swift",
           "Lyrics/LyricParser.swift", "Lyrics/LyricStore.swift", "Lyrics/LyricLine.swift",
           "Lyrics/LocalLRCImporter.swift"]:
-    check(f"pbxproj: references {f}", f in pbx)
+    check(f"pbxproj: references {f}", f in _resolved)
 check("pbxproj: deleted files fully gone (MusicPlatformAdapter/NowPlayingFollower)",
       "MusicPlatformAdapter" not in pbx and "NowPlayingFollower" not in pbx)
 check("pbxproj: deleted files fully gone (LyricSearchService/ImportSearchView)",
@@ -323,9 +386,8 @@ check("pbxproj: deleted files fully gone (LyricSearchService/ImportSearchView)",
 check("pbxproj: MediaPlayer.framework linked (app target)",
       "MediaPlayer.framework" in pbx and
       "System/Library/Frameworks/MediaPlayer.framework" in pbx)
-# every file referenced in pbxproj must exist on disk
-refs = sorted(set(re.findall(r'path = "([^"]+\.(?:swift|plist|entitlements|xcassets))"', pbx)))
-missing = [r for r in refs if not os.path.exists(os.path.join(ROOT, r))]
+# every file referenced in pbxproj must exist on disk (resolved via group tree)
+missing = [r for r in _resolved if not os.path.exists(os.path.join(ROOT, r))]
 check("pbxproj: all referenced files exist on disk", not missing, str(missing))
 # every build file's fileRef must resolve to a real object
 obj_ids = set(re.findall(r"\t\t([0-9A-F]{24}) /\* \w+ \*/ = \{", pbx))
