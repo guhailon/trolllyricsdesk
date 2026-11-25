@@ -816,14 +816,19 @@ _fw_phase = re.search(
     pbx, re.S).group(1)
 for bf in ["DF071546DBC39458B9EC4DE6", "F11C4DB38DFC0D308712204A",
            "01C579C143BEA6A21453C8AE"]:
-    check(f"v0.5 App Frameworks phase contains build file {bf}", bf in _fw_phase)
+    check(f"v0.5 App Frameworks phase does NOT link {bf} (dynamic_lookup instead)",
+          bf not in _fw_phase)
 for fw in ["BackBoardServices", "GraphicsServices", "SpringBoardServices"]:
-    check(f"v0.5 {fw}.framework weak-linked (SDKROOT PrivateFrameworks)",
+    check(f"v0.5 {fw}.framework file ref kept (unused, no link)",
           f"System/Library/PrivateFrameworks/{fw}.framework" in pbx)
-check("v0.5 weak link attribute present 3x (BackBoard/Graphics/SpringBoard)",
-      pbx.count("Weak,") == 3, f"count={pbx.count('Weak,')}")
-check("v0.5 App FRAMEWORK_SEARCH_PATHS includes SDK PrivateFrameworks (link fix, 2 configs)",
-      pbx.count('"$(SDKROOT)/System/Library/PrivateFrameworks"') == 2)
+check("v0.5 private frameworks not linked at all (no -weak_framework)",
+      "BackBoardServices.framework in Frameworks" not in pbx and
+      "GraphicsServices.framework in Frameworks" not in pbx and
+      "SpringBoardServices.framework in Frameworks" not in pbx)
+check("v0.5 OTHER_LDFLAGS has -undefined dynamic_lookup in both App configs",
+      pbx.count('"-undefined",') == 2 and pbx.count('"dynamic_lookup",') == 2)
+check("v0.5 FRAMEWORK_SEARCH_PATHS gone (dead path in iPhoneOS26.5.sdk)",
+      "FRAMEWORK_SEARCH_PATHS" not in pbx)
 
 # 13g. @main entry gone, main.mm is the only entry
 check("v0.5 App/TrollLyricsDeskApp.swift deleted (@main entry gone)",

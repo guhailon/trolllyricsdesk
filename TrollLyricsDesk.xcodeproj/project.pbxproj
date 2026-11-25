@@ -292,10 +292,6 @@
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/Library/PrivateFrameworks",
-				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -305,6 +301,8 @@
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
+				"-undefined",
+				"dynamic_lookup",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
@@ -320,9 +318,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				1EC1FE630EABD0B29C5446FA,
-				DF071546DBC39458B9EC4DE6 /* BackBoardServices.framework in Frameworks */,
-				F11C4DB38DFC0D308712204A /* GraphicsServices.framework in Frameworks */,
-				01C579C143BEA6A21453C8AE /* SpringBoardServices.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -528,10 +523,6 @@
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SDKROOT)/System/Library/PrivateFrameworks",
-				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -541,6 +532,8 @@
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
+				"-undefined",
+				"dynamic_lookup",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
@@ -1184,33 +1177,6 @@
 		5536421856D0351EC5BD8EC1 /* TLAppRoot.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = F6E69C20EC98FEA99A89BC7E /* TLAppRoot.swift */;
-		};
-		DF071546DBC39458B9EC4DE6 /* BackBoardServices.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 7DEACA385B39A5F524261AE5 /* BackBoardServices.framework */;
-			settings = {
-				ATTRIBUTES = (
-					Weak,
-				);
-			};
-		};
-		F11C4DB38DFC0D308712204A /* GraphicsServices.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 45D504235C2D181CEFB16F0F /* GraphicsServices.framework */;
-			settings = {
-				ATTRIBUTES = (
-					Weak,
-				);
-			};
-		};
-		01C579C143BEA6A21453C8AE /* SpringBoardServices.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 8E40693BEEA4C8B7CEB433E9 /* SpringBoardServices.framework */;
-			settings = {
-				ATTRIBUTES = (
-					Weak,
-				);
-			};
 		};
 		C8C38E4E3BB5346EE36AFBDA /* HUD */ = {
 			isa = PBXGroup;
