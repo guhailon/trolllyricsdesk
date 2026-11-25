@@ -33,7 +33,9 @@ struct LyricsLiveLinesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("\(state.title) — \(state.artist)")
+            // 歌手为空不留多余分隔符；暂停时标题行标「已暂停」。
+            Text((state.artist.isEmpty ? state.title : "\(state.title) — \(state.artist)")
+                + (state.isPlaying ? "" : " · 已暂停"))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .lineLimit(1)
@@ -104,7 +106,9 @@ struct LyricsLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.current)
+                        Text(context.state.isPlaying
+                            ? context.state.current
+                            : "\(context.state.current) · 已暂停")
                             .font(.headline)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: context.state.lyricColorHex))
@@ -120,9 +124,12 @@ struct LyricsLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "music.note")
             } compactTrailing: {
-                // 收起态：岛里只放当前行，超长截断。
+                // 收起态：岛里只放当前行，超长截断（缩小＋尾部省略）。
                 Text(context.state.current)
+                    .font(.caption2)
                     .lineLimit(1)
+                    .truncationMode(.tail)
+                    .minimumScaleFactor(0.8)
             } minimal: {
                 // 最小态：只留音符图标（多个 Activity 并存时系统自动缩成这个）。
                 Image(systemName: "music.note")

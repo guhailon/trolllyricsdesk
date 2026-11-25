@@ -282,11 +282,15 @@ struct ContentView: View {
 @available(iOS 16.1, *)
 private struct LiveActivitySectionView: View {
 
+    @EnvironmentObject private var coordinator: PlaybackCoordinator
     @ObservedObject private var liveActivity = LyricsLiveActivityController.shared
 
     var body: some View {
         VStack(spacing: 12) {
             Button {
+                // 先保证检测引擎在跑（没跑才起，跑着不动），再开锁屏歌词；
+                // 不要直接调 coordinator.start()，它会先 stop() 取消搜词任务。
+                coordinator.ensureRunning()
                 liveActivity.start()
             } label: {
                 Label(

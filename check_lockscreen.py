@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk lockscreen lyrics (1.0.0 build 15, overlay-base):
+"""Verify TrollLyricsDesk lockscreen lyrics (1.0.0 build 16, overlay-base):
 A Live Activities + B lock-screen widget, per hidden_files/lockscreen-design/PLAN.md §6.
+Build 16 = ChatGPT 审查修复（P0＋P1＋P2 小项，见 PLAN/REVIEW 全文）。
 
 FAILED: none is the goal. OPEN items are recorded, not failures:
 things that cannot be verified on Linux (macOS compile, device) or that
@@ -100,6 +101,32 @@ def pbx_resolved_files(pbx_text):
     return resolved
 
 
+def pbx_sources_files(pbx_text, phase_id):
+    # Resolve a PBXSourcesBuildPhase's BuildFile ids to file paths
+    # (Target Membership check: which target actually compiles a file).
+    m = re.search(re.escape(phase_id)
+                  + r" /\* PBXSourcesBuildPhase \*/ = \{(.*?)\n\t\t\};",
+                  pbx_text, re.S)
+    if not m:
+        return []
+    out = []
+    for bf in re.findall(r"([0-9A-F]{24})", m.group(1)):
+        fm = re.search(re.escape(bf)
+                       + r" /\* [^*]*\*/ = \{\s*isa = PBXBuildFile;"
+                       + r"\s*fileRef = ([0-9A-F]{24})",
+                       pbx_text)
+        if not fm:
+            continue
+        fr = fm.group(1)
+        rm = re.search(re.escape(fr)
+                       + r" /\* [^*]*\*/ = \{\s*isa = PBXFileReference;"
+                       + r"\s*lastKnownFileType = [^;]+;"
+                       + r"\s*name = \"?([^\n\";]+)\"?;",
+                       pbx_text)
+        out.append(rm.group(1).strip().strip('"') if rm else fr)
+    return out
+
+
 print("== 1. 新文件 ==")
 for rel in ["LiveActivity/LyricsLiveActivity.swift",
             "PlaybackEngine/LyricsLiveActivityController.swift"]:
@@ -110,7 +137,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.0", pl.get("CFBundleShortVersionString") == "1.0.0",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 15", pl.get("CFBundleVersion") == "15",
+    check(f"{rel}: build 16", pl.get("CFBundleVersion") == "16",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -143,6 +170,12 @@ check("LyricsLiveActivity.swift: shared 3-line view (lock screen + island)",
       and "LyricsLiveLockScreenView(state: context.state)" in live)
 check("LyricsLiveActivity.swift: lyric color from hex (取色器复用）",
       "lyricColorHex" in live and "init(hex: Int)" in live)
+check("LyricsLiveActivity.swift: compact truncation (ChatGPT 问题 4)",
+      ".font(.caption2)" in live and ".truncationMode(.tail)" in live
+      and ".minimumScaleFactor(0.8)" in live)
+check("LyricsLiveActivity.swift: no stray separator when artist empty + pause hint",
+      "state.artist.isEmpty ? state.title" in live
+      and "已暂停" in live)
 check("controller: @available(iOS 16.1, *)",
       "@available(iOS 16.1, *)" in ctrl)
 check("controller: singleton + @Published isActive/statusMessage",
@@ -162,6 +195,22 @@ check("controller: checks areActivitiesEnabled",
       "ActivityAuthorizationInfo().areActivitiesEnabled" in ctrl)
 check("controller: lyric color reads floatingLyric.textColorHex (default white)",
       '"floatingLyric.textColorHex"' in ctrl and "0xFFFFFF" in ctrl)
+check("controller: 16.2 branches (request/update/end) + 16.1 fallback (ChatGPT 问题 2)",
+      ctrl.count("if #available(iOS 16.2, *)") == 3
+      and "contentState: placeholderState()" in ctrl
+      and "await current.update(using:" in ctrl
+      and "await current.end(" in ctrl and "using: placeholderState()" in ctrl,
+      f"16.2-branches={ctrl.count('if #available(iOS 16.2, *)')}")
+check("controller: update serial coalescing queue (BUG-06)",
+      "pendingUpdate" in ctrl and "updateTask" in ctrl
+      and "while let pending = self.pendingUpdate" in ctrl)
+check("controller: Activity id check before update/end-clear (BUG-06/问题 B)",
+      "activityID" in ctrl and "self.activity?.id == id" in ctrl)
+check("controller: observeEnd stored as observationTask + refresh re-binds (问题 A/B)",
+      "observationTask" in ctrl and "observationTask?.cancel()" in ctrl
+      and "observeEnd()" in ctrl)
+check("controller: stop waits for end() before clearing state (问题 C)",
+      "isBusy" in ctrl and "isBusy = true" in ctrl and "isBusy = false" in ctrl)
 
 pc = read("PlaybackEngine/PlaybackCoordinator.swift")
 check("coordinator: state = newState still present (no 1.0.6 regression)",
@@ -171,10 +220,21 @@ check("coordinator: publishLiveLyrics defined",
 check("coordinator: publishLiveLyrics called at end of poll() + track-change branch",
       pc.count("publishLiveLyrics()") == 3,  # 1 def + 2 call sites
       f"count={pc.count('publishLiveLyrics()')}")
-check("coordinator: lastLiveLyricIndex / lastLiveTrackKey (变行才推）",
-      "lastLiveLyricIndex" in pc and "lastLiveTrackKey" in pc)
-check("coordinator: no-lyrics placeholder ♪ {title} once per track",
-      '"♪ \\(snapshot.title)"' in pc)
+check("coordinator: full-state dedup (BUG-02/04) + Activity id (BUG-01 第二层）",
+      "lastLiveState" in pc and "lastLiveActivityID" in pc
+      and "lastLiveLyricIndex" not in pc and "lastLiveTrackKey" not in pc
+      and "state == lastLiveState" in pc
+      and "activityID != lastLiveActivityID" in pc)
+check("coordinator: isActive guard resets dedup when Live Activity off (BUG-01 第一层）",
+      "guard LyricsLiveActivityController.shared.isActive else" in pc
+      and "lastLiveState = nil" in pc)
+check("coordinator: prelude shows ♪ {title} + first line as next (BUG-03)",
+      '"♪ \\(snapshot.title)"' in pc
+      and "next = snapshot.lyrics.first?.text ?? \"\"" in pc)
+check("coordinator: content length cap 120 (P2 超长歌词）",
+      "clipped(" in pc and "text.count > 120" in pc)
+check("coordinator: ensureRunning() idempotent, no direct start() from lock screen",
+      "func ensureRunning()" in pc and "var isRunning: Bool" in pc)
 check("coordinator: staleDate = next line + 5s",
       "addingTimeInterval(nextIn + 5)" in pc)
 check("coordinator: call sites guarded by if #available(iOS 16.1, *)",
@@ -197,6 +257,11 @@ check("ContentView: lock-screen widget add hint (B)",
       "长按锁屏 → 自定 → 添加小组件" in cv)
 check("ContentView: existing sections untouched (音乐检测／保活开关）",
       '"音乐检测"' in cv and '"后台保活（静音音频）"' in cv)
+check("ContentView: lock-screen start ensures engine running (审查第 7 项）",
+      "coordinator.ensureRunning()" in cv
+      and "liveActivity.start()" in cv)
+check("ContentView: refresh() on appear (前台恢复时同步开关状态）",
+      "liveActivity.refresh()" in cv)
 
 print("\n== 4. 路子 B：锁屏小组件 ==")
 wg = read("TrollLyricsWidget/TrollLyricsWidget.swift")
@@ -219,6 +284,10 @@ check("WidgetView: lock-screen view (title + current + next)",
 check("WidgetView: main-screen layout kept (moved verbatim to mainScreenView)",
       "mainScreenView" in wv and "打开 App 加载歌词" in wv
       and '"等待歌词..."' in wv and "LyricStore.currentLyric(" in wv)
+wb = read("TrollLyricsWidget/TrollLyricsWidgetBundle.swift")
+check("WidgetBundle: LyricsLiveActivity registered (ChatGPT 问题 3，接线遗漏）",
+      "LyricsLiveActivity()" in wb
+      and "if #available(iOS 16.1, *)" in wb)
 
 print("\n== 5. pbxproj ==")
 pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
@@ -227,8 +296,12 @@ check("pbxproj: LiveActivity group present",
 check("pbxproj: both new files in App Sources phase",
       "LyricsLiveActivity.swift in Sources" in pbx
       and "LyricsLiveActivityController.swift in Sources" in pbx)
-check("pbxproj: ActivityKit weak-linked (2x -weak_framework)",
-      pbx.count('"-weak_framework"') == 2 and pbx.count('"ActivityKit"') == 2,
+_widget_sources = pbx_sources_files(pbx, "37A859133C5B7A49CE597D35")
+check("pbxproj: LyricsLiveActivity.swift in Widget Extension Sources (Target Membership)",
+      "LyricsLiveActivity.swift" in _widget_sources,
+      str(_widget_sources))
+check("pbxproj: ActivityKit weak-linked (4x: App 2 + Widget 2)",
+      pbx.count('"-weak_framework"') == 4 and pbx.count('"ActivityKit"') == 4,
       f"weak={pbx.count(chr(34) + '-weak_framework' + chr(34))}")
 check("pbxproj: no strong ActivityKit link phase entry",
       "ActivityKit.framework" not in pbx)
@@ -287,12 +360,17 @@ for f in ["LiveActivity/LyricsLiveActivity.swift",
 
 print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
-          "ActivityKit 弱链接写法、DynamicIsland 展开区、if #available 组合条件，"
-          "都要 macOS 构建那一步才见分晓")
+          "build 16 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
+          "展开区、if #available 组合条件，都要 macOS 构建那一步才见分晓")
+open_item("otool 弱链接核实（编成后验包新增）",
+          "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
+          "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")
 open_item("Activity 更新会不会被系统节流（PLAN §8.1）",
           "设计上变行才推（一行 4–5 秒一次）远低于上限，理论上不会被节流；"
           "iOS 27 下的实际节流阈值没验过，真机连续听 10 首歌看横幅跟不跟")
-open_item("8 小时到期后要不要自动重开（PLAN §8.2）",
+open_item("8 小时到期后要不要自动重开（PLAN §8.2，已按审查更正）",
+          "Live Activity 最长约 8 小时，系统结束后内容最多再留约 4 小时；"
+          "App 被划掉不等于 Activity 立即消失，ActivityKit 也不给检测引擎后台执行能力；"
           "默认：到期横幅消失，用户回 App 再点开关；保活开着时可顺手重开，等真机验了再定")
 open_item("锁屏横幅取色器颜色会不会被系统压暗（PLAN §8.3）",
           "先按取色值画，真机颜色不对就退回白色")
@@ -300,8 +378,8 @@ open_item(".accessoryRectangular 在 iOS 15 上编不编得过（PLAN §8.4）",
           "已用 if #available(iOS 16.0, *) 运行时判断包起来（比 PLAN 的写法更稳妥），"
           "仍需 macOS 编译＋iOS 15 真机验证")
 open_item("ActivityKit 弱链接写法（PLAN §8.5）",
-          "用的是 OTHER_LDFLAGS 加 -weak_framework ActivityKit（两 App 配置）；"
-          "以编过且 iOS 15 真机不闪退为准")
+          "用的是 OTHER_LDFLAGS 加 -weak_framework ActivityKit（App 两配置＋Widget 两配置，共 4 处）；"
+          "以编过且 iOS 15 真机不闪退为准，另加 otool 核实见上")
 open_item("LiveContainer 下 A/B 能不能用（PLAN §8.6）",
           "公开接口理论上能用，但 LiveContainer 的进程模型＋后台行为没验过")
 open_item("锁屏小组件的刷新延迟到底多大（PLAN §8.7）",
@@ -314,6 +392,14 @@ open_item("iPhone 11 没有常亮显示（PLAN §8.10）",
           "「关屏一直显示」在 iPhone 11 上做不到，任何路子都做不到；只有 15 Pro 的常亮显示能做到")
 open_item("真机必验 12 项（PLAN §7）都没验",
           "横幅／灵动岛三态／常亮／限流／滑掉同步／暂停／LiveContainer／小组件添加与延迟／外观／iOS 15")
+open_item("同曲进度跳转同步（审查第 7 项，未做，独立修复）",
+          "同一首歌内拖动进度条、播放状态不变时，快照可能仍沿用旧时间基准；"
+          "这也影响原有桌面歌词，审查建议独立处理，等皇上定再做")
+open_item("默认白色在浅色锁屏上清不清晰（ChatGPT 问题 4，需真机）",
+          "第 51、110 行默认白色在浅色／深色锁屏背景下不一定清晰，真机测了再定要不要改默认色")
+open_item("横幅与展开态两套布局，未按设计共用三行歌词子视图（已知出入）",
+          "设计原文要求共用，实际代码是两套布局——不是编译错误，与设计原文不一致；"
+          "统一是重构项，build 16 先不动，等皇上定")
 
 print()
 print("FAILED:", fails if fails else "none")

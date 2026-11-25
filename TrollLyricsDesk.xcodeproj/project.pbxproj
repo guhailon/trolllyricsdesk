@@ -16,6 +16,10 @@
 			isa = PBXBuildFile;
 			fileRef = 25D301F865621713AF6708AD /* LyricsLiveActivity.swift */;
 		};
+		2AC9C558E40544F86D76B6FD /* LyricsLiveActivity.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 25D301F865621713AF6708AD /* LyricsLiveActivity.swift */;
+		};
 		52D1E682D4962BD3C05C51C8 /* LyricsLiveActivityController.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -203,6 +207,7 @@
 				1DDD6F9267456969B4998302,
 				DDE58E6DE8C3A7107DE018F9,
 				FA1547BE6665B5B7A6F44013,
+				2AC9C558E40544F86D76B6FD,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -720,6 +725,11 @@
 				"@executable_path/../../Frameworks",
 			);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					"ActivityKit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk2.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -814,6 +824,11 @@
 				"@executable_path/../../Frameworks",
 			);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					"ActivityKit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk2.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
