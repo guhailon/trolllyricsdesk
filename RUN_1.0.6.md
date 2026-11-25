@@ -1,4 +1,4 @@
-# TrollLyricsDesk 1.0.6 — run log（本地整合，未推、未编）
+# TrollLyricsDesk 1.0.6 — run log（已推、已编，构建成功）
 
 基线 517bd4a（1.0.5）。皇上 2026-11-25 23:51 定混合整合方案、23:57 更正
 最低系统 15.0：以 1.0.5 为基线，保留 v0.5 TLHUDApplication + BackBoard
@@ -39,7 +39,7 @@ runningboard / QuartzCore / iokit / storage / mach 白名单等）一律不要�
 
 ## 编译风险（摘要，详见 BUILD_NOTES.md 1.0.6 节）
 
-- -undefined dynamic_lookup 仍未上机验证（1.0.5 七次池子取消，一次没上机）。
+- -undefined dynamic_lookup 已在 1.0.6 构建中上机验证通过（见下「构建记录」）。
 - AVFoundation 链接是第一次（保活用，pbxproj + Makefile 都加了）。
 - KVO 跟滑杆没真机验过（不触发也只会滑杆不动，不崩）。
 - SettingsView 为 15.0 适配动了结构（选图行抽子视图），7 项设置都在。
@@ -47,9 +47,28 @@ runningboard / QuartzCore / iokit / storage / mach 白名单等）一律不要�
 - 逐字同步未实现（两边都没有 LyricWord.swift / LyricSyncEngine.swift），
   记 OPEN，不现编假实现。
 
-## 待皇上确认后再推 + 编
+## 构建记录（2026-11-26 00:20 台北，成功）
 
-推 + 编等皇上确认。构建成功后的收尾：监视 run → 下载 artifact 验包
-（1.0.6/build 7、Bundle ID、arm64、zsign、entitlements HUD 键、binary
-含 TL_ 串和 -hud 串、无旧 tg://resolve、Telegram 邀请链接在位、
-显示名桌面歌词、最低系统 15.0）→ 发下载链接 + 一键 TrollStore 安装链接。
+- 皇上 2026-11-26 00:12 批推＋编。远端新分支 v1.0.6 建在 517bd4a，
+  gh_push.py 快进一笔推上 2f75e89（27 blobs/12 trees），main 未动。
+- run 45651994856（head 2f75e89，分支 v1.0.6）：约 00:15 入队，4 分钟
+  上机，00:20 完成，结论 success，job Build 11 步全部 success。
+  **Archive（链接）过了——`-undefined dynamic_lookup` 修法第一次
+  在真机上得到验证**（1.0.4 池子取消、1.0.5 七次池子取消＋重跑接口
+  500，之前一次没上过机）。副产物 run 45651896868（head 517bd4a，
+  建 ref 顺带触发）未管。
+- artifact id 15040858066，名 TrollLyricsDesk-1.0.6，1,528,797 B；
+  IPA TrollLyricsDesk-1.0.6.ipa，1,530,822 B，
+  SHA256 8a0c66021cb02e96918e46b766c586d1cdad8a35babf9d4ace673ce2c9257e67，
+  存 hidden_files/artifact-45651994856/。
+- 验包全过（奴才复核）：App 1.0.6/build 7、Bundle ID
+  com.hailong.TrollLyricsDesk、显示名「桌面歌词」、最低系统 15.0
+  （App + Widget）、UIBackgroundModes audio 在位、Widget 1.0.6/build 7、
+  App/Widget 二进制 arm64 thin + LC_CODE_SIGNATURE（zsign）、entitlements
+  HUD 键（backboard.client、accessibility-window-hosting、App Group）在位、
+  binary 含 -hud 串和 TLHUDApplication 串、无旧 tg://resolve、Telegram
+  邀请链接 t.me/+I-I8aw7HUAw1NGY9 在位。无 _CodeSignature 目录是 zsign
+  形态（签名嵌在 Mach-O 里），跟 1.0.3 一致，不是问题。
+- 下载链接已发皇上（48 小时，到期 2026-11-28 00:55 台北）＋一键
+  TrollStore 安装链接。等皇上真机测：悬浮歌词（拖动/缩放/透明度/
+  触摸穿透/关闭）、0.25 秒跟随、保活开关、Telegram 行、版本显示。
