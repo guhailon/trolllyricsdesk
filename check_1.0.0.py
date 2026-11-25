@@ -405,7 +405,8 @@ for tid in re.findall(r'BlueprintIdentifier = "([0-9A-F]{24})"', scheme):
 check("workflow exists", os.path.exists(os.path.join(ROOT, ".github/workflows/build.yml")))
 wf = read(".github/workflows/build.yml")
 check("workflow: xcodebuild archive unsigned", "CODE_SIGNING_ALLOWED=NO" in wf)
-check("workflow: ldid sign app + widget", wf.count("ldid -S") >= 2)
+check("workflow: install zsign", "brew install zsign" in wf)
+check("workflow: zsign sign app + widget", wf.count("zsign -a") >= 2)
 check("workflow: package IPA", "TrollLyricsDesk-1.0.0.ipa" in wf)
 
 print("\n== 6. No built-in songs / no activation ==")
