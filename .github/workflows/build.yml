@@ -23,9 +23,13 @@ jobs:
         run: xcodebuild -version
 
       - name: Install ldid
-        uses: dhinakg/procursus-action@main
-        with:
-          packages: ldid
+        # 旧版 procursus-action 装的是 ldid 2.1.5-procursus7（2023 年），
+        # 读不懂 Xcode 26.6 编出的 Mach-O（Unknown header magic）。
+        # 改用 Homebrew 装最新的 ldid-procursus（2.1.5-procursus8，2026-11-17 发布），
+        # 签名命令不变（还是 ldid -S）。
+        run: |
+          brew install ldid-procursus
+          brew list --versions ldid-procursus
 
       - name: Archive (unsigned)
         run: |
