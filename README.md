@@ -9,7 +9,7 @@
 - Bundle ID: `com.hailong.TrollLyricsDesk`
 - Widget Extension: WidgetKit（`TrollLyricsWidget`）
 - App Group: `group.com.hailong.TrollLyricsDesk`（App 和 Widget 共用，共享歌词状态）
-- 版本：1.0.2
+- 版本：1.0.3
 
 ## 结构（Lee 02:15 定的新树，原样）
 
@@ -126,7 +126,7 @@ MediaRemote，按钮的授权门也撤了——MediaRemote 不需要媒体资料
 
 推代码就自动跑 `.github/workflows/build.yml`：
 `xcodebuild archive`（不签名）→ `ldid` 按 entitlements 签名 →
-打 `TrollLyricsDesk-1.0.2.ipa` → 上传 Artifacts。
+打 `TrollLyricsDesk-1.0.3.ipa` → 上传 Artifacts。
 
 App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 （`com.apple.mediaremote.now-playing-read-access` /
@@ -137,7 +137,7 @@ App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 ## 验证
 
 ```sh
-python3 check_1.0.2.py
+python3 check_1.0.3.py
 ```
 
 检查结构、包名/组名一致、Lee 文件原样标记、无内置歌、无授权码、
