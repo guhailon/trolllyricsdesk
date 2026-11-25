@@ -14,6 +14,17 @@ final class PlaybackCoordinator: ObservableObject {
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
 
+    /// 播放状态检测间隔：播放中 0.25 秒（即播即显）；
+    /// 空闲时 1.0 秒（节能：没歌或暂停时一直 0.25 秒问 MediaRemote，费电）。
+    private let activePollInterval: TimeInterval = 0.25
+    private let idlePollInterval: TimeInterval = 1.0
+
+    private var pollInterval: TimeInterval = 0.25
+
+    /// 连续多少次轮询没读到歌；满 4 次（约 1 秒）才降到空闲档，
+    /// 刚切歌/刚开始播的那 1 秒内保持 0.25 秒快档，不漏歌。
+    private var idlePolls = 0
+
     /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
     private var searchTask: Task<Void, Never>?
 
@@ -31,9 +42,26 @@ final class PlaybackCoordinator: ObservableObject {
         // 立即检测一次，不等第一个 tick —— 打开 App/点开始时立刻出画面
         poll()
 
-        // 0.25 秒轮询：播放一开始就能在 1/4 秒内捕获，做到「即播即显」
+        scheduleTimer(interval: activePollInterval)
+    }
+
+    func stop() {
+
+        timer?.invalidate()
+        timer = nil
+        searchTask?.cancel()
+        searchTask = nil
+        idlePolls = 0
+        pollInterval = activePollInterval
+    }
+
+    private func scheduleTimer(interval: TimeInterval) {
+
+        timer?.invalidate()
+        pollInterval = interval
+
         timer = Timer.scheduledTimer(
-            withTimeInterval: 0.25,
+            withTimeInterval: interval,
             repeats: true
         ) { [weak self] _ in
 
@@ -43,19 +71,29 @@ final class PlaybackCoordinator: ObservableObject {
         }
     }
 
-    func stop() {
-
-        timer?.invalidate()
-        timer = nil
-        searchTask?.cancel()
-        searchTask = nil
-    }
-
     private func poll() {
 
         guard let newState = adapter.currentState() else {
             message = "没有检测到可读取的音乐"
+
+            // 空闲节能：连续 4 次读不到歌（约 1 秒），降到 1.0 秒档。
+            idlePolls += 1
+            if idlePolls >= 4 && pollInterval != idlePollInterval {
+                scheduleTimer(interval: idlePollInterval)
+            }
+
             return
+        }
+
+        idlePolls = 0
+
+        // 空闲节能：暂停/停止时降到 1.0 秒档；恢复播放立刻回 0.25 秒档。
+        if newState.status == .playing {
+            if pollInterval != activePollInterval {
+                scheduleTimer(interval: activePollInterval)
+            }
+        } else if pollInterval != idlePollInterval {
+            scheduleTimer(interval: idlePollInterval)
         }
 
         let previous = state

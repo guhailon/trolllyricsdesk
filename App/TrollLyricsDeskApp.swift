@@ -56,7 +56,19 @@ final class BackgroundKeepAlive {
             player.play()
         } catch {
             // 保活失败不影响主流程；前台检测照常。
+            started = false
         }
+    }
+
+    /// 开关关掉时停引擎、停播放器、释放音频会话。
+    /// （保活是可选开关，默认关；关掉必须能停，不能启动即常驻。）
+    func stop() {
+        guard started else { return }
+        started = false
+
+        player.stop()
+        engine.stop()
+        try? AVAudioSession.sharedInstance().setActive(false)
     }
 }
 
@@ -97,7 +109,11 @@ final class TrollLyricsRuntime: NSObject {
         guard !started else { return }
         started = true
 
-        BackgroundKeepAlive.shared.start()
+        // 保活开关（默认关）：只在用户开着开关时才起静音音频，
+        // 开关关着不自动启动。
+        if UserDefaults(suiteName: LyricStore.groupID)?.bool(forKey: "hudKeepAliveEnabled") ?? false {
+            BackgroundKeepAlive.shared.start()
+        }
 
         let coordinator = ensurePlayback()
         Task { @MainActor in

@@ -76,6 +76,11 @@ struct ContentView: View {
     @AppStorage("floatingLyric.cardOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
     private var cardOpacity = 0.55
 
+    // 后台保活开关（默认关）：开着时用静音音频循环让检测引擎
+    // 在后台继续 polling，关着时不播静音音频。存在 App Group。
+    @AppStorage("hudKeepAliveEnabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var keepAliveEnabled = false
+
     var body: some View {
 
         ZStack {
@@ -176,6 +181,18 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(15)
                             }
+
+                            Toggle(isOn: $keepAliveEnabled) {
+                                Text("后台保活（静音音频）")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                            .tint(.purple)
+
+                            Text("默认关。开着时退到后台也能继续检测换歌，关着不播静音音频。")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .padding()
                         .background(.ultraThinMaterial)
@@ -197,12 +214,28 @@ struct ContentView: View {
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                applyKeepAlive()
+            }
             .onChange(of: opacity) { _ in
                 saveSettings()
             }
             .onChange(of: fontSize) { _ in
                 saveSettings()
             }
+            .onChange(of: keepAliveEnabled) { _ in
+                applyKeepAlive()
+            }
+    }
+
+    // 保活开关的实际动作：开就起静音音频引擎，关就停掉。
+    // 只在开关变的时候调；开关默认关，什么都不做。
+    private func applyKeepAlive() {
+        if keepAliveEnabled {
+            BackgroundKeepAlive.shared.start()
+        } else {
+            BackgroundKeepAlive.shared.stop()
+        }
     }
 
     private func saveSettings() {
