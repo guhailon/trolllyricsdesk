@@ -143,3 +143,24 @@ python3 check_1.0.3.py
 检查结构、包名/组名一致、Lee 文件原样标记、无内置歌、无授权码、
 无 Textyl/AGPL 代码、LRC 样本解析、plist/entitlements/pbxproj 有效、
 图标尺寸。未验证的项（macOS 编译、真机）会如实列出来。
+
+## 锁屏歌词（1.0.0 build 15，两样都要）
+
+- **A 灵动岛 Live Activities（iOS 16.1+）**：设置页 ContentView「锁屏歌词」区，
+  点「开启锁屏歌词」就在锁屏上常驻一张歌词横幅（15 Pro 还有灵动岛收起／展开／最小三态）。
+  数据链路复用检测引擎：`PlaybackCoordinator.poll()` 末尾 `publishLiveLyrics()`，
+  按 0.25 秒轮询算当前行，**下标变了才推**（一行 4–5 秒才切一次，远低于系统每秒一次的上限）；
+  没词时同一首歌只推一次「♪ {歌名}」占位；`staleDate` 是下一行歌词的时间＋5 秒。
+  限制（系统定的）：单个 Live Activity 最长 8 小时，到期横幅自动消失，要回 App 再点开关；
+  更新频率、常亮显示都由系统定。
+- **B 锁屏小组件（iOS 16.0+）**：`supportedFamilies` 加 `.accessoryRectangular`，
+  复用 Widget 现成的逐行预排时间线，不写新链路；用户自己长按锁屏 → 自定 → 添加小组件；
+  刷新节奏由系统定，不保证实时；外观由系统着色。
+- 两条路子都是系统公开接口，**零新增 entitlements**，MinOS 保持 15.0；
+  ActivityKit 弱链接（App target `OTHER_LDFLAGS` 加 `-weak_framework ActivityKit`），
+  iOS 15 的机器上 App 能正常启动，锁屏开关显示「需要 iOS 16.1 或以上」。
+  取色器键 `floatingLyric.textColorHex` 复用，锁屏横幅颜色可能被系统压暗，真机不对就退回白色。
+- 诚实话：**iPhone 11 没有常亮显示，锁屏黑了就什么都看不到**，歌词只在锁屏亮着时显示；
+  只有 15 Pro 的常亮显示能让锁屏歌词一直亮着。锁屏歌词是逐句同步，不是逐字。
+  LiveContainer 下（iOS 27.0.1）理论上能用，没真机验过。
+- Overlay 悬浮窗一个字没动；v0.5 BackBoard 代码一个字没动。

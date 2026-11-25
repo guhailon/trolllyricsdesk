@@ -6,6 +6,17 @@ struct TrollLyricsWidgetView: View {
     let entry: TrollLyricsEntry
 
     var body: some View {
+        Group {
+            if #available(iOS 16.0, *), context.family == .accessoryRectangular {
+                lockScreenView
+            } else {
+                mainScreenView
+            }
+        }
+    }
+
+    /// 主屏幕小组件（原有布局，一字未动，只是从 body 里抽出来）。
+    private var mainScreenView: some View {
 
         ZStack {
 
@@ -77,5 +88,48 @@ struct TrollLyricsWidgetView: View {
         .clipShape(
             RoundedRectangle(cornerRadius: 18)
         )
+    }
+
+    /// 锁屏小组件（路子 B：accessoryRectangular，iOS 16.0+）。
+    /// 歌名小字＋当前句＋下一句；系统着色，不自定义颜色。
+    @available(iOS 16.0, *)
+    private var lockScreenView: some View {
+        Group {
+            if let snapshot = entry.snapshot {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("桌面歌词 · \(snapshot.title)")
+                        .font(.caption2)
+                        .lineLimit(1)
+
+                    Text(
+                        LyricStore.currentLyric(
+                            snapshot,
+                            at: entry.date
+                        )?.text ?? "等待歌词..."
+                    )
+                    .font(.headline)
+                    .lineLimit(1)
+
+                    Text(nextLyricText(snapshot: snapshot, at: entry.date))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            } else {
+                Text("Troll Lyrics")
+            }
+        }
+    }
+
+    /// 当前行的下一行（锁屏小组件用）；没下一行／还没唱到第一句时返回歌手名。
+    private func nextLyricText(snapshot: LyricSnapshot, at date: Date) -> String {
+        let elapsed = LyricStore.currentElapsed(snapshot, at: date)
+        guard let index = snapshot.lyrics.lastIndex(where: { $0.time <= elapsed }) else {
+            return snapshot.artist
+        }
+        if index + 1 < snapshot.lyrics.count {
+            return snapshot.lyrics[index + 1].text
+        }
+        return snapshot.artist
     }
 }

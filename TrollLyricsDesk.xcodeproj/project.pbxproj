@@ -5,6 +5,37 @@
 	};
 	objectVersion = 56;
 	objects = {
+		25D301F865621713AF6708AD /* LyricsLiveActivity.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "LyricsLiveActivity.swift";
+			path = "LyricsLiveActivity.swift";
+			sourceTree = "<group>";
+		};
+		35D65410F29A39E4B692C74A /* LyricsLiveActivity.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 25D301F865621713AF6708AD /* LyricsLiveActivity.swift */;
+		};
+		52D1E682D4962BD3C05C51C8 /* LyricsLiveActivityController.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "LyricsLiveActivityController.swift";
+			path = "LyricsLiveActivityController.swift";
+			sourceTree = "<group>";
+		};
+		7A47B92B50AF42F414337343 /* LyricsLiveActivityController.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 52D1E682D4962BD3C05C51C8 /* LyricsLiveActivityController.swift */;
+		};
+		D747C751B8C10C4C673B27A9 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				25D301F865621713AF6708AD /* LyricsLiveActivity.swift */,
+			);
+			name = "LiveActivity";
+			path = "LiveActivity";
+			sourceTree = "<group>";
+		};
 		EA00000000000000000000A1 /* TrollLyricsDesk-Bridging-Header.h */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.c.h;
@@ -254,6 +285,8 @@
 				CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */,
 				80F1B3D04A96B4B3B471EF80 /* AboutView.swift in Sources */,
 				6EFFD66A90219D827D56995A /* LogView.swift in Sources */,
+				35D65410F29A39E4B692C74A /* LyricsLiveActivity.swift in Sources */,
+				7A47B92B50AF42F414337343 /* LyricsLiveActivityController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -338,6 +371,7 @@
 				EC21069A65F2CA977FE14A64,
 				547D009064F7C3F13BEF3460,
 				389F15E87F1A2EC0C3E735AE /* Core */,
+				D747C751B8C10C4C673B27A9 /* LiveActivity */,
 			);
 			sourceTree = "<group>";
 		};
@@ -395,6 +429,8 @@
 				"$(SRCROOT)/Overlay/Private/FrontBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
+				"-weak_framework",
+				"ActivityKit",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk2;
@@ -644,6 +680,8 @@
 				"$(SRCROOT)/Overlay/Private/FrontBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
+				"-weak_framework",
+				"ActivityKit",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk2;
@@ -1056,6 +1094,7 @@
 				6A9901F5FCD567967120B084,
 				6038967E13DB67BD18CA8497,
 				73293C10668581785FDEF158,
+				52D1E682D4962BD3C05C51C8 /* LyricsLiveActivityController.swift */,
 			);
 			name = "PlaybackEngine";
 			path = "PlaybackEngine";

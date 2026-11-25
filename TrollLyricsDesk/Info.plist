@@ -19,7 +19,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>14</string>
+	<string>15</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<!-- 后台保活：静音音频循环让检测引擎在后台继续 polling 所有播放器，
@@ -28,6 +28,9 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<!-- 锁屏歌词（Live Activities，iOS 16.1+ 才认这个键，iOS 15 上无害）。 -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>MinimumOSVersion</key>
 	<string>15.0</string>
 	<key>NSAppleMusicUsageDescription</key>

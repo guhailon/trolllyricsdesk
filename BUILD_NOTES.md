@@ -160,3 +160,42 @@ Textyl 是作者私有的，作者明说不要给别的项目用。我们只学�
 3. LyricParser 保留空歌词行（Lee 的解析器原样）。
 4. 网易云/QQ 适配器只是数据模型（Lee 的文件）：拼 MusicTrack 用；查词只走 LRCLIB，
    不调网易云/QQ 的网络接口。
+
+## 锁屏歌词（1.0.0 build 15，overlay-base 分支，2026-11-26）
+
+设计见 `hidden_files/lockscreen-design/PLAN.md`；皇上 2026-11-26 01:47 改令做、
+01:55 点「两样都要」（A＋B）。基线 overlay-base 2288444（1.0.0 build 14），
+版本保持 1.0.0，build 14→15（两 Info.plist；IPA 名仍是 桌面歌词-1.0.0.ipa）。
+
+新文件：
+- `LiveActivity/LyricsLiveActivity.swift`（ActivityAttributes＋ActivityConfiguration：
+  锁屏横幅＋灵动岛 expanded/compact/minimal，三行歌词子视图共用；整体 @available(iOS 16.1, *)）
+- `PlaybackEngine/LyricsLiveActivityController.swift`（单例，start/stop/update，
+  监听 Activity 结束同步开关状态；整体 @available(iOS 16.1, *)）
+
+改的文件：
+- `PlaybackEngine/PlaybackCoordinator.swift`：加 `lastLiveLyricIndex`／`lastLiveTrackKey`＋
+  `publishLiveLyrics()`（变行才推；没词推一次 ♪ 占位；staleDate＝下一行＋5 秒），
+  poll() 末尾与换歌分支各调一次。`state = newState` 在位（overlay-base 没有 1.0.6 的回归）。
+  注意：底子没有 1.0.6 的 `publishHUDLyrics()`，算法是按 PLAN 第 3.2 节用
+  `LyricStore.currentElapsed`＋`lastIndex` 现写的，不是照抄。
+- `App/ContentView.swift`：「锁屏歌词」区（开始／停止＋状态文字，绑 controller；
+  iOS 16.1 以下显示提示行）＋锁屏小组件添加提示。底子 ContentView 里没有
+  PLAN 说的「歌词悬浮窗」区（悬浮窗开关在 PlaybackDashboardView 主界面），
+  所以锁屏区放在「音乐检测」区后面、与现有区并列。
+- `TrollLyricsDesk/Info.plist`：加 `NSSupportsLiveActivities` = true。
+- `TrollLyricsWidget/TrollLyricsWidget.swift`：supportedFamilies 加 `.accessoryRectangular`
+  （用 `if #available(iOS 16.0, *)` 运行时判断包起来——PLAN 说 iOS 15 会忽略不认识的
+  family，但没编过不敢断言，稳妥写法是运行时判断；见 OPEN）。
+- `TrollLyricsWidget/WidgetView.swift`：加锁屏分支（歌名小字＋当前句＋下一句），
+  主屏幕布局原样抽进 `mainScreenView`，行内容一字未动；getTimeline 不动。
+- `TrollLyricsDesk.xcodeproj/project.pbxproj`：两新文件进 App target Sources，
+  LiveActivity 组进主组，ActivityKit 弱链接（两 App 配置的 OTHER_LDFLAGS 加
+  `-weak_framework ActivityKit`；PLAN 的另一种写法是在 Link Binary 设 Optional，
+  以编过为准，见 OPEN）。
+
+没动的：`Overlay/` 全部、v0.5 BackBoard 代码、两边 entitlements（零新增）、
+Widget Info.plist、MinOS 15.0、逐字同步（LyricWord.swift／LyricSyncEngine.swift
+不存在，不许现编假实现）。
+
+检查：`python3 check_lockscreen.py`（PLAN 第 6 节清单＋基线不变量）。

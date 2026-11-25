@@ -198,6 +198,30 @@ struct ContentView: View {
                         .background(.ultraThinMaterial)
                         .cornerRadius(20)
 
+                        VStack(spacing: 12) {
+                            Text("锁屏歌词")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if #available(iOS 16.1, *) {
+                                LiveActivitySectionView()
+                            } else {
+                                Text("锁屏歌词需要 iOS 16.1 或以上")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            Text("锁屏小组件：长按锁屏 → 自定 → 添加小组件 → 选「Troll Lyrics」长方形。")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(20)
+
                         NavigationLink {
                             LyricsSearchView()
                         } label: {
@@ -250,5 +274,55 @@ struct ContentView: View {
         LyricStore.save(snapshot)
 
         WidgetCenter.shared.reloadAllTimelines()
+    }
+}
+
+/// 锁屏歌词开关（路子 A：Live Activities，iOS 16.1+）。
+/// 单独抽成子视图，整个包在 @available 里；ContentView 本体保持 MinOS 15.0。
+@available(iOS 16.1, *)
+private struct LiveActivitySectionView: View {
+
+    @ObservedObject private var liveActivity = LyricsLiveActivityController.shared
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Button {
+                liveActivity.start()
+            } label: {
+                Label(
+                    "开启锁屏歌词",
+                    systemImage: "lock.fill"
+                )
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.purple)
+                .foregroundColor(.white)
+                .cornerRadius(15)
+            }
+            .disabled(liveActivity.isActive)
+
+            Button {
+                liveActivity.stop()
+            } label: {
+                Label(
+                    "停止锁屏歌词",
+                    systemImage: "lock.open.fill"
+                )
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.white.opacity(0.14))
+                .foregroundColor(.white)
+                .cornerRadius(15)
+            }
+            .disabled(!liveActivity.isActive)
+
+            Text(liveActivity.statusMessage)
+                .font(.footnote)
+                .foregroundColor(.white.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onAppear {
+            liveActivity.refresh()
+        }
     }
 }

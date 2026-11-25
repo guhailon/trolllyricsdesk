@@ -28,6 +28,11 @@ final class PlaybackCoordinator: ObservableObject {
     /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
     private var searchTask: Task<Void, Never>?
 
+    /// 锁屏歌词（路子 A）：上一次推给 Live Activity 的行下标＋歌名键；
+    /// 变行才推（系统限流：歌词一行 4–5 秒才切一次，远低于每秒一次的上限）。
+    private var lastLiveLyricIndex: Int?
+    private var lastLiveTrackKey: String?
+
     init(adapter: any PlaybackAdapter) {
         self.adapter = adapter
     }
@@ -121,6 +126,9 @@ final class PlaybackCoordinator: ObservableObject {
                 await loadLyrics(for: newState.track)
             }
 
+            // 换歌立刻推一次新歌（标题／♪ 占位），不等下一轮 poll。
+            publishLiveLyrics()
+
             return
         }
 
@@ -151,6 +159,92 @@ final class PlaybackCoordinator: ObservableObject {
             syncPlaybackState(newState, previous: previous)
 
             LyricLogger.log(message)
+        }
+
+        // ---- 锁屏歌词（路子 A）：变行才推给 Live Activity ----
+        publishLiveLyrics()
+    }
+
+    /// 锁屏歌词（路子 A）：按 0.25 秒轮询算当前行，下标变了才推 Live Activity。
+    /// 算法与 Widget 的 currentLyric 同款（LyricStore.currentElapsed＋lastIndex）。
+    /// 没词时同一首歌只推一次「♪ {title}」占位；还没唱到第一句时不推，等下一轮。
+    /// 读不到歌时 poll() 提前 return，不会走到这里，不推、不清空、不报错。
+    private func publishLiveLyrics() {
+        if #available(iOS 16.1, *) {
+            guard let snapshot = LyricStore.load() else {
+                return
+            }
+
+            let trackKey = "\(snapshot.title)|\(snapshot.artist)"
+
+            // 没词：新歌还没搜到词，先推一次 ♪ 标题占位（同一首歌只推一次）。
+            if snapshot.lyrics.isEmpty {
+                guard lastLiveTrackKey != trackKey else {
+                    return
+                }
+                lastLiveTrackKey = trackKey
+                lastLiveLyricIndex = nil
+                let state = LyricsLiveAttributes.ContentState(
+                    title: snapshot.title,
+                    artist: snapshot.artist,
+                    previous: "",
+                    current: "♪ \(snapshot.title)",
+                    next: "",
+                    isPlaying: snapshot.isPlaying,
+                    lyricColorHex: LyricsLiveActivityController.lyricColorHex()
+                )
+                Task {
+                    await LyricsLiveActivityController.shared.update(
+                        state: state,
+                        staleDate: nil
+                    )
+                }
+                return
+            }
+
+            let elapsed = LyricStore.currentElapsed(snapshot, at: Date())
+            guard let index = snapshot.lyrics.lastIndex(where: { $0.time <= elapsed }) else {
+                // 还没唱到第一句，不推，等下一轮。
+                return
+            }
+
+            // 下标没变、同一首歌 → 不推（0.25 秒一轮里只有切词那一下才推）。
+            if index == lastLiveLyricIndex && trackKey == lastLiveTrackKey {
+                return
+            }
+            lastLiveLyricIndex = index
+            lastLiveTrackKey = trackKey
+
+            let previous = index > 0 ? snapshot.lyrics[index - 1].text : ""
+            let current = snapshot.lyrics[index].text
+            let next = index + 1 < snapshot.lyrics.count
+                ? snapshot.lyrics[index + 1].text
+                : ""
+
+            // staleDate：下一行歌词的时间＋5 秒；没下一行／暂停时不设。
+            var staleDate: Date?
+            if snapshot.isPlaying, index + 1 < snapshot.lyrics.count {
+                let nextIn = snapshot.lyrics[index + 1].time - elapsed
+                if nextIn > 0 {
+                    staleDate = Date().addingTimeInterval(nextIn + 5)
+                }
+            }
+
+            let state = LyricsLiveAttributes.ContentState(
+                title: snapshot.title,
+                artist: snapshot.artist,
+                previous: previous,
+                current: current,
+                next: next,
+                isPlaying: snapshot.isPlaying,
+                lyricColorHex: LyricsLiveActivityController.lyricColorHex()
+            )
+            Task {
+                await LyricsLiveActivityController.shared.update(
+                    state: state,
+                    staleDate: staleDate
+                )
+            }
         }
     }
 
