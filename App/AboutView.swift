@@ -71,10 +71,11 @@ struct AboutView: View {
         }
     }
 
-    // 先跳 Telegram App（tg://），没装就退回网页版。
+    // 频道是私密频道，没有公开用户名，@seadragonjb 打不开频道；
+    // 改走频道邀请链接：先跳 Telegram App（tg://join），没装就退回网页版。
     private func openTelegram() {
-        let appURL = URL(string: "tg://resolve?domain=seadragonjb")!
-        let webURL = URL(string: "https://t.me/seadragonjb")!
+        let appURL = URL(string: "tg://join?invite=I-I8aw7HUAw1NGY9")!
+        let webURL = URL(string: "https://t.me/+I-I8aw7HUAw1NGY9")!
         UIApplication.shared.open(appURL, options: [:]) { success in
             if !success {
                 UIApplication.shared.open(webURL)
