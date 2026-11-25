@@ -162,7 +162,7 @@ final class PlaybackCoordinator: ObservableObject {
             }
 
             // 防止搜索期间歌曲已经切换
-            guard state?.track.trackKey == trackKey(track) else {
+            guard state?.trackKey == trackKey(track) else {
                 return
             }
 
