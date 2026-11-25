@@ -822,6 +822,8 @@ for fw in ["BackBoardServices", "GraphicsServices", "SpringBoardServices"]:
           f"System/Library/PrivateFrameworks/{fw}.framework" in pbx)
 check("v0.5 weak link attribute present 3x (BackBoard/Graphics/SpringBoard)",
       pbx.count("Weak,") == 3, f"count={pbx.count('Weak,')}")
+check("v0.5 App FRAMEWORK_SEARCH_PATHS includes SDK PrivateFrameworks (link fix, 2 configs)",
+      pbx.count('"$(SDKROOT)/System/Library/PrivateFrameworks"') == 2)
 
 # 13g. @main entry gone, main.mm is the only entry
 check("v0.5 App/TrollLyricsDeskApp.swift deleted (@main entry gone)",

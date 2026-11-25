@@ -177,7 +177,7 @@ BackBoard 托管浮在所有 App 之上；主 App 每秒轮询切词时把四行
 
 - 补丁 IPC 合入：sources/TLLyricsIPC.h/.mm 换成审计补丁（与皇上发的补丁逐字节一致）——App Group 容器 JSON + notify_register_dispatch/notify_post + stopObserving；publishLyrics 改回 BOOL。TLPrivate.h 的 TL_NOTIFY_LYRICS / TL_LYRICS_PATH 留着（TLHelper 的 prefs 小工具还在用它俩，暂无调用者）。
 - 捏合缩放：LyricsHUDController 加 UIPinchGestureRecognizer（FloatingLyricsPanel 同款 0.65–1.8 夹值）；皇上的 LyricsHUDView.swift 一字不动。
-- 链接问题待修（1.0.4 的教训）：pbxproj 缺 FRAMEWORK_SEARCH_PATHS，938d282 的 run 在 Archive 那步链接失败（ld: framework 'BackBoardServices' not found）。修法：App target 加 `$(SDKROOT)/System/Library/PrivateFrameworks`。放 1.0.4 重跑还是并进 1.0.5，等皇上定。
+- 链接问题已修（1.0.4 的教训）：pbxproj 缺 FRAMEWORK_SEARCH_PATHS，938d282 的 run 在 Archive 那步链接失败（ld: framework 'BackBoardServices' not found）。修法：App target Debug + Release 加 `$(SDKROOT)/System/Library/PrivateFrameworks`。皇上 2026-11-25 21:19 定并进 1.0.5 一起编。
 
 ## 新文件
 
