@@ -209,8 +209,11 @@ check("widget: systemSmall/systemMedium still present",
 check("widget: getTimeline untouched (pre-scheduled per-line entries)",
       "预先安排后续歌词" in wg)
 wv = read("TrollLyricsWidget/WidgetView.swift")
-check("WidgetView: lock-screen branch (family == .accessoryRectangular)",
-      "context.family == .accessoryRectangular" in wv)
+check("WidgetView: lock-screen branch uses @Environment widgetFamily (ChatGPT fix)",
+      "@Environment(\\.widgetFamily)" in wv
+      and "family == .accessoryRectangular" in wv)
+check("WidgetView: no undefined 'context' (ChatGPT: cannot find 'context' in scope)",
+      "context.family" not in wv)
 check("WidgetView: lock-screen view (title + current + next)",
       "lockScreenView" in wv and "桌面歌词 · " in wv)
 check("WidgetView: main-screen layout kept (moved verbatim to mainScreenView)",

@@ -3,11 +3,15 @@ import WidgetKit
 
 struct TrollLyricsWidgetView: View {
 
+    @Environment(\.widgetFamily)
+    private var family
+
     let entry: TrollLyricsEntry
 
     var body: some View {
         Group {
-            if #available(iOS 16.0, *), context.family == .accessoryRectangular {
+            if #available(iOS 16.0, *),
+               family == .accessoryRectangular {
                 lockScreenView
             } else {
                 mainScreenView
