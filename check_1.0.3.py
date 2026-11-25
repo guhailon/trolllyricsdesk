@@ -119,7 +119,6 @@ for rel, size, h in manifest:
 
 print("\n== 1. Lee's new tree (02:15, exact structure) ==")
 lee_tree = [
-    "App/TrollLyricsDeskApp.swift",
     "App/ContentView.swift",
     "App/PlaybackDashboardView.swift",
     "App/LyricsSearchView.swift",
@@ -170,8 +169,6 @@ markers = {
     "Lyrics/LyricStore.swift": ['"group.com.hailong.TrollLyricsDesk"',
                                 "struct LyricSnapshot: Codable",
                                 "static func currentLyric("],
-    "App/TrollLyricsDeskApp.swift": ["@main", "struct TrollLyricsDeskApp: App",
-                                     "ContentView()"],
     "App/ContentView.swift": ["加载测试歌词", "demoLyrics",
                               "透明动漫歌词桌面", "请在主屏幕添加 TrollLyrics Widget",
                               "歌词搜索与导入", "LyricsSearchView()",
@@ -388,7 +385,11 @@ check("pbxproj: old groups Shared/LocalLyrics/LyricsSearch gone",
       all(g not in pbx for g in ['name = "Shared"', 'name = "LocalLyrics"',
                                   'name = "LyricsSearch"']))
 _resolved = pbx_resolved_files(pbx)
-for f in ["App/TrollLyricsDeskApp.swift", "App/ContentView.swift",
+for f in ["App/ContentView.swift",
+          "HUD/LyricsHUDView.swift", "HUD/LyricsHUDController.swift",
+          "HUD/LyricsHUDBridge.swift", "HUD/FloatingLyricsController.swift",
+          "HUD/FloatingLyricsPanel.swift", "HUD/FloatingLyricsStyle.swift",
+          "App/TLAppRoot.swift",
           "App/PlaybackDashboardView.swift", "App/LyricsSearchView.swift",
           "PlaybackEngine/PlaybackState.swift", "PlaybackEngine/PlaybackAdapter.swift",
           "PlaybackEngine/PlaybackCoordinator.swift", "PlaybackEngine/LyricMatcher.swift",
@@ -435,8 +436,12 @@ for dirpath, _, filenames in os.walk(ROOT):
     for fn in filenames:
         if fn.endswith(".swift"):
             all_swift += open(os.path.join(dirpath, fn), encoding="utf-8").read() + "\n"
-for bad in ["激活", "activation", "LW-", "codes-", "licenseCode", "activate("]:
+for bad in ["激活", "activation", "LW-", "codes-", "licenseCode"]:
     check(f"no activation string {bad!r}", bad not in all_swift)
+# NSLayoutConstraint.activate( is UIKit layout, not an activation code —
+# Lee's LyricsHUDView.swift (verbatim, v0.5) uses it.
+check("no activation string 'activate(' (excluding NSLayoutConstraint.activate)",
+      re.search(r"(?<!NSLayoutConstraint\.)activate\(", all_swift) is None)
 check("no 123-song library", "audio-ssl.itunes.apple.com" not in all_swift)
 check("no SONGS array", re.search(r'\bSONGS\s*=', all_swift) is None)
 check("demo lyrics only in ContentView (Lee's demo)",
@@ -557,9 +562,12 @@ check("LyricLogger.swift kept", os.path.exists(
     os.path.join(ROOT, "TrollLyricsDesk/LyricLogger.swift")))
 open_item("LyricLogger has no callers after NowPlayingFollower removal (kept per task)",
           "PlaybackCoordinator does not log yet")
-# MediaRemote no longer directly linked (Lee 10:44: dlopen via Core/MediaRemoteBridge)
+# MediaRemote no longer directly linked (Lee 10:44: dlopen via Core/MediaRemoteBridge).
+# NOTE (v0.5): the old check also asserted "PrivateFrameworks" absent from the
+# pbxproj — that is no longer true: the HUD weak-links BackBoardServices /
+# GraphicsServices / SpringBoardServices. Only MediaRemote must stay unlinked.
 check("pbxproj: MediaRemote NOT directly linked (dlopen instead)",
-      "PrivateFrameworks" not in pbx and '"MediaRemote",' not in pbx)
+      "MediaRemote.framework" not in pbx)
 
 print("\n== 9. LRC sample parse (Lee's sample) ==")
 # Replicate Lee's LyricParser regex in Python (same pattern, same semantics).
@@ -636,6 +644,288 @@ open_item("Widget refresh is system-throttled (per-line pre-scheduled timeline)"
 open_item("LyricParser keeps empty lyric lines (Lee's parser verbatim)", "blank line shows blank in widget")
 open_item("NetEase/QQ adapters are data-model only (Lee's files)",
           "they build a MusicTrack; lyric lookup is LRCLIB-only now — the previous build's NetEase/QQ network search is gone with LyricSearchService.swift, so the NetEase encryption question is moot")
+
+print("\n== 13. v0.5 floating lyrics HUD (XExternalHUD mechanism, original TL host code) ==")
+# 13a. new files exist
+v05_files = [
+    "HUD/LyricsHUDView.swift", "HUD/LyricsHUDController.swift",
+    "HUD/LyricsHUDBridge.swift", "HUD/FloatingLyricsController.swift",
+    "HUD/FloatingLyricsPanel.swift", "HUD/FloatingLyricsStyle.swift",
+    "sources/TLLyricsIPC.h", "sources/TLLyricsIPC.mm",
+    "sources/TLPrivate.h", "sources/TLHelper.h", "sources/TLHelper.mm",
+    "sources/TLHUDWindow.h", "sources/TLHUDWindow.mm",
+    "sources/TLHUDApplication.h", "sources/TLHUDApplication.mm",
+    "sources/TLAppDelegate.h", "sources/TLAppDelegate.mm",
+    "sources/main.mm",
+    "App/TLAppRoot.swift",
+    "TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h",
+    "Makefile",
+]
+for rel in v05_files:
+    check(f"v0.5 file exists: {rel}", os.path.exists(os.path.join(ROOT, rel)))
+
+# 13b. Lee's files byte-identical to the originals he sent
+# (hidden_files/floating-overlay/ — the staging copies).
+def _bytes(rel):
+    with open(os.path.join(ROOT, rel), "rb") as f:
+        return f.read()
+
+for rel in ["HUD/LyricsHUDView.swift", "HUD/LyricsHUDBridge.swift",
+            "HUD/FloatingLyricsController.swift", "HUD/FloatingLyricsPanel.swift",
+            "HUD/FloatingLyricsStyle.swift", "sources/TLLyricsIPC.h"]:
+    check(f"v0.5 Lee file byte-identical: {rel}",
+          _bytes(rel) == _bytes("hidden_files/floating-overlay/" + os.path.basename(rel)))
+
+# 13c. TLLyricsIPC.mm: NOT verbatim — observeLyrics was rewritten (see BUILD_NOTES.md).
+# The original passes a block literal as the C callback of
+# CFNotificationCenterAddObserver and never retains the observer: it does not
+# compile and would crash. The rewrite uses a static C callback +
+# __bridge_retained block copy (upstream's approach). publish/read logic and
+# the public interface are untouched — verify by stripping the import line and
+# the observeLyrics method from both and comparing the rest.
+def _strip_ipc(text):
+    lines = text.split("\n")
+    out = []
+    skipping = False
+    skipping_cb = False
+    for ln in lines:
+        if ln.startswith('#import "XEPrivate.h"') or ln.startswith('#import "TLPrivate.h"'):
+            continue
+        # the new static C callback (part of the observeLyrics rewrite)
+        if ln.startswith("// Darwin 通知的 C 回调"):
+            skipping_cb = True
+            continue
+        if skipping_cb:
+            if ln == "}":
+                skipping_cb = False
+            continue
+        if ln.startswith("+ (void)observeLyrics:"):
+            skipping = True
+            continue
+        if skipping:
+            if ln.strip() == "@end":
+                skipping = False
+                out.append(ln)
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+lee_ipc = read("hidden_files/floating-overlay/TLLyricsIPC.mm")
+new_ipc = read("sources/TLLyricsIPC.mm")
+check("v0.5 TLLyricsIPC.mm: publish/read logic identical to Lee's original "
+      "(only import + observeLyrics differ)",
+      _strip_ipc(lee_ipc) == _strip_ipc(new_ipc))
+check("v0.5 TLLyricsIPC.mm: import points at TLPrivate.h, not XEPrivate.h",
+      '#import "TLPrivate.h"' in new_ipc and "XEPrivate" not in new_ipc)
+check("v0.5 TLLyricsIPC.mm: observeLyrics uses a static C callback",
+      "static void TL_LyricsNotifyCallback" in new_ipc and
+      "TL_LyricsNotifyCallback," in new_ipc)
+check("v0.5 TLLyricsIPC.mm: observer block copy is __bridge_retained (held for process life)",
+      "__bridge_retained" in new_ipc)
+check("v0.5 TLLyricsIPC.mm: NO block literal passed as C callback (the original bug)",
+      "^(CFNotificationCenterRef" not in new_ipc)
+
+# 13d. host code (ours) contains no upstream names at all — attribution lives
+# only in BUILD_NOTES.md / README.md, never in code.
+host_files = [
+    "sources/TLPrivate.h", "sources/TLHelper.h", "sources/TLHelper.mm",
+    "sources/TLHUDWindow.h", "sources/TLHUDWindow.mm",
+    "sources/TLHUDApplication.h", "sources/TLHUDApplication.mm",
+    "sources/TLAppDelegate.h", "sources/TLAppDelegate.mm",
+    "sources/main.mm", "sources/TLLyricsIPC.mm",
+    "HUD/LyricsHUDController.swift", "App/TLAppRoot.swift",
+    "TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h",
+]
+for rel in host_files:
+    t = read(rel)
+    for bad in ["XEHUD", "XExternalHUD", "XEHelper", "XEPrivate"]:
+        check(f"v0.5 no upstream name in {rel}: {bad}", bad not in t)
+
+# 13e. TL_ naming + private-API declarations + TL_ constants
+tlpriv = read("sources/TLPrivate.h")
+for decl in ["GSInitialize", "GSEventInitialize", "GSEventPushRunLoopMode",
+             "BKSDisplayServicesStart", "UIApplicationInitialize",
+             "UIApplicationInstantiateSingleton", "_accessibilityInit",
+             "__completeAndRunAsPlugin", "_installEventRunLoopSources:",
+             "setEventFetcherSink:", "_contextId", "_initWithFrame:",
+             "attached:(BOOL)attached",
+             "SBSAccessibilityWindowHostingController",
+             "registerWindowWithContextID:"]:
+    check(f"v0.5 TLPrivate.h declares {decl}", decl in tlpriv)
+for const, val in [("TL_NOTIFY_LYRICS", "com.trolllyricsdesk.v05/lyrics"),
+                   ("TL_NOTIFY_DISMISS", "com.trolllyricsdesk.v05/dismiss"),
+                   ("TL_LYRICS_PATH", "/var/mobile/Library/Preferences/com.trolllyricsdesk.v05.plist"),
+                   ("TL_PID_PATH", "/var/mobile/Library/Caches/com.trolllyricsdesk.v05.pid")]:
+    check(f"v0.5 TLPrivate.h {const} = {val}", val in tlpriv)
+for rel, names in [("sources/TLHelper.h", ["@interface TLHelper", "startHUD", "stopHUD",
+                                           "isHUDRunning", "writePidFile", "killHUDByPid"]),
+                   ("sources/TLHUDWindow.h", ["@interface TLHUDWindow"]),
+                   ("sources/TLHUDWindow.mm", ["_isSystemWindow", "_isWindowServerHostingManaged",
+                                               "_usesWindowServerHitTesting", "_ignoresHitTest",
+                                               "_initWithFrame:attached:"]),
+                   ("sources/TLHUDApplication.h", ["@interface TLHUDApplication",
+                                                   "@interface TLHUDAppDelegate"]),
+                   ("sources/TLHUDApplication.mm", ["10000010.0",
+                                                    "SBSAccessibilityWindowHostingController",
+                                                    "registerWindowWithContextID",
+                                                    "TL_NOTIFY_DISMISS",
+                                                    "updateWithTitle:"]),
+                   ("sources/TLAppDelegate.h", ["@interface TLAppDelegate"]),
+                   ("sources/TLAppDelegate.mm", ["makeRootViewController"]),
+                   ("sources/main.mm", ["UIApplicationMain", '"-exit"', '"-check"', '"-hud"',
+                                        "TLAppDelegate", "TLHUDApplication", "TLHUDAppDelegate",
+                                        "__completeAndRunAsPlugin",
+                                        "SBSpringBoardDidLaunchNotification"]),
+                   ("HUD/LyricsHUDController.swift", ["final class LyricsHUDController",
+                                                      "LyricsHUDView", "updateLyrics",
+                                                      "TLHelper.stopHUD"]),
+                   ("App/TLAppRoot.swift", ["final class TLAppRoot", "makeRootViewController",
+                                            "UIHostingController", "ContentView()",
+                                            "keyWindowRootView"])]:
+    t = read(rel)
+    for n in names:
+        check(f"v0.5 {rel} contains {n!r}", n in t)
+check("v0.5 TLHelper.mm: never spawns as root (no persona override)",
+      "posix_spawnattr_set_persona" not in read("sources/TLHelper.mm") and
+      "XE_SPAWN_AS_ROOT" not in read("sources/TLHelper.mm"))
+check("v0.5 main.mm: no ImGui / HID callback (touch goes through the event dispatcher)",
+      "BKSHIDEventRegisterEventCallback" not in read("sources/main.mm") and
+      "_enqueueHIDEvent" not in read("sources/main.mm") and
+      "ImGuiHUD" not in read("sources/main.mm"))
+
+# 13f. bridging header + pbxproj wiring
+bh = read("TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h")
+check("v0.5 bridging header imports TLLyricsIPC.h", '#import "TLLyricsIPC.h"' in bh)
+check("v0.5 bridging header imports TLHelper.h", '#import "TLHelper.h"' in bh)
+check("v0.5 pbxproj: SWIFT_OBJC_BRIDGING_HEADER set on App Debug + Release only",
+      pbx.count('SWIFT_OBJC_BRIDGING_HEADER = "TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h"') == 2)
+check("v0.5 pbxproj: HUD + sources groups present",
+      'name = "HUD"' in pbx and 'name = "sources"' in pbx)
+for rel in ["HUD/LyricsHUDView.swift", "HUD/LyricsHUDController.swift",
+            "HUD/LyricsHUDBridge.swift", "HUD/FloatingLyricsController.swift",
+            "HUD/FloatingLyricsPanel.swift", "HUD/FloatingLyricsStyle.swift",
+            "App/TLAppRoot.swift"]:
+    check(f"v0.5 pbxproj references {rel}", rel in _resolved)
+for fn, ft in [("TLLyricsIPC.h", "sourcecode.c.h"), ("TLLyricsIPC.mm", "sourcecode.cpp.objcpp"),
+               ("TLPrivate.h", "sourcecode.c.h"), ("TLHelper.h", "sourcecode.c.h"),
+               ("TLHelper.mm", "sourcecode.cpp.objcpp"),
+               ("TLHUDWindow.h", "sourcecode.c.h"), ("TLHUDWindow.mm", "sourcecode.cpp.objcpp"),
+               ("TLHUDApplication.h", "sourcecode.c.h"),
+               ("TLHUDApplication.mm", "sourcecode.cpp.objcpp"),
+               ("TLAppDelegate.h", "sourcecode.c.h"), ("TLAppDelegate.mm", "sourcecode.cpp.objcpp"),
+               ("main.mm", "sourcecode.cpp.objcpp")]:
+    check(f'v0.5 pbxproj file ref: {fn} ({ft})',
+          f'name = "{fn}"' in pbx and f'path = "{fn}"' in pbx)
+_src_phase = re.search(
+    r"4821909E9BF9E73E471FEA84 /\* PBXSourcesBuildPhase \*/ = \{(.*?)\n\t\t\};",
+    pbx, re.S).group(1)
+for bf in ["DCEFBED932F5EDBA023A6F24", "2192B4F9ADF4453D3056D557",
+           "F2A1D151EDF8E3FDDFF7FC54", "87D27C29C2BAA88B2DCFD473",
+           "77C1DC25EC74FFAAB999A9DE", "38C2596CB4C6E23EDC28E5F8",
+           "EF1FCF9624888119C176E6FB", "868FF40D24AC83E5EE3936EE",
+           "6281B91DC67C862834F92750", "DA9CEB4D39FAF88F6662A4C8",
+           "8B185C7CA44B77909247FB4B", "65E1DB3CEE86C2A6E76B3523",
+           "5536421856D0351EC5BD8EC1"]:
+    check(f"v0.5 App Sources phase contains build file {bf}", bf in _src_phase)
+_fw_phase = re.search(
+    r"6EFAB1ECC0D092E20FE51FCD /\* PBXFrameworksBuildPhase \*/ = \{(.*?)\n\t\t\};",
+    pbx, re.S).group(1)
+for bf in ["DF071546DBC39458B9EC4DE6", "F11C4DB38DFC0D308712204A",
+           "01C579C143BEA6A21453C8AE"]:
+    check(f"v0.5 App Frameworks phase contains build file {bf}", bf in _fw_phase)
+for fw in ["BackBoardServices", "GraphicsServices", "SpringBoardServices"]:
+    check(f"v0.5 {fw}.framework weak-linked (SDKROOT PrivateFrameworks)",
+          f"System/Library/PrivateFrameworks/{fw}.framework" in pbx)
+check("v0.5 weak link attribute present 3x (BackBoard/Graphics/SpringBoard)",
+      pbx.count("Weak,") == 3, f"count={pbx.count('Weak,')}")
+
+# 13g. @main entry gone, main.mm is the only entry
+check("v0.5 App/TrollLyricsDeskApp.swift deleted (@main entry gone)",
+      not os.path.exists(os.path.join(ROOT, "App/TrollLyricsDeskApp.swift")))
+check("v0.5 pbxproj: no TrollLyricsDeskApp reference left",
+      "TrollLyricsDeskApp" not in pbx)
+check("v0.5 no second @main entry (WidgetBundle @main is the widget's own, untouched)",
+      read("App/TLAppRoot.swift").count("@main") == 0 and
+      "struct TrollLyricsDeskApp" not in read("App/TLAppRoot.swift"))
+
+# 13h. entitlements (App only; Widget untouched)
+app_ent2 = plistlib.loads(open(os.path.join(
+    ROOT, "TrollLyricsDesk/TrollLyricsDesk.entitlements"), "rb").read())
+for key in ["com.apple.backboard.client",
+            "com.apple.springboard.accessibility-window-hosting",
+            "com.apple.assistivetouch.daemon",
+            "com.apple.backboardd.launchapplications",
+            "com.apple.springboard.launchapplications",
+            "com.apple.private.security.no-sandbox",
+            "platform-application",
+            "get-task-allow",
+            "task_for_pid-allow",
+            "com.apple.private.security.task_for_pid-allow"]:
+    check(f"v0.5 app entitlements: {key} = true", app_ent2.get(key) is True)
+check("v0.5 app entitlements: mach-lookup.global-name = [AXSpringBoardServer]",
+      app_ent2.get("com.apple.security.exception.mach-lookup.global-name")
+      == ["com.apple.accessibility.AXSpringBoardServer"])
+check("v0.5 app entitlements: mach-register.global-name = [com.trolllyricsdesk.v05.gsEvents]",
+      app_ent2.get("com.apple.security.exception.mach-register.global-name")
+      == ["com.trolllyricsdesk.v05.gsEvents"])
+check("v0.5 app entitlements: mach-register.local-name = [com.trolllyricsdesk.v05]",
+      app_ent2.get("com.apple.security.exception.mach-register.local-name")
+      == ["com.trolllyricsdesk.v05"])
+check("v0.5 app entitlements: old keys intact (App Groups + 2 mediaremote)",
+      app_ent2.get("com.apple.security.application-groups") == [GROUP_ID] and
+      app_ent2.get("com.apple.mediaremote.now-playing-read-access") is True and
+      app_ent2.get("com.apple.mediaremote.full-now-playing-read-access") is True)
+check("v0.5 Widget entitlements untouched (App Groups only)",
+      plistlib.loads(open(os.path.join(
+          ROOT, "TrollLyricsWidget/TrollLyricsWidget.entitlements"), "rb").read())
+      == {"com.apple.security.application-groups": [GROUP_ID]})
+
+# 13i. wiring: ContentView HUD section + coordinator publish hook
+cv2 = read("App/ContentView.swift")
+for s in ["歌词悬浮窗", "开启歌词悬浮窗", "关闭悬浮窗", "预览悬浮歌词",
+          "TLHelper.startHUD", "TLHelper.stopHUD",
+          "FloatingLyricsController.shared.show",
+          "TLAppRoot.keyWindowRootView"]:
+    check(f"v0.5 ContentView HUD section contains {s!r}", s in cv2)
+pc2 = read("PlaybackEngine/PlaybackCoordinator.swift")
+for s in ["lastHUDLyricIndex", "publishHUDLyrics", "LyricsHUDBridge.update",
+          "LyricStore.currentElapsed", "lastIndex",
+          "snapshot.lyrics[index - 1]", "snapshot.lyrics[index + 1]"]:
+    check(f"v0.5 PlaybackCoordinator HUD hook contains {s!r}", s in pc2)
+
+# 13j. Theos Makefile (second route, not CI)
+mk = read("Makefile")
+for g in ["sources/*.mm", "sources/*.m", "HUD/*.swift", "App/*.swift",
+          "Lyrics/*.swift", "Core/*.swift", "PlaybackEngine/*.swift",
+          "MusicProviders/*.swift", "TrollLyricsDesk/*.swift"]:
+    check(f"v0.5 Makefile globs {g}", g in mk)
+check("v0.5 Makefile: Theos is second route, not CI (header comment)",
+      "尚未接 CI" in mk and "build.yml" in mk)
+check("v0.5 Makefile: codesign entitlements = TrollLyricsDesk entitlements",
+      "-STrollLyricsDesk/TrollLyricsDesk.entitlements" in mk)
+
+# 13k. docs carry the attribution (code must not — see 13d)
+bn2 = read("BUILD_NOTES.md")
+check("v0.5 BUILD_NOTES.md: v0.5 section present", "v0.5" in bn2)
+check("v0.5 BUILD_NOTES.md: TrollSpeed MIT attribution (Lessica)",
+      "TrollSpeed" in bn2 and "MIT" in bn2 and "Lessica" in bn2)
+check("v0.5 BUILD_NOTES.md: XExternalHUD credited, no code copied",
+      "XExternalHUD" in bn2 and "没有复制" in bn2)
+rm = read("README.md")
+check("v0.5 README.md: v0.5 section + same attribution",
+      "v0.5" in rm and "TrollSpeed" in rm and "XExternalHUD" in rm)
+
+print("\n== 13l. v0.5 acceptance (Lee's table, section 7) — what ran vs what did not ==")
+open_item("v0.5 Theos build: NOT passed in this run (see BUILD_NOTES.md v0.5)",
+          "sandbox attempt ran; record the exact failing step there, do not mark passed")
+open_item("v0.5 Xcode build: Release build = GitHub Actions (push+build need Lee's approval)",
+          "not pushed, not built; the Actions run is the first real compile")
+open_item("v0.5 HUD start / lyrics sync: needs macOS build + device",
+          "startHUD/-hud spawn and the IPC path are code-level only until then")
+open_item("v0.5 global display + drag: device-only (iPhone 13 Pro, Lee's item)",
+          "window registration, TrollStore entitlements grant and post-hosting touch are unverified")
+open_item("v0.5 lifecycle: close/restart/uninstall leaves no HUD (stopHUD dismiss + -exit fallback)",
+          "mechanism in code; device confirms it")
 
 print()
 print("FAILED:", fails if fails else "none")

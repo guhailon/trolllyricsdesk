@@ -13,6 +13,7 @@ final class PlaybackCoordinator: ObservableObject {
     private var timer: Timer?
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
+    private var lastHUDLyricIndex: Int?
 
     init(adapter: any PlaybackAdapter) {
         self.adapter = adapter
@@ -62,6 +63,7 @@ final class PlaybackCoordinator: ObservableObject {
 
             lastTrackKey = key
             lastStatus = newState.status
+            lastHUDLyricIndex = nil
 
             message = "检测到新歌曲：\(newState.track.title)"
             LyricLogger.log("检测到新歌曲：\(newState.track.title) - \(newState.track.artist)")
@@ -102,6 +104,51 @@ final class PlaybackCoordinator: ObservableObject {
 
             LyricLogger.log(message)
         }
+
+        publishHUDLyrics()
+    }
+
+    // 悬浮歌词同步：每秒轮询时按快照 + 当前进度算出上一句/当前句/下一句，
+    // 当前行下标变了才发给 HUD 进程。挑行算法和 Widget 一样：
+    // 最后一句 time <= elapsed 的行是当前行（LyricStore.currentLyric 同款）。
+    private func publishHUDLyrics() {
+
+        guard
+            let snapshot = LyricStore.load(),
+            !snapshot.lyrics.isEmpty
+        else {
+            lastHUDLyricIndex = nil
+            return
+        }
+
+        let elapsed = LyricStore.currentElapsed(
+            snapshot,
+            at: Date()
+        )
+
+        guard
+            let index = snapshot.lyrics.lastIndex(
+                where: { $0.time <= elapsed }
+            )
+        else {
+            return
+        }
+
+        guard index != lastHUDLyricIndex else {
+            return
+        }
+        lastHUDLyricIndex = index
+
+        LyricsHUDBridge.update(
+            title: snapshot.title,
+            previous: index > 0
+                ? snapshot.lyrics[index - 1].text
+                : "",
+            current: snapshot.lyrics[index].text,
+            next: index + 1 < snapshot.lyrics.count
+                ? snapshot.lyrics[index + 1].text
+                : ""
+        )
     }
 
     private func savePlayback(

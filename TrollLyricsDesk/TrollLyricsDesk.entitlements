@@ -18,5 +18,40 @@
 	<true/>
 	<key>com.apple.mediaremote.full-now-playing-read-access</key>
 	<true/>
+	<!-- v0.5 悬浮歌词 HUD 要用的 entitlements（全局窗口托管）：
+	     主 App 和 HUD 子进程是同一个可执行文件，共用这一份。
+	     Widget 的 entitlements 不动。 -->
+	<key>com.apple.backboard.client</key>
+	<true/>
+	<key>com.apple.springboard.accessibility-window-hosting</key>
+	<true/>
+	<key>com.apple.assistivetouch.daemon</key>
+	<true/>
+	<key>com.apple.backboardd.launchapplications</key>
+	<true/>
+	<key>com.apple.springboard.launchapplications</key>
+	<true/>
+	<key>com.apple.private.security.no-sandbox</key>
+	<true/>
+	<key>platform-application</key>
+	<true/>
+	<key>get-task-allow</key>
+	<true/>
+	<key>task_for_pid-allow</key>
+	<true/>
+	<key>com.apple.private.security.task_for_pid-allow</key>
+	<true/>
+	<key>com.apple.security.exception.mach-lookup.global-name</key>
+	<array>
+		<string>com.apple.accessibility.AXSpringBoardServer</string>
+	</array>
+	<key>com.apple.security.exception.mach-register.global-name</key>
+	<array>
+		<string>com.trolllyricsdesk.v05.gsEvents</string>
+	</array>
+	<key>com.apple.security.exception.mach-register.local-name</key>
+	<array>
+		<string>com.trolllyricsdesk.v05</string>
+	</array>
 </dict>
 </plist>

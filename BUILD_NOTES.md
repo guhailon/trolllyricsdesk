@@ -160,3 +160,192 @@ Textyl 是作者私有的，作者明说不要给别的项目用。我们只学�
 3. LyricParser 保留空歌词行（Lee 的解析器原样）。
 4. 网易云/QQ 适配器只是数据模型（Lee 的文件）：拼 MusicTrack 用；查词只走 LRCLIB，
    不调网易云/QQ 的网络接口。
+
+---
+
+# v0.5 — 悬浮歌词 HUD（2026-11-25 晚，本地实现，未推、未编、未部署）
+
+目标：歌词不只在小组件里，跟 TrollSpeed / XExternalHUD 一样，浮在主屏幕
+和别的 App 之上的可拖动歌词卡片。同一可执行文件分流两个运行模式：
+普通启动是主 App；`-hud` 参数启动是独立的 HUD 子进程，窗口经
+BackBoard 托管浮在所有 App 之上；主 App 每秒轮询切词时把四行词写进
+共享 plist + 发 Darwin 通知，HUD 进程读到就刷新卡片。
+
+版本号未动（仍是 1.0.3 build 4），等皇上定。
+
+## 新文件
+
+皇上的文件（逐字原样，一字未改；见下两处例外，只改 TLLyricsIPC.mm）：
+
+- HUD/LyricsHUDView.swift — 悬浮卡片 UI（毛玻璃、动漫背景、上句/当前/下句、
+  拖动、关闭按钮、拖动不出界）
+- HUD/LyricsHUDBridge.swift — Swift 发词接口（调 TLLyricsIPC.publishLyrics）
+- HUD/FloatingLyricsController.swift — App 内预览：单例，show/hide/update
+- HUD/FloatingLyricsPanel.swift — App 内预览的卡片（捏合缩放版）
+- HUD/FloatingLyricsStyle.swift — App 内预览的卡片样式
+- sources/TLLyricsIPC.h — 跨进程歌词 IPC 接口（发/读/监听）
+
+我们写的宿主代码（原创，TL_ 前缀；机制照公开的上游做法，代码自己写）：
+
+- sources/TLPrivate.h — 私有声明（GSInitialize、GSEventInitialize、
+  BKSDisplayServicesStart、UIApplicationInitialize、UIApplicationInstantiateSingleton、
+  _accessibilityInit、__completeAndRunAsPlugin、UIEventDispatcher/Fetcher、
+  UIWindow _contextId/_initWithFrame:attached:、
+  SBSAccessibilityWindowHostingController 注册）+ TL_ 常量
+  （TL_NOTIFY_LYRICS / TL_NOTIFY_DISMISS / TL_LYRICS_PATH / TL_PID_PATH，
+  全是 com.trolllyricsdesk.v05 命名空间，不复用上游的文件名和通知名）
+  + PAC 剥离/签名小工具（ARM64 扫描兜底用）
+- sources/TLHelper.h/.mm — 共享 plist 读写、Darwin 通知、HUD 生命周期
+  （isHUDRunning 跑一次 -check 子进程看退出码；startHUD 以 -hud 重起自己；
+  stopHUD 先发 dismiss 通知、0.6 秒后 -exit 兜底；绝不以 root 身份 spawn，
+  root 进程拿不到 HID 触摸流）
+- sources/TLHUDWindow.h/.mm — 全屏系统窗口：_initWithFrame:attached:NO
+  脱离默认 Scene；_isSystemWindow YES、_isWindowServerHostingManaged NO、
+  _usesWindowServerHitTesting NO、_ignoresHitTest NO；hitTest 只让卡片区域
+  吃触摸，其余区域透传给下面的 App
+- sources/TLHUDApplication.h/.mm — HUD 进程的 UIApplication 子类：init 里
+  手工接事件分发器和 fetcher（调不到 _installEventRunLoopSources: 时用
+  ARM64 扫描找内联掉的安装函数，找到就签上名直接调）；同文件里的
+  TLHUDAppDelegate 建全屏窗口（windowLevel 10000010.0）、注册
+  backboardd 托管、监听 dismiss（0.25 秒淡出后 exit(0)）、监听歌词
+  （直接接 LyricsHUDController.update，不留 NSLog 占位）
+- sources/TLAppDelegate.h/.mm — 普通模式 delegate：根视图取自
+  TLAppRoot.makeRootViewController()
+- sources/main.mm — 唯一程序入口：无参数走 UIApplicationMain +
+  TLAppDelegate；-exit 杀 HUD；-check 退出码报 HUD 是否在跑（1 = 在跑）；
+  -hud 手工 UIKit 启动（GSInitialize、BKSDisplayServicesStart、
+  UIApplicationInitialize、UIApplicationInstantiateSingleton、
+  _accessibilityInit、iOS 15+ 时 GSEventInitialize + GSEventPushRunLoopMode、
+  __completeAndRunAsPlugin、监听 SBSpringBoardDidLaunchNotification、
+  respring 时自杀、CFRunLoopRun）。不带 ImGui / HID 回调（我们没有
+  ImGui，触摸走事件分发器）
+- HUD/LyricsHUDController.swift — HUD 进程的歌词控制器：根视图是全屏透明
+  容器，卡片是子视图（frame 默认 x 30、y 180、w 300、h 126，和
+  FloatingLyricsController 同款）；update 转发给 view.updateLyrics；
+  关闭按钮调 TLHelper.stopHUD
+- App/TLAppRoot.swift — Swift 入口工厂：makeRootViewController() 包
+  ContentView() 进 UIHostingController；keyWindowRootView() 取 key window
+  的根视图（没有 key window 时退回第一个窗口），给 App 内预览用
+- TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h — 桥接头（TLLyricsIPC.h +
+  TLHelper.h），App target Debug/Release 都设了 SWIFT_OBJC_BRIDGING_HEADER
+- Makefile — Theos 第二条构建路线（见下“Theos 实测”）
+
+## 改动的文件
+
+- App/TrollLyricsDeskApp.swift — 删（@main 没了，main.mm 是唯一入口；
+  pbxproj 里的引用也清了）
+- App/ContentView.swift — 只加一个“歌词悬浮窗”区（三个紫色圆角按钮，
+  和“加载测试歌词”同款）：开启歌词悬浮窗（TLHelper.startHUD）、
+  关闭悬浮窗（TLHelper.stopHUD）、预览悬浮歌词
+  （FloatingLyricsController.shared.show + update 一组演示词）
+- PlaybackEngine/PlaybackCoordinator.swift — 只加钩子：每秒 poll 时按快照
+  + 当前进度算上一句/当前句/下一句，当前行下标变了才调
+  LyricsHUDBridge.update。挑行算法和 Widget 一样（最后一句 time <=
+  elapsed 的行是当前行，LyricStore.currentElapsed + lastIndex；换歌时
+  lastHUDLyricIndex 清零）。没快照或没歌词时不调
+- TrollLyricsDesk/TrollLyricsDesk.entitlements — 只加 v0.5 的键（现有
+  App Groups + 两个 mediaremote 一字不动；Widget 的 entitlements 一字不动）：
+  com.apple.backboard.client、com.apple.springboard.accessibility-window-hosting、
+  com.apple.assistivetouch.daemon、com.apple.backboardd.launchapplications、
+  com.apple.springboard.launchapplications、com.apple.private.security.no-sandbox、
+  platform-application、get-task-allow、task_for_pid-allow、
+  com.apple.private.security.task_for_pid-allow（以上 true），
+  mach-lookup.global-name = [com.apple.accessibility.AXSpringBoardServer]、
+  mach-register.global-name = [com.trolllyricsdesk.v05.gsEvents]、
+  mach-register.local-name = [com.trolllyricsdesk.v05]（以上数组）
+- TrollLyricsDesk.xcodeproj/project.pbxproj — 新组 HUD/、sources/；
+  全部新文件进 App target（Sources phase 13 个、Frameworks phase 3 个弱链）；
+  App target 弱链 BackBoardServices、GraphicsServices、SpringBoardServices
+  （PBXBuildFile Weak 属性；MediaRemote 仍是 dlopen，不直接链）；
+  TrollLyricsDeskApp.swift 的引用清掉；Widget target 一字不动
+- check_1.0.3.py — 加第 13 节 v0.5 检查（文件都在、皇上的文件逐字节一致、
+  宿主代码零上游名字、bridging header、entitlements、main.mm 四种模式、
+  @main 已删）；第 1/2/5 节同步改（入口文件删了）；
+  “PrivateFrameworks 不在 pbxproj”那项改成只查 MediaRemote 不直接链
+  （弱链私有 Framework 后 PrivateFrameworks 字串必然在 pbxproj 里）
+
+## 两处集成改动（皇上的文件，一字未改之外的例外，如实记下）
+
+1. **sources/TLLyricsIPC.mm 的 observeLyrics 重写了。** 皇上发来的是接口
+   草案：它把 block 字面量直接当 C 函数指针传给
+   CFNotificationCenterAddObserver，且 observer 用 __bridge 不持有——
+   生命周期和回调签名都有问题，编不过、跑起来也可能崩。改法照上游的
+   做法：写一个 static C 回调函数 TL_LyricsNotifyCallback，observer 用
+   __bridge_retained 传 block 副本（进程生命周期内持有是故意的），回调里
+   读 plist、回主线程调 handler。公开接口（publishLyrics/readLyrics/
+   observeLyrics）、TL_ 名字和路径一字不动；publishLyrics/readLyrics
+   的逻辑保留原样。另有一行 import 改了：`#import "XEPrivate.h"` →
+   `#import "TLPrivate.h"`，因为本工程的私有定义头就是 TLPrivate.h
+   （XEPrivate.h 这个文件不存在）。check 脚本第 13c 节验这两处：
+   publish/read 部分和皇上原版逐行一致、observeLyrics 是 static C 回调
+   + __bridge_retained、没有 block 当函数指针的写法。
+2. **ContentView 预览的兜底。** 任务原话是 `show(in:
+   TLAppRoot.keyWindowRootView() ?? 兜底 view)`；实现里兜底放在了
+   TLAppRoot.keyWindowRootView() 内部（key window 没有时退回该 scene 的
+   第一个窗口），ContentView 里拿不到窗口时直接 return——往一个没上屏的
+   假 view 里加面板会被单例卡住、再也点不出来。演示词和
+   FloatingLyricsController.show() 里写死的同一组。
+
+## 机制参考与致谢
+
+- 机制参考 **TrollSpeed**（Lessica，MIT，Copyright (c) 2023 Lessica）：
+  HUD 进程手工拉起 UIKit、事件分发器接线、BackBoard 托管窗口。
+  LICENSE 在 hidden_files/upstream-trollspeed/LICENSE，版权声明保留。
+- 机制参考 **XExternalHUD**（xauszulay）：同一个可执行文件分流普通启动
+  与 -hud 模式、共享 plist + Darwin 通知跨进程同步、HUD 生命周期
+  （start/stop/-exit/-check）。**它的代码没有复制**：XExternalHUD 没有
+  LICENSE 文件、README 也没有许可证声明，视为保留所有权利；宿主层
+  （TLHelper / TLHUDWindow / TLHUDApplication / TLAppDelegate / main.mm /
+  TLPrivate.h）是我们按同样机制独立写的，命名、注释、结构都是自己的，
+  代码里不出现 XEHUD / XExternalHUD / XEHelper / XEPrivate 字串
+  （check 脚本第 13d 节逐文件验）。
+- **Lyrication 是 AGPL，绝不碰**（见上文警告；本轮没碰）。
+
+## Theos 实测（2026-11-25，沙盒里实际跑过）
+
+`export THEOS=/home/hatch/theos && make package`，**未通过**：
+
+```
+> Making all for application TrollLyricsDesk…
+==> Building Swift support tools…
+sh: 1: swift: not found
+Failed to build swift-support: command failed: SPM_THEOS_BUILD=1 swift build ...
+make: *** [TrollLyricsDesk.all.application.variables] Error 2
+```
+
+卡在第一步：Theos 编 Swift 应用要先编它自己的 swift-support 工具，
+要 `swift` 命令；这台 Linux 沙盒没有 Swift 工具链（没有 swift/swiftc，
+/usr/bin 里也没有），所以连 .mm 都没轮到编。不是我们的代码问题，是
+环境缺 Swift。以前分屏/抖音的 Linux 烟囱编法能跑，是因为那两个是
+纯 ObjC/Logos，没有 Swift；这个工程 Swift 是主体，Theos 在 Linux 上
+编不了。Makefile 的 glob 和签名参数因此**仍未验证**（只做了静态检查：
+文件都在、路径对得上）。Theos 路线要验，得在有 Swift 工具链的 Mac 上
+跑；Xcode 路线仍以 GitHub Actions 为准（推 + 编等皇上批）。
+残留已清（.theos/ 删了，没进提交）。
+
+## Xcode 实测
+
+没跑过：推 + 编等皇上批，GitHub Actions 的 run 是第一次真编。
+Linux 没有 Xcode/swiftc，Swift 语法没法本地编译验证（和 1.0.0–1.0.3 一样）。
+
+## 验收表（皇上的第七节，一项一项对）
+
+| 验收项 | 状态 |
+|---|---|
+| Theos 编译（成功生成 .tipa） | **未通过**：沙盒实测卡在 swift-support（`swift: not found`），环境缺 Swift 工具链；Makefile 本身未验证 |
+| Xcode 编译（Release 构建成功） | **待验证**：等皇上批推 + 编，GitHub Actions 是第一次真编 |
+| HUD 启动（主 App 启动独立 HUD 进程） | **待验证**：startHUD / -hud  spawn 逻辑在代码里，须真机跑 |
+| 全局显示（主屏幕及其他 App 上可见） | **待真机验证**：窗口注册、TrollStore 授权是否真给，都没验过 |
+| 拖动（可拖动） | **待真机验证**：卡片拖动手势在代码里，托管后拖动和触摸是否正常须真机 |
+| 拖动缩放（触摸响应正常，位置和尺寸可调整） | **待真机验证**：同上；App 内预览的捏合缩放在 FloatingLyricsPanel 里，HUD 卡片（LyricsHUDView）只有拖动没有缩放 |
+| 歌词同步（主 App 更新后 HUD 实时刷新） | **待验证**：publish → 共享 plist → Darwin 通知 → HUD 更新的链路在代码里，须真机跑 |
+| 生命周期（关闭、重启、卸载后没有残留 HUD） | **待验证**：stopHUD 的 dismiss 通知 + -exit 兜底是这一项的机制，须真机确认 |
+| iOS 16（iPhone 13 Pro 实机验证） | **待验证**：皇上的真机项，不自己标通过 |
+
+“能编译”和“能跨 App 全局显示”是两个验收项，分开记：上面没有一项是
+把没跑过的标成通过的。
+
+## 验证结果
+
+`python3 check_1.0.3.py`：**FAILED: none**（见输出；v0.5 检查在第 13 节）。
+本地能验的都验了；不能验的如实列在验收表里。

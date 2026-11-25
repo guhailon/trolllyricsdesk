@@ -88,6 +88,51 @@ struct ContentView: View {
                                 .cornerRadius(15)
                         }
 
+                        VStack(spacing: 12) {
+
+                            Text("歌词悬浮窗")
+                                .foregroundColor(.white)
+
+                            Button(action: startFloatingLyrics) {
+
+                                Text("开启歌词悬浮窗")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        Color.purple
+                                    )
+                                    .cornerRadius(15)
+                            }
+
+                            Button(action: stopFloatingLyrics) {
+
+                                Text("关闭悬浮窗")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        Color.purple
+                                    )
+                                    .cornerRadius(15)
+                            }
+
+                            Button(action: previewFloatingLyrics) {
+
+                                Text("预览悬浮歌词")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        Color.purple
+                                    )
+                                    .cornerRadius(15)
+                            }
+                        }
+
                         NavigationLink {
                             LyricsSearchView()
                         } label: {
@@ -164,5 +209,29 @@ struct ContentView: View {
         LyricStore.save(snapshot)
 
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private func startFloatingLyrics() {
+        TLHelper.startHUD()
+    }
+
+    private func stopFloatingLyrics() {
+        TLHelper.stopHUD()
+    }
+
+    private func previewFloatingLyrics() {
+        // 没有窗口时不做事：往一个没上屏的兜底 view 里加面板，
+        // 面板会被单例卡住、再也点不出来。
+        guard let host = TLAppRoot.keyWindowRootView() else {
+            return
+        }
+
+        FloatingLyricsController.shared.show(in: host)
+        FloatingLyricsController.shared.update(
+            title: "TrollLyricsDesk",
+            previous: "上一句歌词",
+            current: "当前正在播放的歌词",
+            next: "下一句歌词"
+        )
     }
 }
