@@ -156,6 +156,8 @@
 				10943F7E26B55DA72E244922 /* MediaRemoteSymbols.swift in Sources */,
 				1C1E9DE32AA927F0EBAC1F4A /* PlaybackStateEngine.swift in Sources */,
 				CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */,
+				80F1B3D04A96B4B3B471EF80 /* AboutView.swift in Sources */,
+				6EFFD66A90219D827D56995A /* LogView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -473,6 +475,14 @@
 			isa = PBXBuildFile;
 			fileRef = D5C30227B891262EA40DBB04;
 		};
+		80F1B3D04A96B4B3B471EF80 /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = 8236BC683D875B749B244608;
+		};
+		6EFFD66A90219D827D56995A /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = E7695063FA73476DC5917E8E;
+		};
 		B56E96530BC9DC2EBA288692 /* PBXResourcesBuildPhase */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -566,6 +576,20 @@
 			lastKnownFileType = "sourcecode.swift";
 			name = "SettingsView.swift";
 			path = "SettingsView.swift";
+			sourceTree = "<group>";
+		};
+		8236BC683D875B749B244608 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "AboutView.swift";
+			path = "AboutView.swift";
+			sourceTree = "<group>";
+		};
+		E7695063FA73476DC5917E8E /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "LogView.swift";
+			path = "LogView.swift";
 			sourceTree = "<group>";
 		};
 		DDE58E6DE8C3A7107DE018F9 /* PBXBuildFile */ = {
@@ -899,6 +923,8 @@
 				67E34E88AD31EF35553B75A1,
 				F66887D7CE8530865B6EA804,
 				D5C30227B891262EA40DBB04,
+				8236BC683D875B749B244608,
+				E7695063FA73476DC5917E8E,
 			);
 			name = "App";
 			path = "App";

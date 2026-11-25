@@ -142,19 +142,12 @@ struct SettingsView: View {
                     }
                 }
 
+                // 关于
                 Section {
-                    HStack {
-                        Text("应用名称")
-                        Spacer()
-                        Text("TrollLyricsDesk")
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Text("系统版本")
-                        Spacer()
-                        Text("iOS 16+")
-                            .foregroundColor(.secondary)
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        Text("关于")
                     }
                 }
             }

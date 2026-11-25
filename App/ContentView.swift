@@ -108,6 +108,15 @@ struct ContentView: View {
                             )
                         }
 
+                        NavigationLink {
+                            AboutView()
+                        } label: {
+                            Label(
+                                "关于",
+                                systemImage: "info.circle"
+                            )
+                        }
+
                         Text("请在主屏幕添加 TrollLyrics Widget")
                             .font(.footnote)
                             .foregroundColor(.white.opacity(0.7))

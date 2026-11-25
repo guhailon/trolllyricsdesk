@@ -139,6 +139,8 @@ lee_tree = [
     "Lyrics/LyricLine.swift",
     "Lyrics/LocalLRCImporter.swift",
     "App/SettingsView.swift",
+    "App/AboutView.swift",
+    "App/LogView.swift",
     "TrollLyricsDesk/LyricLogger.swift",
     "TrollLyricsDesk/Assets.xcassets",
     "TrollLyricsWidget/TrollLyricsWidget.swift",
@@ -241,11 +243,23 @@ markers = {
                                    "LRCLibClient.shared.search",
                                    "fileImporter",
                                    "歌词管理"],
+    "App/AboutView.swift": ["struct AboutView: View",
+                            "LogView()",
+                            "当前版本",
+                            "加入官方群组",
+                            "166623677",
+                            "mqqapi://card/show_pslcard"],
+    "App/LogView.swift": ["struct LogView: View",
+                          "LyricLogger.read()",
+                          "暂无日志",
+                          "ShareLink"],
 }
 for rel, ms in markers.items():
     text = read(rel)
     for m in ms:
         check(f"{rel} contains {m[:48]!r}", m in text)
+check("ContentView links to AboutView", "AboutView()" in read("App/ContentView.swift"))
+check("SettingsView links to AboutView", "AboutView()" in read("App/SettingsView.swift"))
 
 print("\n== 3. SettingsView (Lee's original, 02:37) ==")
 settings = read("App/SettingsView.swift")
