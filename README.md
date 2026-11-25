@@ -9,7 +9,7 @@
 - Bundle ID: `com.hailong.TrollLyricsDesk`
 - Widget Extension: WidgetKit（`TrollLyricsWidget`）
 - App Group: `group.com.hailong.TrollLyricsDesk`（App 和 Widget 共用，共享歌词状态）
-- 版本：1.0.5
+- 版本：1.0.6
 
 ## 结构（Lee 02:15 定的新树，原样）
 
@@ -102,6 +102,35 @@ ContentView 里还有“预览悬浮歌词”（只在 App 内弹卡片，先看
   生命周期（关闭/重启/卸载不残留 HUD）和 iPhone 13 Pro 真机验证都还没跑，
   不标通过。版本号：1.0.5（补丁 IPC + 捏合缩放；推＋编等皇上批）。
 
+## 1.0.6 — 混合整合（皇上本地版 + v0.5 HUD，皇上 2026-11-25 23:51 定）
+
+以 1.0.5（517bd4a）为基线，保留 v0.5 的 TLHUDApplication + BackBoard
+全局 HUD 托管架构，不引第二套窗口宿主；只从皇上本地版
+（hidden_files/local-overlay-1.0.3，1.0.3 基线）并这几项：
+
+- 0.25 秒播放检测（播放中），空闲节能：没歌或暂停时降到 1.0 秒
+  （本地版是固定 0.25 秒、没有节能写法，节能是 1.0.6 自加的）；
+- 启动立即检测一次；换歌取消旧搜词任务（searchTask），防旧词盖新歌；
+- 歌词缓存（App Group，歌名|歌手）+ 即播即显（换歌先写带缓存词的快照）；
+- 静音音频后台保活做成 ContentView 开关，**默认关**（本地版是启动即开）；
+- 新图标 AppIconV2；显示名改「桌面歌词」；最低系统改 **iOS 15.0**
+  （皇上 2026-11-25 23:57 更正「最低系统15不动」，原方案的 16.0 作废）；
+- HUD 透明度调整补上：卡片下方跟一个小滑杆（0.4–1.0，默认 0.92，
+  值存 App Group），拖卡片/捏合时跟着走；LyricsHUDView.swift 不动。
+
+不并的：Overlay/ 生命周期入口（main.m、TLDSAppDelegate、SceneDelegate、
+PassThroughWindow、FloatingLyricViewController）、Private/ 的
+FrontBoard / RunningBoard .tbd 存根、本地扩大的 entitlements
+（frontboard/runningboard/QuartzCore/iokit 等）；包名还是
+com.hailong.TrollLyricsDesk。权限差异表、编译风险见 BUILD_NOTES.md
+1.0.6 节。逐字同步：两边都没有 LyricWord.swift / LyricSyncEngine.swift，
+SettingsView 的「逐字卡拉OK」只是个选项，未实现，不标通过。
+
+最低系统降到 15.0 的适配（两处 16+ API，用 #available 包起来，
+iOS 15 上该功能不显示、其余不受影响）：SettingsView 的 PhotosPicker
+抽成 @available(iOS 16, *) 的独立子视图；LogView 的 ShareLink 用
+if #available(iOS 16, *) 包起来。版本号：1.0.6（build 7；推＋编等皇上批）。
+
 ## ⚠️ 跟随机制又变了，先说清楚（Lee 02:30：改回 MediaRemote 跟随）
 
 **现在跟随走 MediaRemote，能读任何 App 正在放的歌。** 02:15 新结构
@@ -151,7 +180,7 @@ MediaRemote，按钮的授权门也撤了——MediaRemote 不需要媒体资料
 
 推代码就自动跑 `.github/workflows/build.yml`：
 `xcodebuild archive`（不签名）→ `ldid` 按 entitlements 签名 →
-打 `TrollLyricsDesk-1.0.5.ipa` → 上传 Artifacts。
+打 `TrollLyricsDesk-1.0.6.ipa` → 上传 Artifacts。
 
 App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 （`com.apple.mediaremote.now-playing-read-access` /
@@ -162,7 +191,7 @@ App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 ## 验证
 
 ```sh
-python3 check_1.0.5.py
+python3 check_1.0.6.py
 ```
 
 检查结构、包名/组名一致、Lee 文件原样标记、无内置歌、无授权码、

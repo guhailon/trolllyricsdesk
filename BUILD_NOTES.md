@@ -179,6 +179,129 @@ BackBoard 托管浮在所有 App 之上；主 App 每秒轮询切词时把四行
 - 捏合缩放：LyricsHUDController 加 UIPinchGestureRecognizer（FloatingLyricsPanel 同款 0.65–1.8 夹值）；皇上的 LyricsHUDView.swift 一字不动。
 - 链接问题已修两轮（1.0.4 的教训）：pbxproj 缺 FRAMEWORK_SEARCH_PATHS，938d282 的 run 在 Archive 那步链接失败（ld: framework 'BackBoardServices' not found）。第一轮修法（App 加 `$(SDKROOT)/System/Library/PrivateFrameworks`）在 Xcode 26.6 / iPhoneOS26.5.sdk 上无效——SDK 里根本没有这个目录；第二轮（皇上 2026-11-25 21:41 定）：三个私有 Framework 不再链接（从 Link Binary With Libraries 撤下，文件引用留着），OTHER_LDFLAGS 加 `-undefined dynamic_lookup`，运行时再解析（抖音 Linux 编包同款写法）。
 
+## 1.0.6（本地准备中，未推；皇上 2026-11-25 23:51 定混合整合方案）
+
+基线 517bd4a（1.0.5）。保留 v0.5 的 TLHUDApplication + BackBoard
+全局 HUD 托管、补丁 IPC、HUD 捏合缩放、-undefined dynamic_lookup
+链接方式、包名 com.hailong.TrollLyricsDesk。只从皇上本地版
+（hidden_files/local-overlay-1.0.3，1.0.3 基线）逐项移植，不整文件覆盖：
+
+- PlaybackCoordinator：0.25 秒轮询（播放中）+ 空闲节能（没歌连续 4 次
+  或暂停/停止时降到 1.0 秒档，恢复播放立刻回 0.25 秒；节能是 1.0.6
+  自加的——本地版是固定 0.25 秒，没有节能写法）；启动立即检测一次
+  （1.0.5 本来就有，保留）；换歌取消旧搜词（searchTask + checkCancellation）；
+  publishImmediately（换歌先写带缓存词的新快照）+ syncLyrics
+  （搜到词后按当前进度写快照，不再写死透明度 0.65/字体 22，
+  改读 currentAppearance() 保留用户设置）；HUD 桥接钩子
+  publishHUDLyrics() 保留，换歌分支里也调一次（缓存有词立刻发 HUD）。
+- LyricStore：加歌词本地缓存（cachedLyrics/cacheLyrics，App Group，
+  key `lyric.cache|歌名|歌手`，本地版原样）。
+- MediaRemoteAdapter：缓存保鲜 2.0 秒 → 0.3 秒（本地版，配合即播即显）。
+- 新文件 App/BackgroundKeepAlive.swift：本地版的静音音频引擎原样
+  移植 + 补了一个本地版没有的 stop()；ContentView「歌词悬浮窗」区加
+  开关（@AppStorage `hudKeepAliveEnabled`，App Group，**默认关**），
+  开关变时起/停引擎；Info.plist 加 UIBackgroundModes audio
+  （只在开关开时用）。本地版是 App 启动即自动开，1.0.6 不这么做。
+  AVFoundation.framework 加进 App target 链接（保活要它；Makefile
+  的 FRAMEWORKS 也加了）。
+- 图标：AppIcon.appiconset 换成皇上本地版的 AppIconV2（9 张，
+  Contents.json 原样；1024 图是新图，660KB，不是旧占位）。
+- 显示名：CFBundleDisplayName 巨魔歌词桌面 → 桌面歌词。
+- 最低系统：**15.0**（皇上 2026-11-25 23:57 更正「最低系统15不动」，
+  原方案的 16.0 作废）。两 Info.plist 的 MinimumOSVersion +
+  pbxproj 6 处 IPHONEOS_DEPLOYMENT_TARGET 全改 15.0。
+- HUD 透明度调整（1.0.6 补的，本地版和 1.0.5 都没有）：LyricsHUDController
+  加卡片下方跟随小滑杆（0.4–1.0，默认 0.92，值存 App Group；
+  KVO 跟卡片中心，捏合时跟底边走，卡片贴底时滑杆翻到卡片上方）；
+  皇上的 LyricsHUDView.swift 一字不动；TLHUDWindow 的 hitTest 不用改——
+  滑杆是容器的子视图，点到正常归我们，点到别处透传。
+
+没并的（逐项核过）：Overlay/ 生命周期入口（main.m、TLDSAppDelegate、
+TLDSSceneDelegate、TLDSPassThroughWindow、FloatingLyricViewController）、
+Private/ 的 FrontBoard / RunningBoard .tbd 存根 + UIKitPrivate.h、
+本地扩大的 entitlements、包名 Desk2、最低系统 15.0 以外的本地改动
+（SettingsHubView、主界面改播放面板为根等一律不并）；本地版的
+TrollLyricsRuntime（UIKit 生命周期）不并，启动入口还是 main.mm。
+
+### 权限差异表（1.0.5 vs 本地版 vs 1.0.6）
+
+| 权限 | 1.0.5 | 本地版 | 1.0.6 | 理由 |
+|---|---|---|---|---|
+| App Groups group.com.hailong.TrollLyricsDesk | 有 | 有 | 有 | App/Widget/HUD 共用歌词状态 |
+| mediaremote 读权限 ×2 | 有 | 有 | 有 | 跟随读正在放的歌 |
+| backboard.client | 有 | 有 | 有 | BackBoard 托管全局窗口 |
+| springboard.accessibility-window-hosting | 有 | 有 | 有 | 注册托管窗口 |
+| assistivetouch.daemon | 有 | 无 | 有 | v0.5 宿主沿用（上游同款） |
+| backboardd.launchapplications | 有 | 无 | 有 | v0.5 宿主沿用 |
+| springboard.launchapplications | 有 | 无 | 有 | v0.5 宿主沿用 |
+| no-sandbox / platform-application / get-task-allow | 有 | 有 | 有 | TrollStore 平台化基础 |
+| task_for_pid-allow ×2 | 有 | 无 | 有 | v0.5 宿主沿用 |
+| mach-lookup AXSpringBoardServer | 有 | 无 | 有 | v0.5 宿主沿用 |
+| mach-register v05.gsEvents / v05 | 有 | 无 | 有 | v0.5 宿主沿用 |
+| frontboard.launchapplications | 无 | 有 | **不要** | Overlay 的 FrontBoard 路线，不并 |
+| QuartzCore displayable-context / secure-mode | 无 | 有 | **不要** | 同上，Overlay 路线才要 |
+| springboard.CFUserNotification / appbackgroundstyle / springboard-ui.client / statusbarstyleoverrides | 无 | 有 | **不要** | Overlay 的 SpringBoard 场景权限，不并 |
+| private.allow-background-haptics / kernel.jetsam / memorystatus / persona-mgmt | 无 | 有 | **不要** | 本地版扩的私有权限，1.0.6 功能用不上 |
+| file-read-data / user-preference-read / user-preference-write / storage.AppBundles / storage.AppDataContainers | 无 | 有 | **不要** | 本地版扩的，1.0.6 不读别家容器 |
+| runningboard.*（7 项） | 无 | 有 | **不要** | Overlay 的 RunningBoard 场景权限，不并 |
+| mach-lookup frontboard.systemappservices / UIKit.statusbarserver / SBRendererService / appstored / mobileassetd | 无 | 有 | **不要** | Overlay 路线的 mach 白名单，不并 |
+| iokit-user-client-class（IOSurface/GPU 等 5 项） | 无 | 有 | **不要** | Overlay 渲染用，1.0.6 不走那条路 |
+
+结论：1.0.6 的 entitlements 文件和 1.0.5 **一字不改**。
+
+### 最低系统 15.0 的 API 审计（逐项核过源码树）
+
+1.0.5 基线按 16.0 写，降到 15.0 后全树只查到 **2 处 16+ API**，
+都用 #available 包起来了，没有悄悄改回 16.0：
+
+- **SettingsView.swift — PhotosPicker / PhotosPickerItem（iOS 16+）**：
+  选背景图行连同 @State 一起抽成 @available(iOS 16, *) 的独立子视图
+  BackgroundPhotoPickerRow；iOS 15 上这一行不显示，其余 7 项设置不受
+  影响；16+ 上行为和原来一样。Lee 原文件里的选图逻辑原样搬过去，
+  只改了回写方式（子视图用 onPicked 闭包写 App Group）。
+- **LogView.swift — ShareLink（iOS 16+）**：toolbar 里的分享按钮用
+  if #available(iOS 16, *) 包起来；iOS 15 上没有分享按钮，日志查看本身
+  不受影响。
+
+其余核过无问题：NavigationView（16 已弃用但 15 可用）、.ultraThinMaterial
+（15+）、.onChange 单参数版（14+）、Task/@MainActor（Swift 并发，
+15 原生支持）、URLSession 回调（没用 15+ 的 async data API）、
+notify_register_dispatch / posix_spawn / dlopen（老 API）、
+AVAudioEngine（8+）、KVO observe（老 API）。MARKETING_VERSION
+在 pbxproj 里还是 1.0.0（惰性值，版本以两 Info.plist 为准，
+1.0.0–1.0.5 历来如此，没动它）。
+
+### 编译风险（1.0.6 新增）
+
+- **-undefined dynamic_lookup 仍未上机验证**（1.0.5 七次池子取消，
+  一次都没上机；1.0.6 的构建顺带验——这是 1.0.6 构建最关键的待验项）。
+- **AVFoundation 链接**：保活用 AVAudioEngine，pbxproj 已加
+  AVFoundation.framework 链接（MediaPlayer 同款写法），Theos 的
+  Makefile 也加了；真编是第一次实测。
+- **KVO 跟滑杆**：LyricsHUDController 用 KVO 观察卡片 center；
+  UIView.center 的 KVO 是常用做法，但托管窗口里的行为没真机验过——
+  万一 KVO 不触发，滑杆只会停在原地不动，透明度调节本身还能用，
+  不会崩（layoutOpacityControl 有 guard，viewDidLayoutSubviews
+  也会调一次）。
+- **PhotosPicker 抽子视图**：SettingsView 是 Lee 原文件，这次为
+  15.0 适配动了结构（选图行抽出去）；7 项设置 + @AppStorage 键
+  都还在，check 脚本照常验。iOS 15 上选图行不显示是预期行为。
+- **15.0 的 Swift 并发**：Task/@MainActor 在 15 原生支持，不用
+  嵌 back-deploy 库；但这是本工程第一次把部署目标降到 15，
+  Xcode 26.6 + iOS 15 组合是第一次编，留待构建验证。
+- **保活的音频会话**：.mixWithOthers 不打断用户音乐；但 TrollStore
+  签名是否真给 audio 后台模式、静音循环会不会被系统杀掉，
+  只能真机看日志。
+- **其余沿用 1.0.5 的风险**：Theos 路线沙盒实测未过（没 Swift 工具链，
+  非代码问题）；Xcode 编译、HUD 启动、全局显示、拖动、歌词同步、
+  生命周期全待 macOS 构建 + 真机。
+
+### 逐字同步（未实现，如实记）
+
+LyricWord.swift / LyricSyncEngine.swift 在 1.0.5 基线和皇上本地版
+里都不存在；SettingsView 的「逐字卡拉OK」只是显示模式的一个选项，
+逐字解析没实现。1.0.6 不现编一个假实现，记 OPEN，待后续。
+
 ## 新文件
 
 皇上的文件（逐字原样，一字未改；见下两处例外，只改 TLLyricsIPC.mm）：

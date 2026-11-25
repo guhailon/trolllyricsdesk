@@ -28,7 +28,7 @@ TrollLyricsDesk_FILES += $(wildcard MusicProviders/*.swift)
 TrollLyricsDesk_FILES += $(wildcard TrollLyricsDesk/*.swift)
 
 TrollLyricsDesk_FRAMEWORKS += \
-    UIKit Foundation QuartzCore CoreGraphics
+    UIKit Foundation QuartzCore CoreGraphics AVFoundation
 
 TrollLyricsDesk_PRIVATE_FRAMEWORKS += \
     BackBoardServices GraphicsServices SpringBoardServices

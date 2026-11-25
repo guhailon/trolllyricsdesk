@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh_CN</string>
 	<key>CFBundleDisplayName</key>
-	<string>巨魔歌词桌面</string>
+	<string>桌面歌词</string>
 	<key>CFBundleExecutable</key>
 	<string>TrollLyricsDesk</string>
 	<key>CFBundleIdentifier</key>
@@ -17,15 +17,21 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.5</string>
+	<string>1.0.6</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>MinimumOSVersion</key>
-	<string>16.0</string>
+	<string>15.0</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>用于读取用户授权的音乐资料和显示歌曲信息。</string>
+	<!-- 后台保活（1.0.6）：静音音频循环让检测引擎在后台继续 polling。
+	     只有 ContentView 里「后台保活」开关开着时才用，默认关、关着不播。 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>

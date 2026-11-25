@@ -6,6 +6,12 @@ struct ContentView: View {
     @State private var opacity = 0.65
     @State private var fontSize = 22.0
 
+    // 后台保活开关（1.0.6，默认关）：开着时用静音音频循环让检测引擎
+    // 在后台继续 polling，关着时不播静音音频。存在 App Group，
+    // 和设置页的 7 个键同一个共享区。
+    @AppStorage("hudKeepAliveEnabled", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    private var keepAliveEnabled = false
+
     private let demoLyrics = """
     [00:00.00]TrollLyricsDesk
     [00:04.00]透明动漫歌词桌面
@@ -131,6 +137,17 @@ struct ContentView: View {
                                     )
                                     .cornerRadius(15)
                             }
+
+                            Toggle(isOn: $keepAliveEnabled) {
+                                Text("后台保活（静音音频）")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                            .tint(.purple)
+
+                            Text("默认关。开着时退到后台也能继续检测换歌，关着不播静音音频。")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.7))
                         }
 
                         NavigationLink {
@@ -170,11 +187,17 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                applyKeepAlive()
+            }
             .onChange(of: opacity) { _ in
                 saveSettings()
             }
             .onChange(of: fontSize) { _ in
                 saveSettings()
+            }
+            .onChange(of: keepAliveEnabled) { _ in
+                applyKeepAlive()
             }
         }
     }
@@ -213,6 +236,16 @@ struct ContentView: View {
 
     private func startFloatingLyrics() {
         TLHelper.startHUD()
+    }
+
+    // 保活开关的实际动作：开就起静音音频引擎，关就停掉。
+    // 只在开关变的时候调；开关默认关，什么都不做。
+    private func applyKeepAlive() {
+        if keepAliveEnabled {
+            BackgroundKeepAlive.shared.start()
+        } else {
+            BackgroundKeepAlive.shared.stop()
+        }
     }
 
     private func stopFloatingLyrics() {

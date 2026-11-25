@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.5 project: structure, ids, Lee's files verbatim,
+"""Verify TrollLyricsDesk 1.0.6 project: structure, ids, Lee's files verbatim,
 no built-in songs, no activation, adapters public-only, LRC sample parse,
 plists/entitlements/pbxproj/scheme valid, icons complete.
 
@@ -221,7 +221,9 @@ markers = {
                                           "value += 60",
                                           "value += 40"],
     "PlaybackEngine/PlaybackCoordinator.swift": ["final class PlaybackCoordinator: ObservableObject",
-                                                 "withTimeInterval: 1.0",
+                                                 "activePollInterval: TimeInterval = 0.25",
+                                                 "idlePollInterval: TimeInterval = 1.0",
+                                                 "scheduleTimer(interval:",
                                                  "LyricMatcher.bestMatch(",
                                                  "防止搜索期间歌曲已经切换"],
     "App/PlaybackDashboardView.swift": ["struct PlaybackDashboardView: View",
@@ -334,14 +336,14 @@ pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
 check("pbxproj: app bundle id", f"PRODUCT_BUNDLE_IDENTIFIER = {APP_ID}" in pbx or
       f'PRODUCT_BUNDLE_IDENTIFIER = "{APP_ID}"' in pbx)
 check("pbxproj: widget bundle id", WIDGET_ID in pbx)
-check("pbxproj: deployment target 16.0", "IPHONEOS_DEPLOYMENT_TARGET = 16.0" in pbx)
+check("pbxproj: deployment target 15.0", "IPHONEOS_DEPLOYMENT_TARGET = 15.0" in pbx)
 check("pbxproj: Swift 5.0", "SWIFT_VERSION = 5.0" in pbx)
 for rel, want in [("TrollLyricsDesk/Info.plist", APP_ID),
                   ("TrollLyricsWidget/Info.plist", WIDGET_ID)]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: bundle id", pl.get("CFBundleIdentifier") == want, pl.get("CFBundleIdentifier"))
-    check(f"{rel}: version 1.0.5", pl.get("CFBundleShortVersionString") == "1.0.5")
-    check(f"{rel}: min OS 16.0", pl.get("MinimumOSVersion") == "16.0", str(pl.get("MinimumOSVersion")))
+    check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6")
+    check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0", str(pl.get("MinimumOSVersion")))
 app_pl = plistlib.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
 check("app Info.plist: NSAppleMusicUsageDescription (Lee's text)",
       app_pl.get("NSAppleMusicUsageDescription") == "用于读取用户授权的音乐资料和显示歌曲信息。",
@@ -428,11 +430,17 @@ wf = read(".github/workflows/build.yml")
 check("workflow: xcodebuild archive unsigned", "CODE_SIGNING_ALLOWED=NO" in wf)
 check("workflow: install zsign", "brew install zsign" in wf)
 check("workflow: zsign sign app + widget", wf.count("zsign -a") >= 2)
-check("workflow: package IPA", "TrollLyricsDesk-1.0.5.ipa" in wf)
+check("workflow: package IPA", "TrollLyricsDesk-1.0.6.ipa" in wf)
 
 print("\n== 6. No built-in songs / no activation ==")
 all_swift = ""
 for dirpath, _, filenames in os.walk(ROOT):
+    # hidden_files/ is working state (local-overlay copy, audit patch,
+    # upstream sources) — not shipped code; the 1.0.6 merge put Lee's
+    # local 1.0.3 tree there, which would otherwise double-count
+    # definitions like enum PlaybackStatus.
+    if "hidden_files" in dirpath:
+        continue
     for fn in filenames:
         if fn.endswith(".swift"):
             all_swift += open(os.path.join(dirpath, fn), encoding="utf-8").read() + "\n"
@@ -917,6 +925,112 @@ open_item("v0.5 global display + drag: device-only (iPhone 13 Pro, Lee's item)",
           "window registration, TrollStore entitlements grant and post-hosting touch are unverified")
 open_item("v0.5 lifecycle: close/restart/uninstall leaves no HUD (stopHUD dismiss + -exit fallback)",
           "mechanism in code; device confirms it")
+
+print("\n== 14. 1.0.6 hybrid merge (Lee 2026-11-25 23:51; min OS 15.0 per 23:57 correction) ==")
+
+# 14a. 0.25s poll + idle saving (local had flat 0.25s, no saving — saving is 1.0.6's own)
+pc = read("PlaybackEngine/PlaybackCoordinator.swift")
+check("1.0.6 poll: active interval 0.25s", "activePollInterval: TimeInterval = 0.25" in pc)
+check("1.0.6 poll: idle interval 1.0s + scheduleTimer", "idlePollInterval: TimeInterval = 1.0" in pc and "scheduleTimer(interval:" in pc)
+check("1.0.6 poll: idle backoff (no track 4x / paused)", "idlePolls" in pc and "idlePolls >= 4" in pc)
+check("1.0.6 poll: immediate poll on start", "poll()\n\n        scheduleTimer" in pc)
+
+# 14b. searchTask cancel on song change
+check("1.0.6 searchTask property", "private var searchTask: Task<Void, Never>?" in pc)
+check("1.0.6 song change cancels old search", "searchTask?.cancel()" in pc)
+check("1.0.6 loadLyrics checks cancellation", "try Task.checkCancellation()" in pc and "catch is CancellationError" in pc)
+
+# 14c. cache + immediate display, HUD hook kept
+ls = read("Lyrics/LyricStore.swift")
+check("1.0.6 cache: cachedLyrics/cacheLyrics", "cachedLyrics(" in ls and "cacheLyrics(" in ls and "lyric.cache|" in ls)
+check("1.0.6 publishImmediately on song change", "publishImmediately(newState)" in pc and "private func publishImmediately" in pc)
+check("1.0.6 syncLyrics preserves appearance", "private func syncLyrics" in pc and "currentAppearance()" in pc)
+check("1.0.6 HUD hook kept (bridge update)", "publishHUDLyrics()" in pc and "LyricsHUDBridge.update" in pc)
+check("1.0.6 MediaRemote cache 0.3s", "cacheLifetime: TimeInterval = 0.3" in read("MusicProviders/MediaRemoteAdapter.swift"))
+
+# 14d. keep-alive optional, default off
+ka = read("App/BackgroundKeepAlive.swift")
+check("1.0.6 keep-alive file: start + stop", "func start()" in ka and "func stop()" in ka and "AVAudioEngine" in ka)
+cv = read("App/ContentView.swift")
+check("1.0.6 keep-alive switch default off", '@AppStorage("hudKeepAliveEnabled"' in cv and "private var keepAliveEnabled = false" in cv)
+check("1.0.6 keep-alive switch applies start/stop", "BackgroundKeepAlive.shared.start()" in cv and "BackgroundKeepAlive.shared.stop()" in cv)
+app_pl = plistlib.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
+check("1.0.6 app plist: UIBackgroundModes audio", app_pl.get("UIBackgroundModes") == ["audio"], str(app_pl.get("UIBackgroundModes")))
+check("1.0.6 app plist: display name 桌面歌词", app_pl.get("CFBundleDisplayName") == "桌面歌词", str(app_pl.get("CFBundleDisplayName")))
+check("1.0.6 app plist: build 7", app_pl.get("CFBundleVersion") == "7", str(app_pl.get("CFBundleVersion")))
+check("1.0.6 bundle id unchanged", app_pl.get("CFBundleIdentifier") == "com.hailong.TrollLyricsDesk")
+
+# 14e. icons V2
+import json as _json
+ac = _json.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Assets.xcassets/AppIcon.appiconset/Contents.json"), encoding="utf-8").read())
+check("1.0.6 icons: 9 images in Contents.json", len(ac["images"]) == 9, str(len(ac["images"])))
+check("1.0.6 icons: V2 filenames, files exist on disk",
+      all(im["filename"].startswith("icon-") and os.path.exists(os.path.join(ROOT, "TrollLyricsDesk/Assets.xcassets/AppIcon.appiconset", im["filename"])) for im in ac["images"]))
+check("1.0.6 icons: no old AppIcon*.png left",
+      not any(n.startswith("AppIcon") and n.endswith(".png") for n in os.listdir(os.path.join(ROOT, "TrollLyricsDesk/Assets.xcassets/AppIcon.appiconset"))))
+
+# 14f. min OS 15.0 + iOS 16+ API gating
+settings = read("App/SettingsView.swift")
+check("1.0.6 iOS 15: PhotosPicker gated in @available subview",
+      "BackgroundPhotoPickerRow" in settings and "@available(iOS 16, *)" in settings and "if #available(iOS 16, *)" in settings)
+check("1.0.6 iOS 15: parent no longer holds PhotosPickerItem state",
+      "private var selectedPhoto: PhotosPickerItem?" not in settings.split("BackgroundPhotoPickerRow")[0])
+logv = read("App/LogView.swift")
+check("1.0.6 iOS 15: ShareLink gated", "if #available(iOS 16, *)" in logv and "ShareLink" in logv)
+check("1.0.6 pbxproj: no 16.0 deployment target left", "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
+check("1.0.6 pbxproj: AVFoundation linked", "AVFoundation.framework" in pbx)
+check("1.0.6 pbxproj: BackgroundKeepAlive in App Sources", "BackgroundKeepAlive.swift in Sources" in pbx)
+check("1.0.6 Makefile: AVFoundation in FRAMEWORKS", "AVFoundation" in mk)
+
+# 14g. entitlements audit: 1.0.6 == 1.0.5, local extras NOT merged
+ent = read("TrollLyricsDesk/TrollLyricsDesk.entitlements")
+for bad in ["frontboard", "runningboard", "QuartzCore", "IOSurface",
+            "file-read-data", "user-preference-write", "storage.AppBundles",
+            "allow-background-haptics", "kernel.jetsam"]:
+    check(f"1.0.6 entitlements: no local extra {bad}", bad not in ent)
+for good in ["com.apple.backboard.client",
+             "com.apple.springboard.accessibility-window-hosting",
+             "com.trolllyricsdesk.v05.gsEvents"]:
+    check(f"1.0.6 entitlements: keeps {good}", good in ent)
+
+# 14h. Overlay NOT merged (no second host, no .tbd stubs)
+check("1.0.6 no Overlay dir", not os.path.exists(os.path.join(ROOT, "Overlay")))
+check("1.0.6 no TLDS names in pbxproj", "TLDSAppDelegate" not in pbx and "TLDSSceneDelegate" not in pbx)
+check("1.0.6 no .tbd stubs in pbxproj", ".tbd" not in pbx)
+
+# 14i. HUD controls complete in code (drag / pinch / opacity / passthrough / close)
+hc = read("HUD/LyricsHUDController.swift")
+check("1.0.6 HUD: pinch kept (0.65-1.8)", "handlePinch" in hc and "0.65" in hc and "1.8" in hc)
+check("1.0.6 HUD: opacity slider follows card", "UISlider" in hc and "hudCardOpacity" in hc and "layoutOpacityControl" in hc)
+check("1.0.6 HUD: opacity default 0.92 range 0.4-1.0", "hudOpacityDefault: Float = 0.92" in hc and "hudOpacityMin: Float = 0.4" in hc)
+hv = read("HUD/LyricsHUDView.swift")
+check("1.0.6 HUD: drag + close in card", "handlePan" in hv and "closeTapped" in hv)
+hw = read("sources/TLHUDWindow.mm")
+check("1.0.6 HUD: touch passthrough (hitTest nil)", "return nil" in hw)
+
+# 14j. word-by-word sync: NOT implemented in either tree — record, do not fabricate
+check("1.0.6 word-by-word: files absent in this tree (recorded, not implemented)",
+      not os.path.exists(os.path.join(ROOT, "Lyrics/LyricWord.swift")) and
+      not os.path.exists(os.path.join(ROOT, "Lyrics/LyricSyncEngine.swift")))
+open_item("1.0.6 word-by-word sync: NOT implemented (no LyricWord.swift / LyricSyncEngine.swift in 1.0.5 baseline or local tree; SettingsView karaoke is an option label only)",
+          "do not mark passed; do not fabricate an implementation")
+
+# 14k. docs carry the 1.0.6 section
+check("1.0.6 BUILD_NOTES.md: 1.0.6 section + permissions table",
+      "1.0.6" in bn2 and "权限差异表" in bn2)
+check("1.0.6 README.md: 1.0.6 section", "1.0.6" in rm and "混合整合" in rm)
+
+print("\n== 14l. 1.0.6 acceptance — what ran vs what did not ==")
+open_item("1.0.6 Xcode build: Release build = GitHub Actions (push+build need Lee's approval)",
+          "not pushed, not built; -undefined dynamic_lookup still unverified on a machine")
+open_item("1.0.6 HUD opacity slider: code-level only until device",
+          "KVO follow + pinch follow untested on device")
+open_item("1.0.6 keep-alive switch: code-level only until device",
+          "silent-audio background mode grant + engine survival unverified")
+open_item("1.0.6 0.25s poll + idle saving: code-level only until device",
+          "energy behaviour needs device observation")
+open_item("1.0.6 iOS 15.0 floor: build + device on iOS 15 unverified",
+          "PhotosPicker/ShareLink gating is static; first 15.0 build is the real test")
 
 print()
 print("FAILED:", fails if fails else "none")

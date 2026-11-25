@@ -52,10 +52,14 @@ struct LogView: View {
         }
         .navigationTitle("日志")
         .toolbar {
-            ShareLink(item: shareText) {
-                Label("分享", systemImage: "square.and.arrow.up")
+            // ShareLink 是 iOS 16+ 的 API：iOS 15 上不显示分享按钮，
+            // 日志查看本身不受影响。（1.0.6：最低系统降到 15.0 的适配。）
+            if #available(iOS 16, *) {
+                ShareLink(item: shareText) {
+                    Label("分享", systemImage: "square.and.arrow.up")
+                }
+                .disabled(entries.isEmpty)
             }
-            .disabled(entries.isEmpty)
         }
         .onAppear {
             entries = LogEntry.parse(LyricLogger.read())

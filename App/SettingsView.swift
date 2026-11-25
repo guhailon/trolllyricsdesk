@@ -25,7 +25,6 @@ struct SettingsView: View {
     @AppStorage("selectedBackgroundData", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
     private var selectedBackgroundData: Data = Data()
 
-    @State private var selectedPhoto: PhotosPickerItem?
     @State private var backgroundImage: UIImage?
 
     var body: some View {
@@ -108,23 +107,15 @@ struct SettingsView: View {
                         )
                     }
 
-                    PhotosPicker(
-                        selection: $selectedPhoto,
-                        matching: .images
-                    ) {
-                        Label(
-                            "选择背景图片",
-                            systemImage: "photo"
-                        )
-                    }
-
-                    if let image = backgroundImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 150)
-                            .clipped()
-                            .cornerRadius(12)
+                    // 选背景图是 iOS 16+ 的 PhotosPicker：包在独立子视图里，
+                    // iOS 15 上这一行不显示，其余设置不受影响。
+                    // （1.0.6：最低系统降到 15.0 的适配，功能本身没变。）
+                    if #available(iOS 16, *) {
+                        BackgroundPhotoPickerRow(
+                            backgroundImage: $backgroundImage
+                        ) { data in
+                            selectedBackgroundData = data
+                        }
                     }
                 }
 
@@ -152,11 +143,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("设置")
-            .onChange(of: selectedPhoto) { newValue in
-                Task {
-                    await loadSelectedPhoto(newValue)
-                }
-            }
             .onAppear {
                 loadSavedBackground()
             }
@@ -174,7 +160,60 @@ struct SettingsView: View {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    // MARK: - 读取图片
+    // MARK: - 读取已保存图片
+
+    private func loadSavedBackground() {
+        guard !selectedBackgroundData.isEmpty else {
+            return
+        }
+
+        backgroundImage = UIImage(
+            data: selectedBackgroundData
+        )
+    }
+}
+
+// MARK: - 背景图片选择（iOS 16+）
+// PhotosPicker / PhotosPickerItem 是 iOS 16 才有的 API：整个选图行
+// 连同 @State 一起包在这个子视图里，视图本身标 @available(iOS 16, *)，
+// iOS 15 上父视图根本不引用这些类型，编得过。iOS 16+ 上行为和原来
+// 一样：选图 -> 读 Data -> 回写 App Group + 预览。
+// （1.0.6：最低系统降到 15.0 的适配；Lee 原文件里这部分逻辑原样搬过来。）
+@available(iOS 16, *)
+private struct BackgroundPhotoPickerRow: View {
+
+    @Binding var backgroundImage: UIImage?
+    var onPicked: (Data) -> Void
+
+    @State private var selectedPhoto: PhotosPickerItem?
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            PhotosPicker(
+                selection: $selectedPhoto,
+                matching: .images
+            ) {
+                Label(
+                    "选择背景图片",
+                    systemImage: "photo"
+                )
+            }
+
+            if let image = backgroundImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 150)
+                    .clipped()
+                    .cornerRadius(12)
+            }
+        }
+        .onChange(of: selectedPhoto) { newValue in
+            Task {
+                await loadSelectedPhoto(newValue)
+            }
+        }
+    }
 
     private func loadSelectedPhoto(
         _ item: PhotosPickerItem?
@@ -189,24 +228,12 @@ struct SettingsView: View {
                 type: Data.self
             ) {
                 await MainActor.run {
-                    selectedBackgroundData = data
+                    onPicked(data)
                     backgroundImage = UIImage(data: data)
                 }
             }
         } catch {
             print("图片读取失败：\(error)")
         }
-    }
-
-    // MARK: - 读取已保存图片
-
-    private func loadSavedBackground() {
-        guard !selectedBackgroundData.isEmpty else {
-            return
-        }
-
-        backgroundImage = UIImage(
-            data: selectedBackgroundData
-        )
     }
 }

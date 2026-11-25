@@ -85,4 +85,52 @@ enum LyricStore {
             $0.time <= elapsed
         }
     }
+
+    // MARK: - 歌词本地缓存
+    // 搜到过的歌词按「歌名|歌手」存进 App Group，下次再播同一首歌
+    // 直接从缓存读，做到「播放即显示」，不必等网络搜索。
+    // 来源：皇上本地版（hidden_files/local-overlay-1.0.3），原样移植。
+
+    private static func cacheKey(title: String, artist: String) -> String {
+        "lyric.cache|\(title.lowercased())|\(artist.lowercased())"
+    }
+
+    struct CachedLyric: Codable {
+        let lines: [LyricLine]
+        let savedAt: Date
+    }
+
+    static func cachedLyrics(
+        title: String,
+        artist: String
+    ) -> [LyricLine]? {
+        guard
+            let data = defaults?.data(
+                forKey: cacheKey(title: title, artist: artist)
+            ),
+            let cached = try? JSONDecoder().decode(
+                CachedLyric.self,
+                from: data
+            ),
+            !cached.lines.isEmpty
+        else {
+            return nil
+        }
+        return cached.lines
+    }
+
+    static func cacheLyrics(
+        _ lines: [LyricLine],
+        title: String,
+        artist: String
+    ) {
+        let cached = CachedLyric(lines: lines, savedAt: Date())
+        guard let data = try? JSONEncoder().encode(cached) else {
+            return
+        }
+        defaults?.set(
+            data,
+            forKey: cacheKey(title: title, artist: artist)
+        )
+    }
 }
