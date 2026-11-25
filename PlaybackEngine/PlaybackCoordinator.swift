@@ -23,6 +23,7 @@ final class PlaybackCoordinator: ObservableObject {
         stop()
 
         message = "正在检测音乐..."
+        LyricLogger.log("开始检测音乐")
 
         poll()
 
@@ -63,6 +64,7 @@ final class PlaybackCoordinator: ObservableObject {
             lastStatus = newState.status
 
             message = "检测到新歌曲：\(newState.track.title)"
+            LyricLogger.log("检测到新歌曲：\(newState.track.title) - \(newState.track.artist)")
 
             Task {
                 await loadLyrics(for: newState.track)
@@ -97,6 +99,8 @@ final class PlaybackCoordinator: ObservableObject {
             case .unknown:
                 message = "播放状态未知"
             }
+
+            LyricLogger.log(message)
         }
     }
 
@@ -148,6 +152,7 @@ final class PlaybackCoordinator: ObservableObject {
             else {
 
                 message = "没有找到匹配的同步歌词"
+                LyricLogger.log("没有找到匹配的同步歌词：\(track.title)")
 
                 return
             }
@@ -157,6 +162,7 @@ final class PlaybackCoordinator: ObservableObject {
             guard !lines.isEmpty else {
 
                 message = "歌词解析失败"
+                LyricLogger.log("歌词解析失败：\(track.title)")
 
                 return
             }
@@ -184,10 +190,12 @@ final class PlaybackCoordinator: ObservableObject {
             WidgetCenter.shared.reloadAllTimelines()
 
             message = "歌词匹配成功"
+            LyricLogger.log("歌词匹配成功：\(track.title)")
 
         } catch {
 
             message = "歌词搜索失败：\(error.localizedDescription)"
+            LyricLogger.log(message)
         }
     }
 

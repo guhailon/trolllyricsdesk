@@ -25,12 +25,6 @@ struct AboutView: View {
                         .foregroundColor(.secondary)
                 }
 
-                NavigationLink {
-                    LogView()
-                } label: {
-                    Label("日志", systemImage: "doc.text")
-                }
-
                 HStack {
                     Text("当前版本")
                     Spacer()
@@ -50,9 +44,7 @@ struct AboutView: View {
                 }
 
                 Button {
-                    if let url = URL(string: "https://t.me/seadragonjb") {
-                        UIApplication.shared.open(url)
-                    }
+                    openTelegram()
                 } label: {
                     HStack {
                         Label("Telegram 频道", systemImage: "paperplane")
@@ -62,12 +54,31 @@ struct AboutView: View {
                     }
                 }
             }
+
+            Section {
+                NavigationLink {
+                    LogView()
+                } label: {
+                    Label("日志", systemImage: "doc.text")
+                }
+            }
         }
         .navigationTitle("关于")
         .alert("已复制群号", isPresented: $showCopied) {
             Button("好", role: .cancel) { }
         } message: {
             Text("QQ 群号 \(qqGroupNumber) 已复制，打开 QQ 搜索群号加入。")
+        }
+    }
+
+    // 先跳 Telegram App（tg://），没装就退回网页版。
+    private func openTelegram() {
+        let appURL = URL(string: "tg://resolve?domain=seadragonjb")!
+        let webURL = URL(string: "https://t.me/seadragonjb")!
+        UIApplication.shared.open(appURL, options: [:]) { success in
+            if !success {
+                UIApplication.shared.open(webURL)
+            }
         }
     }
 

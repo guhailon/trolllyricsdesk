@@ -253,6 +253,7 @@ markers = {
                             "China fly",
                             "Telegram 频道",
                             "@seadragonjb",
+                            "tg://resolve?domain=seadragonjb",
                             "https://t.me/seadragonjb"],
     "App/LogView.swift": ["struct LogView: View",
                           "LyricLogger.read()",
