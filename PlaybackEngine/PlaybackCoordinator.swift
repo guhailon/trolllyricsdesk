@@ -101,6 +101,10 @@ final class PlaybackCoordinator: ObservableObject {
             scheduleTimer(interval: idlePollInterval)
         }
 
+        // 1.0.7 修复：1.0.6 移植空闲节能时丢了这行，state 永远是 nil，
+        // 新歌联网搜到的词进不了快照（loadLyrics 的 guard 永远过不去）。
+        state = newState
+
         let key = newState.trackKey
 
         // ---- 换歌：立刻写入新快照（含已有缓存歌词），再决定是否联网搜 ----
