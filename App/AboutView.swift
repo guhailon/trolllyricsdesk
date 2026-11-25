@@ -18,6 +18,13 @@ struct AboutView: View {
         Form {
             Section(header: Text("关于")) {
 
+                HStack {
+                    Text("作者")
+                    Spacer()
+                    Text("China fly")
+                        .foregroundColor(.secondary)
+                }
+
                 NavigationLink {
                     LogView()
                 } label: {
@@ -38,6 +45,19 @@ struct AboutView: View {
                         Label("加入官方群组", systemImage: "person.2")
                         Spacer()
                         Text("QQ 群 \(qqGroupNumber)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Button {
+                    if let url = URL(string: "https://t.me/seadragonjb") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Telegram 频道", systemImage: "paperplane")
+                        Spacer()
+                        Text("@seadragonjb")
                             .foregroundColor(.secondary)
                     }
                 }
