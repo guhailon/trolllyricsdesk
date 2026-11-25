@@ -27,7 +27,10 @@ jobs:
         # 读不懂 Xcode 26.6 编出的 Mach-O（Unknown header magic）。
         # 改用 Homebrew 装最新的 ldid-procursus（2.1.5-procursus8，2026-11-17 发布），
         # 签名命令不变（还是 ldid -S）。
+        # 注意：跑机上的 Homebrew 目录是旧的，不先 brew update 的话，
+        # 装到的还是 procursus7（2026-11-25 run 45536337461 实锤）。
         run: |
+          brew update
           brew install ldid-procursus
           brew list --versions ldid-procursus
 
