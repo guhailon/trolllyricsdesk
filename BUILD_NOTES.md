@@ -171,7 +171,7 @@ Textyl 是作者私有的，作者明说不要给别的项目用。我们只学�
 BackBoard 托管浮在所有 App 之上；主 App 每秒轮询切词时把四行词写进
 共享 plist + 发 Darwin 通知，HUD 进程读到就刷新卡片。
 
-版本号未动（仍是 1.0.3 build 4），等皇上定。
+版本号：皇上 2026-11-25 20:57 批升 1.0.4（build 5）。
 
 ## 新文件
 
@@ -258,7 +258,7 @@ BackBoard 托管浮在所有 App 之上；主 App 每秒轮询切词时把四行
   App target 弱链 BackBoardServices、GraphicsServices、SpringBoardServices
   （PBXBuildFile Weak 属性；MediaRemote 仍是 dlopen，不直接链）；
   TrollLyricsDeskApp.swift 的引用清掉；Widget target 一字不动
-- check_1.0.3.py — 加第 13 节 v0.5 检查（文件都在、皇上的文件逐字节一致、
+- check_1.0.4.py — 加第 13 节 v0.5 检查（文件都在、皇上的文件逐字节一致、
   宿主代码零上游名字、bridging header、entitlements、main.mm 四种模式、
   @main 已删）；第 1/2/5 节同步改（入口文件删了）；
   “PrivateFrameworks 不在 pbxproj”那项改成只查 MediaRemote 不直接链
@@ -347,5 +347,5 @@ Linux 没有 Xcode/swiftc，Swift 语法没法本地编译验证（和 1.0.0–1
 
 ## 验证结果
 
-`python3 check_1.0.3.py`：**FAILED: none**（见输出；v0.5 检查在第 13 节）。
+`python3 check_1.0.4.py`：**FAILED: none**（见输出；v0.5 检查在第 13 节）。
 本地能验的都验了；不能验的如实列在验收表里。
