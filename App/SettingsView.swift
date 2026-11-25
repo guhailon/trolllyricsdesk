@@ -1,6 +1,122 @@
 import SwiftUI
 import WidgetKit
-import PhotosUI
+import UIKit
+
+// MARK: - iOS 15 兼容层：替代 iOS 16 的 PhotosPicker
+// 系统 PhotosPicker / PhotosPickerItem / loadTransferable 都是 iOS 16+ API，
+// iOS 15 上调用会因 unrecognized selector 直接闪退。
+// 这里用 UIKit 的 UIImagePickerController（iOS 2+）实现相同能力，
+// 并保持 SettingsView 里原有的调用形式不变（PhotosPicker / PhotosPickerItem /
+// loadTransferable），避免改动 Lee 的业务代码。
+
+struct PhotosPickerItem: Equatable {
+    let id = UUID()
+    let image: UIImage?
+
+    init(image: UIImage?) {
+        self.image = image
+    }
+
+    static func == (lhs: PhotosPickerItem, rhs: PhotosPickerItem) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func loadTransferable(type: Data.Type) async throws -> Data? {
+        image?.jpegData(compressionQuality: 1.0)
+    }
+}
+
+struct PhotosPickerFilter {
+    static let images = PhotosPickerFilter()
+}
+
+struct PhotosPicker<Label: View>: View {
+    @Binding var selection: PhotosPickerItem?
+    let matching: PhotosPickerFilter
+    let label: Label
+    @State private var showPicker = false
+
+    init(
+        selection: Binding<PhotosPickerItem?>,
+        matching: PhotosPickerFilter = PhotosPickerFilter(),
+        @ViewBuilder label: () -> Label
+    ) {
+        self._selection = selection
+        self.matching = matching
+        self.label = label()
+    }
+
+    var body: some View {
+        Button {
+            showPicker = true
+        } label: {
+            label
+        }
+        .sheet(isPresented: $showPicker) {
+            ImagePickerSheet(
+                isPresented: $showPicker,
+                selection: $selection
+            )
+        }
+    }
+}
+
+private struct ImagePickerSheet: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    @Binding var selection: PhotosPickerItem?
+
+    func makeUIViewController(
+        context: Context
+    ) -> UIImagePickerController {
+        let controller = UIImagePickerController()
+        controller.sourceType = .photoLibrary
+        controller.delegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(
+        _ controller: UIImagePickerController,
+        context: Context
+    ) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            isPresented: $isPresented,
+            selection: $selection
+        )
+    }
+
+    final class Coordinator: NSObject,
+        UIImagePickerControllerDelegate,
+        UINavigationControllerDelegate {
+
+        let isPresented: Binding<Bool>
+        let selection: Binding<PhotosPickerItem?>
+
+        init(
+            isPresented: Binding<Bool>,
+            selection: Binding<PhotosPickerItem?>
+        ) {
+            self.isPresented = isPresented
+            self.selection = selection
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            let image = info[.originalImage] as? UIImage
+            selection.wrappedValue = PhotosPickerItem(image: image)
+            isPresented.wrappedValue = false
+        }
+
+        func imagePickerControllerDidCancel(
+            _ picker: UIImagePickerController
+        ) {
+            isPresented.wrappedValue = false
+        }
+    }
+}
 
 struct SettingsView: View {
 

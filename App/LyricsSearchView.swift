@@ -133,29 +133,6 @@ struct LyricsSearchView: View {
                 }
             }
 
-            Section("桌面外观") {
-
-                VStack(alignment: .leading) {
-
-                    Text("透明度：\(Int(opacity * 100))%")
-
-                    Slider(
-                        value: $opacity,
-                        in: 0.1...1
-                    )
-
-                    Text("字体：\(Int(fontSize)) pt")
-
-                    Slider(
-                        value: $fontSize,
-                        in: 14...36
-                    )
-                }
-
-                Button("保存桌面外观") {
-                    saveAppearance()
-                }
-            }
         }
         .navigationTitle("歌词管理")
         .fileImporter(
@@ -309,20 +286,4 @@ struct LyricsSearchView: View {
         }
     }
 
-    private func saveAppearance() {
-
-        guard var snapshot = LyricStore.load() else {
-            errorMessage = "请先导入歌词"
-            return
-        }
-
-        snapshot.opacity = opacity
-        snapshot.fontSize = fontSize
-
-        LyricStore.save(snapshot)
-
-        WidgetCenter.shared.reloadAllTimelines()
-
-        errorMessage = "外观设置已保存"
-    }
 }

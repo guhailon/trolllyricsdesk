@@ -9,7 +9,7 @@
 - Bundle ID: `com.hailong.TrollLyricsDesk`
 - Widget Extension: WidgetKit（`TrollLyricsWidget`）
 - App Group: `group.com.hailong.TrollLyricsDesk`（App 和 Widget 共用，共享歌词状态）
-- 版本：1.0.5
+- 版本：1.0.3
 
 ## 结构（Lee 02:15 定的新树，原样）
 
@@ -77,31 +77,6 @@ Lee 发的文件一字未改。`TrollLyricsWidgetBundle.swift` 不在 Lee 的树
   时间预先排好（Lee 发的新版 getTimeline），没词时显示“打开 App 加载歌词”。
 - 没有内置歌、没有授权码。
 
-## v0.5：悬浮歌词 HUD（本地实现，未推、未编、未部署）
-
-歌词不只在小组件里：主 App 点“开启歌词悬浮窗”，会以 `-hud` 参数重起
-自己当独立进程，窗口经 BackBoard 托管浮在主屏幕和别的 App 之上，
-可拖动、可点关闭；主 App 每秒轮询切词时把四行词同步过去，HUD 实时刷新。
-ContentView 里还有“预览悬浮歌词”（只在 App 内弹卡片，先看布局）。
-
-- 皇上的文件原样：`HUD/` 里的歌词卡片（LyricsHUDView、LyricsHUDBridge、
-  FloatingLyricsController/Panel/Style）和 `sources/TLLyricsIPC.h`
-  （跨进程歌词 IPC 接口）。
-- 宿主层是我们独立写的（TL_ 前缀）：`sources/` 里的 TLHelper、
-  TLHUDWindow、TLHUDApplication、TLAppDelegate、main.mm（唯一程序入口，
-  `@main` 已删）、TLPrivate.h；`App/TLAppRoot.swift` 接管 SwiftUI 根视图。
-- 机制参考 TrollSpeed（Lessica，MIT）和 XExternalHUD（xauszulay），
-  XExternalHUD 的代码没有复制（它没有 LICENSE，视为保留所有权利）。
-  只有一处例外：TLLyricsIPC.mm 的 observeLyrics 是接口草案，原写法把
-  block 当 C 回调传、编不过，按上游做法重写成了 static C 回调 +
-  `__bridge_retained`（公开接口和发/读逻辑不动，见 BUILD_NOTES.md）。
-- 构建：Xcode 仍走 GitHub Actions（推 + 编等皇上批）；Theos 另有一份
-  根目录 Makefile，是第二条路线——沙盒实测过，**未通过**：这台 Linux
-  没有 Swift 工具链，`make package` 卡在 Theos 编 swift-support 那步
-  （`swift: not found`），连 .mm 都没轮到编。全局显示、拖动、歌词同步、
-  生命周期（关闭/重启/卸载不残留 HUD）和 iPhone 13 Pro 真机验证都还没跑，
-  不标通过。版本号：1.0.5（补丁 IPC + 捏合缩放；推＋编等皇上批）。
-
 ## ⚠️ 跟随机制又变了，先说清楚（Lee 02:30：改回 MediaRemote 跟随）
 
 **现在跟随走 MediaRemote，能读任何 App 正在放的歌。** 02:15 新结构
@@ -151,7 +126,7 @@ MediaRemote，按钮的授权门也撤了——MediaRemote 不需要媒体资料
 
 推代码就自动跑 `.github/workflows/build.yml`：
 `xcodebuild archive`（不签名）→ `ldid` 按 entitlements 签名 →
-打 `TrollLyricsDesk-1.0.5.ipa` → 上传 Artifacts。
+打 `TrollLyricsDesk-1.0.3.ipa` → 上传 Artifacts。
 
 App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 （`com.apple.mediaremote.now-playing-read-access` /
@@ -162,7 +137,7 @@ App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 ## 验证
 
 ```sh
-python3 check_1.0.5.py
+python3 check_1.0.3.py
 ```
 
 检查结构、包名/组名一致、Lee 文件原样标记、无内置歌、无授权码、

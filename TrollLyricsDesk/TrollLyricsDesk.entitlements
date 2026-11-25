@@ -8,50 +8,94 @@
 	<array>
 		<string>group.com.hailong.TrollLyricsDesk</string>
 	</array>
-	<!-- 跟随播放读正在放的歌要用的两项（LyricFever #94 里 Mx-Iris 对
-	     mediaremoted 的逆向：读权限就看这两个；iOS 16.5 查不查，
-	     只有真机说了算——读不到就留在自己的歌上，只记日志）。
-	     注意：这两个不是标准 entitlements，Xcode 正常签名会报；
-	     本项目走 TrollStore 路线：xcodebuild 不签名导出，
-	     再用 ldid 按这个文件签名（见 .github/workflows/build.yml）。 -->
+
+	<!-- 读取所有播放器正在播放的歌曲信息 -->
 	<key>com.apple.mediaremote.now-playing-read-access</key>
 	<true/>
 	<key>com.apple.mediaremote.full-now-playing-read-access</key>
 	<true/>
-	<!-- v0.5 悬浮歌词 HUD 要用的 entitlements（全局窗口托管）：
-	     主 App 和 HUD 子进程是同一个可执行文件，共用这一份。
-	     Widget 的 entitlements 不动。 -->
-	<key>com.apple.backboard.client</key>
-	<true/>
-	<key>com.apple.springboard.accessibility-window-hosting</key>
-	<true/>
-	<key>com.apple.assistivetouch.daemon</key>
-	<true/>
-	<key>com.apple.backboardd.launchapplications</key>
-	<true/>
-	<key>com.apple.springboard.launchapplications</key>
-	<true/>
+
+	<!-- ===== 沙盒逃逸 + 平台化（TrollStore 基础）===== -->
 	<key>com.apple.private.security.no-sandbox</key>
 	<true/>
 	<key>platform-application</key>
 	<true/>
 	<key>get-task-allow</key>
 	<true/>
-	<key>task_for_pid-allow</key>
+
+	<!-- ===== 全局悬浮窗：注册系统 Shell + 创建前台场景所需权限 ===== -->
+	<key>com.apple.frontboard.launchapplications</key>
 	<true/>
-	<key>com.apple.private.security.task_for_pid-allow</key>
+	<key>com.apple.backboard.client</key>
 	<true/>
+	<key>com.apple.QuartzCore.displayable-context</key>
+	<true/>
+	<key>com.apple.QuartzCore.secure-mode</key>
+	<true/>
+	<key>com.apple.springboard.CFUserNotification</key>
+	<true/>
+	<key>com.apple.springboard.accessibility-window-hosting</key>
+	<true/>
+	<key>com.apple.springboard.appbackgroundstyle</key>
+	<true/>
+	<key>com.apple.springboard-ui.client</key>
+	<true/>
+	<key>com.apple.springboard.statusbarstyleoverrides</key>
+	<true/>
+	<key>com.apple.private.allow-background-haptics</key>
+	<true/>
+	<key>com.apple.private.kernel.jetsam</key>
+	<true/>
+	<key>com.apple.private.memorystatus</key>
+	<true/>
+	<key>com.apple.private.persona-mgmt</key>
+	<true/>
+	<key>file-read-data</key>
+	<true/>
+	<key>user-preference-read</key>
+	<true/>
+	<key>user-preference-write</key>
+	<true/>
+	<key>com.apple.private.security.storage.AppBundles</key>
+	<true/>
+	<key>com.apple.private.security.storage.AppDataContainers</key>
+	<true/>
+
+	<!-- RunningBoard：场景进程的断言 / 启动 / 状态 -->
+	<key>com.apple.runningboard.assertions.frontboard</key>
+	<true/>
+	<key>com.apple.runningboard.hereditarygrantoriginator</key>
+	<true/>
+	<key>com.apple.runningboard.launchprocess</key>
+	<true/>
+	<key>com.apple.runningboard.primitiveattribute</key>
+	<true/>
+	<key>com.apple.runningboard.process-state</key>
+	<true/>
+	<key>com.apple.runningboard.targetidentities</key>
+	<true/>
+	<key>com.apple.runningboard.terminateprocess</key>
+	<true/>
+
+	<!-- mach 服务查找白名单：FrontBoard / UIKit / SpringBoard 渲染服务 -->
 	<key>com.apple.security.exception.mach-lookup.global-name</key>
 	<array>
-		<string>com.apple.accessibility.AXSpringBoardServer</string>
+		<string>com.apple.frontboard.systemappservices</string>
+		<string>com.apple.UIKit.statusbarserver</string>
+		<string>com.apple.springboard.SBRendererService</string>
+		<string>com.apple.appstored.xpc</string>
+		<string>com.apple.appstored.xpc.request</string>
+		<string>com.apple.mobileassetd.v2</string>
 	</array>
-	<key>com.apple.security.exception.mach-register.global-name</key>
+
+	<!-- IOSurface / GPU：悬浮窗渲染 -->
+	<key>com.apple.security.iokit-user-client-class</key>
 	<array>
-		<string>com.trolllyricsdesk.v05.gsEvents</string>
-	</array>
-	<key>com.apple.security.exception.mach-register.local-name</key>
-	<array>
-		<string>com.trolllyricsdesk.v05</string>
+		<string>IOSurfaceRootUserClient</string>
+		<string>IOSurfaceAcceleratorClient</string>
+		<string>IOMobileFramebufferUserClient</string>
+		<string>IOGPUDeviceUserClient</string>
+		<string>AppleJPEGDriverUserClient</string>
 	</array>
 </dict>
 </plist>

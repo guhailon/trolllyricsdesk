@@ -13,7 +13,9 @@ final class PlaybackCoordinator: ObservableObject {
     private var timer: Timer?
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
-    private var lastHUDLyricIndex: Int?
+
+    /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
+    private var searchTask: Task<Void, Never>?
 
     init(adapter: any PlaybackAdapter) {
         self.adapter = adapter
@@ -26,10 +28,12 @@ final class PlaybackCoordinator: ObservableObject {
         message = "正在检测音乐..."
         LyricLogger.log("开始检测音乐")
 
+        // 立即检测一次，不等第一个 tick —— 打开 App/点开始时立刻出画面
         poll()
 
+        // 0.25 秒轮询：播放一开始就能在 1/4 秒内捕获，做到「即播即显」
         timer = Timer.scheduledTimer(
-            withTimeInterval: 1.0,
+            withTimeInterval: 0.25,
             repeats: true
         ) { [weak self] _ in
 
@@ -43,39 +47,46 @@ final class PlaybackCoordinator: ObservableObject {
 
         timer?.invalidate()
         timer = nil
+        searchTask?.cancel()
+        searchTask = nil
     }
 
     private func poll() {
 
         guard let newState = adapter.currentState() else {
-
             message = "没有检测到可读取的音乐"
-
             return
         }
 
+        let previous = state
         state = newState
 
         let key = newState.trackKey
 
-        // 检测歌曲变化
+        // ---- 换歌：立刻写入新快照（含已有缓存歌词），再决定是否联网搜 ----
         if key != lastTrackKey {
 
             lastTrackKey = key
             lastStatus = newState.status
-            lastHUDLyricIndex = nil
 
             message = "检测到新歌曲：\(newState.track.title)"
             LyricLogger.log("检测到新歌曲：\(newState.track.title) - \(newState.track.artist)")
 
-            Task {
+            // 取消上一首歌的搜词
+            searchTask?.cancel()
+
+            // 关键：同步写一份新歌快照，进度基准 = 当前播放进度。
+            // 命中本地缓存则直接带歌词 -> 桌面歌词与播放同时出现。
+            publishImmediately(newState)
+
+            searchTask = Task {
                 await loadLyrics(for: newState.track)
             }
 
             return
         }
 
-        // 检测播放状态变化
+        // ---- 同一首歌，播放状态变化：即时同步进度基准 ----
         if lastStatus != newState.status {
 
             lastStatus = newState.status
@@ -84,98 +95,101 @@ final class PlaybackCoordinator: ObservableObject {
 
             case .playing:
                 message = "正在播放"
-                savePlayback(newState)
 
             case .paused:
                 message = "播放已暂停"
-                savePlayback(newState)
 
             case .stopped:
                 message = "播放已停止"
-                savePlayback(newState)
 
             case .interrupted:
                 message = "播放被中断"
-                savePlayback(newState)
 
             case .unknown:
                 message = "播放状态未知"
             }
 
+            // 由暂停恢复播放时，用当下进度重置 startedAt，避免进度跳变
+            syncPlaybackState(newState, previous: previous)
+
             LyricLogger.log(message)
         }
-
-        publishHUDLyrics()
     }
 
-    // 悬浮歌词同步：每秒轮询时按快照 + 当前进度算出上一句/当前句/下一句，
-    // 当前行下标变了才发给 HUD 进程。挑行算法和 Widget 一样：
-    // 最后一句 time <= elapsed 的行是当前行（LyricStore.currentLyric 同款）。
-    private func publishHUDLyrics() {
+    /// 检测到新歌时立即发布快照：进度基准对齐当前 position，
+    /// 歌词优先用本地缓存，没有就留空（等联网结果），但歌名/进度不延迟。
+    private func publishImmediately(_ newState: PlaybackState) {
 
-        guard
-            let snapshot = LyricStore.load(),
-            !snapshot.lyrics.isEmpty
-        else {
-            lastHUDLyricIndex = nil
-            return
-        }
+        let title = newState.track.title
+        let artist = newState.track.artist
 
-        let elapsed = LyricStore.currentElapsed(
-            snapshot,
-            at: Date()
+        let cached = LyricStore.cachedLyrics(
+            title: title,
+            artist: artist
         )
 
-        guard
-            let index = snapshot.lyrics.lastIndex(
-                where: { $0.time <= elapsed }
-            )
-        else {
-            return
-        }
+        // 保留用户在设置里调过的外观
+        let (opacity, fontSize) = currentAppearance()
 
-        guard index != lastHUDLyricIndex else {
-            return
-        }
-        lastHUDLyricIndex = index
-
-        LyricsHUDBridge.update(
-            title: snapshot.title,
-            previous: index > 0
-                ? snapshot.lyrics[index - 1].text
-                : "",
-            current: snapshot.lyrics[index].text,
-            next: index + 1 < snapshot.lyrics.count
-                ? snapshot.lyrics[index + 1].text
-                : ""
+        let snapshot = LyricSnapshot(
+            title: title,
+            artist: artist,
+            lyrics: cached ?? [],
+            startedAt: Date(),
+            isPlaying: newState.status == .playing,
+            elapsedWhenPaused: newState.position,
+            opacity: opacity,
+            fontSize: fontSize
         )
+
+        LyricStore.save(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
+
+        if cached != nil {
+            message = "歌词匹配成功（本地）"
+            LyricLogger.log("本地歌词命中：\(title)")
+        }
     }
 
-    private func savePlayback(
-        _ state: PlaybackState
+    /// 播放/暂停切换：更新快照里的进度基准，保证歌词跟着真实进度走。
+    private func syncPlaybackState(
+        _ newState: PlaybackState,
+        previous: PlaybackState?
     ) {
-
         guard var snapshot = LyricStore.load() else {
             return
         }
 
         guard
-            snapshot.title == state.track.title,
-            snapshot.artist == state.track.artist
+            snapshot.title == newState.track.title,
+            snapshot.artist == newState.track.artist
         else {
             return
         }
 
+        let elapsed: TimeInterval
+
+        if newState.status == .playing {
+            // 开始播放：以当前上报进度为新起点
+            elapsed = newState.position
+        } else {
+            // 暂停：冻结在当前进度
+            elapsed = newState.position
+        }
+
         snapshot.startedAt = Date()
-
-        snapshot.elapsedWhenPaused = state.position
-
-        snapshot.isPlaying =
-            state.status == .playing
+        snapshot.elapsedWhenPaused = elapsed
+        snapshot.isPlaying = newState.status == .playing
 
         LyricStore.save(snapshot)
-
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private func currentAppearance() -> (opacity: Double, fontSize: Double) {
+        guard let snapshot = LyricStore.load() else {
+            return (0.65, 22)
+        }
+        return (snapshot.opacity, snapshot.fontSize)
     }
 
     private func loadLyrics(
@@ -189,6 +203,8 @@ final class PlaybackCoordinator: ObservableObject {
             let records = try await LRCLibClient.shared.search(
                 track: track
             )
+
+            try Task.checkCancellation()
 
             guard
                 let result = LyricMatcher.bestMatch(
@@ -219,31 +235,67 @@ final class PlaybackCoordinator: ObservableObject {
                 return
             }
 
-            let current = state
-
-            let snapshot = LyricSnapshot(
+            // 缓存，下次同曲即播即显
+            LyricStore.cacheLyrics(
+                lines,
                 title: track.title,
-                artist: track.artist,
-                lyrics: lines,
-                startedAt: Date(),
-                isPlaying: current?.status == .playing,
-                elapsedWhenPaused: current?.position ?? 0,
-                opacity: 0.65,
-                fontSize: 22
+                artist: track.artist
             )
 
-            LyricStore.save(snapshot)
-
-            WidgetCenter.shared.reloadAllTimelines()
+            // 用「此刻」最新进度做基准，歌词从当前进度开始显示
+            if let current = state {
+                syncLyrics(lines, at: current)
+            }
 
             message = "歌词匹配成功"
             LyricLogger.log("歌词匹配成功：\(track.title)")
+
+        } catch is CancellationError {
+
+            return
 
         } catch {
 
             message = "歌词搜索失败：\(error.localizedDescription)"
             LyricLogger.log(message)
         }
+    }
+
+    /// 把搜到的歌词写进当前快照，进度基准取当下上报的 position。
+    private func syncLyrics(
+        _ lines: [LyricLine],
+        at current: PlaybackState
+    ) {
+        var snapshot = LyricStore.load()
+
+        if snapshot == nil ||
+            snapshot?.title != current.track.title ||
+            snapshot?.artist != current.track.artist {
+
+            let (opacity, fontSize) = currentAppearance()
+            snapshot = LyricSnapshot(
+                title: current.track.title,
+                artist: current.track.artist,
+                lyrics: [],
+                startedAt: Date(),
+                isPlaying: current.status == .playing,
+                elapsedWhenPaused: current.position,
+                opacity: opacity,
+                fontSize: fontSize
+            )
+        }
+
+        snapshot?.lyrics = lines
+        snapshot?.startedAt = Date()
+        snapshot?.elapsedWhenPaused = current.position
+        snapshot?.isPlaying = current.status == .playing
+
+        guard let final = snapshot else {
+            return
+        }
+
+        LyricStore.save(final)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func trackKey(

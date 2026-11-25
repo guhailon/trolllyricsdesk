@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>TrollLyricsWidget</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.hailong.TrollLyricsDesk.TrollLyricsWidget</string>
+	<string>com.hailong.TrollLyricsDesk2.TrollLyricsWidget</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -17,11 +17,11 @@
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.5</string>
+	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>13</string>
 	<key>MinimumOSVersion</key>
-	<string>16.0</string>
+	<string>15.0</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

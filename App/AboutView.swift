@@ -13,52 +13,104 @@ struct AboutView: View {
     }
 
     var body: some View {
-        Form {
-            Section(header: Text("关于")) {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(0.8),
+                    Color.black,
+                    Color.blue.opacity(0.5)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                HStack {
-                    Text("作者")
-                    Spacer()
-                    Text("China fly")
-                        .foregroundColor(.secondary)
-                }
+            ScrollView {
+                VStack(spacing: 20) {
 
-                HStack {
-                    Text("当前版本")
-                    Spacer()
-                    Text(appVersion)
-                        .foregroundColor(.secondary)
-                }
+                    Text("关于")
+                        .font(.footnote)
+                        .foregroundColor(.white.opacity(0.55))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 4)
 
-                Button {
-                    joinQQGroup()
-                } label: {
-                    HStack {
-                        Label("加入官方群组", systemImage: "person.2")
-                        Spacer()
-                        Text("QQ 群 \(qqGroupNumber)")
-                            .foregroundColor(.secondary)
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text("作者")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text("China fly")
+                                .foregroundColor(.white.opacity(0.65))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+
+                        Divider()
+                            .background(Color.white.opacity(0.12))
+
+                        HStack {
+                            Text("当前版本")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(appVersion)
+                                .foregroundColor(.white.opacity(0.65))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+
+                        Divider()
+                            .background(Color.white.opacity(0.12))
+
+                        Button {
+                            joinQQGroup()
+                        } label: {
+                            HStack {
+                                Label("加入官方群组", systemImage: "person.2")
+                                Spacer()
+                                Text("QQ 群 \(qqGroupNumber)")
+                                    .foregroundColor(.white.opacity(0.65))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                        }
+
+                        Divider()
+                            .background(Color.white.opacity(0.12))
+
+                        Button {
+                            openTelegram()
+                        } label: {
+                            HStack {
+                                Label("Telegram 频道", systemImage: "paperplane")
+                                Spacer()
+                                Text("@seadragonjb")
+                                    .foregroundColor(.white.opacity(0.65))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                        }
                     }
-                }
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
 
-                Button {
-                    openTelegram()
-                } label: {
-                    HStack {
-                        Label("Telegram 频道", systemImage: "paperplane")
-                        Spacer()
-                        Text("@seadragonjb")
-                            .foregroundColor(.secondary)
+                    NavigationLink {
+                        LogView()
+                    } label: {
+                        HStack {
+                            Label("日志", systemImage: "doc.text")
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
                     }
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
                 }
-            }
-
-            Section {
-                NavigationLink {
-                    LogView()
-                } label: {
-                    Label("日志", systemImage: "doc.text")
-                }
+                .padding()
             }
         }
         .navigationTitle("关于")

@@ -5,11 +5,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh_CN</string>
 	<key>CFBundleDisplayName</key>
-	<string>巨魔歌词桌面</string>
+	<string>桌面歌词</string>
 	<key>CFBundleExecutable</key>
 	<string>TrollLyricsDesk</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.hailong.TrollLyricsDesk</string>
+	<string>com.hailong.TrollLyricsDesk2</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -17,13 +17,19 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.5</string>
+	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>13</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 后台保活：静音音频循环让检测引擎在后台继续 polling 所有播放器，
+	     配合 App/BackgroundKeepAlive（.mixWithOthers 不打断用户听歌）。 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>MinimumOSVersion</key>
-	<string>16.0</string>
+	<string>15.0</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>用于读取用户授权的音乐资料和显示歌曲信息。</string>
 	<key>UIDeviceFamily</key>
@@ -41,5 +47,46 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- 多场景：主界面 + FrontBoard 全局悬浮歌词场景。
+	     必须为 true，否则 FBScene 创建的悬浮场景连不进来，桌面就没有歌词窗。 -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>TLDSSceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<!-- FrontBoard 服务域：悬浮场景突破应用边界、显示在全局的前提 -->
+	<key>BSServiceDomains</key>
+	<dict>
+		<key>com.apple.frontboard</key>
+		<dict>
+			<key>DerivedServiceRestrictions</key>
+			<array>
+				<string>com.apple.uis.applicationStateService</string>
+				<string>com.apple.uis.applicationSupportService</string>
+				<string>com.apple.frontboard.layout-monitor</string>
+			</array>
+			<key>Services</key>
+			<dict>
+				<key>com.apple.frontboard.system-service</key>
+				<dict/>
+				<key>com.apple.frontboard.workspace-service</key>
+				<dict/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSPrincipalClass</key>
+	<string>UIApplication</string>
 </dict>
 </plist>

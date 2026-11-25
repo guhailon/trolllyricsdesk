@@ -1,4 +1,53 @@
 import SwiftUI
+import UIKit
+
+// MARK: - iOS 15 兼容层：替代 iOS 16 的 ShareLink
+// 系统 ShareLink 是 iOS 16+ API，iOS 15 上会闪退。
+// 用 UIKit 的 UIActivityViewController（iOS 5+）实现相同分享能力，
+// 并保留 LogView 原有的 ShareLink 调用形式。
+
+struct ShareLink<Label: View>: View {
+    let item: String
+    let label: Label
+    @State private var showShare = false
+
+    init(
+        item: String,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.item = item
+        self.label = label()
+    }
+
+    var body: some View {
+        Button {
+            showShare = true
+        } label: {
+            label
+        }
+        .sheet(isPresented: $showShare) {
+            ActivityShareSheet(items: [item])
+        }
+    }
+}
+
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(
+        context: Context
+    ) -> UIActivityViewController {
+        UIActivityViewController(
+            activityItems: items,
+            applicationActivities: nil
+        )
+    }
+
+    func updateUIViewController(
+        _ controller: UIActivityViewController,
+        context: Context
+    ) {}
+}
 
 // 日志查看：读 Documents/TrollLyricsDesk.log（LyricLogger 写的），
 // 每行拆成时间 + 内容两行显示，可以分享出去；没有日志就显示空状态。
