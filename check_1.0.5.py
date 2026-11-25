@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.4 project: structure, ids, Lee's files verbatim,
+"""Verify TrollLyricsDesk 1.0.5 project: structure, ids, Lee's files verbatim,
 no built-in songs, no activation, adapters public-only, LRC sample parse,
 plists/entitlements/pbxproj/scheme valid, icons complete.
 
@@ -340,7 +340,7 @@ for rel, want in [("TrollLyricsDesk/Info.plist", APP_ID),
                   ("TrollLyricsWidget/Info.plist", WIDGET_ID)]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: bundle id", pl.get("CFBundleIdentifier") == want, pl.get("CFBundleIdentifier"))
-    check(f"{rel}: version 1.0.4", pl.get("CFBundleShortVersionString") == "1.0.4")
+    check(f"{rel}: version 1.0.5", pl.get("CFBundleShortVersionString") == "1.0.5")
     check(f"{rel}: min OS 16.0", pl.get("MinimumOSVersion") == "16.0", str(pl.get("MinimumOSVersion")))
 app_pl = plistlib.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
 check("app Info.plist: NSAppleMusicUsageDescription (Lee's text)",
@@ -428,7 +428,7 @@ wf = read(".github/workflows/build.yml")
 check("workflow: xcodebuild archive unsigned", "CODE_SIGNING_ALLOWED=NO" in wf)
 check("workflow: install zsign", "brew install zsign" in wf)
 check("workflow: zsign sign app + widget", wf.count("zsign -a") >= 2)
-check("workflow: package IPA", "TrollLyricsDesk-1.0.4.ipa" in wf)
+check("workflow: package IPA", "TrollLyricsDesk-1.0.5.ipa" in wf)
 
 print("\n== 6. No built-in songs / no activation ==")
 all_swift = ""
@@ -672,58 +672,40 @@ def _bytes(rel):
 
 for rel in ["HUD/LyricsHUDView.swift", "HUD/LyricsHUDBridge.swift",
             "HUD/FloatingLyricsController.swift", "HUD/FloatingLyricsPanel.swift",
-            "HUD/FloatingLyricsStyle.swift", "sources/TLLyricsIPC.h"]:
+            "HUD/FloatingLyricsStyle.swift"]:
     check(f"v0.5 Lee file byte-identical: {rel}",
           _bytes(rel) == _bytes("hidden_files/floating-overlay/" + os.path.basename(rel)))
 
-# 13c. TLLyricsIPC.mm: NOT verbatim — observeLyrics was rewritten (see BUILD_NOTES.md).
-# The original passes a block literal as the C callback of
-# CFNotificationCenterAddObserver and never retains the observer: it does not
-# compile and would crash. The rewrite uses a static C callback +
-# __bridge_retained block copy (upstream's approach). publish/read logic and
-# the public interface are untouched — verify by stripping the import line and
-# the observeLyrics method from both and comparing the rest.
-def _strip_ipc(text):
-    lines = text.split("\n")
-    out = []
-    skipping = False
-    skipping_cb = False
-    for ln in lines:
-        if ln.startswith('#import "XEPrivate.h"') or ln.startswith('#import "TLPrivate.h"'):
-            continue
-        # the new static C callback (part of the observeLyrics rewrite)
-        if ln.startswith("// Darwin 通知的 C 回调"):
-            skipping_cb = True
-            continue
-        if skipping_cb:
-            if ln == "}":
-                skipping_cb = False
-            continue
-        if ln.startswith("+ (void)observeLyrics:"):
-            skipping = True
-            continue
-        if skipping:
-            if ln.strip() == "@end":
-                skipping = False
-                out.append(ln)
-            continue
-        out.append(ln)
-    return "\n".join(out)
-
-lee_ipc = read("hidden_files/floating-overlay/TLLyricsIPC.mm")
+# 13c. TLLyricsIPC: 1.0.5 replaced the 1.0.4 implementation with the audit
+# patch (ChatGPT first-round review, hidden_files/audit-patch/Patch/).
+# New design: App Group container JSON + notify_register_dispatch /
+# notify_post + stopObserving. The 1.0.4 static-C-callback rewrite is gone;
+# the patch files must be byte-identical to the patch Lee sent.
+patch_ipc_h = read("hidden_files/audit-patch/Patch/sources/TLLyricsIPC.h")
+patch_ipc_mm = read("hidden_files/audit-patch/Patch/sources/TLLyricsIPC.mm")
+new_ipc_h = read("sources/TLLyricsIPC.h")
 new_ipc = read("sources/TLLyricsIPC.mm")
-check("v0.5 TLLyricsIPC.mm: publish/read logic identical to Lee's original "
-      "(only import + observeLyrics differ)",
-      _strip_ipc(lee_ipc) == _strip_ipc(new_ipc))
-check("v0.5 TLLyricsIPC.mm: import points at TLPrivate.h, not XEPrivate.h",
-      '#import "TLPrivate.h"' in new_ipc and "XEPrivate" not in new_ipc)
-check("v0.5 TLLyricsIPC.mm: observeLyrics uses a static C callback",
-      "static void TL_LyricsNotifyCallback" in new_ipc and
-      "TL_LyricsNotifyCallback," in new_ipc)
-check("v0.5 TLLyricsIPC.mm: observer block copy is __bridge_retained (held for process life)",
-      "__bridge_retained" in new_ipc)
-check("v0.5 TLLyricsIPC.mm: NO block literal passed as C callback (the original bug)",
-      "^(CFNotificationCenterRef" not in new_ipc)
+check("v0.5 TLLyricsIPC.h byte-identical to audit patch",
+      new_ipc_h == patch_ipc_h)
+check("v0.5 TLLyricsIPC.mm byte-identical to audit patch",
+      new_ipc == patch_ipc_mm)
+check("v0.5 TLLyricsIPC: App Group container (group.com.hailong.TrollLyricsDesk)",
+      "group.com.hailong.TrollLyricsDesk" in new_ipc and
+      "containerURLForSecurityApplicationGroupIdentifier" in new_ipc)
+check("v0.5 TLLyricsIPC: JSON in shared container (Library/Caches/TrollLyricsDesk/lyrics.json)",
+      "Library/Caches/TrollLyricsDesk/lyrics.json" in new_ipc and
+      "NSJSONSerialization" in new_ipc)
+check("v0.5 TLLyricsIPC: notify_register_dispatch + notify_post, new name",
+      "notify_register_dispatch" in new_ipc and
+      "notify_post" in new_ipc and
+      "com.hailong.TrollLyricsDesk.v05.lyrics.changed" in new_ipc)
+check("v0.5 TLLyricsIPC: stopObserving present",
+      "+ (void)stopObserving" in new_ipc and "notify_cancel" in new_ipc)
+check("v0.5 TLLyricsIPC: publishLyrics returns BOOL",
+      "+ (BOOL)publishLyrics" in new_ipc)
+check("v0.5 TLLyricsIPC: no CFNotificationCenter observer, no XEPrivate, no TL_LYRICS_PATH",
+      "CFNotificationCenterAddObserver" not in new_ipc and
+      "XEPrivate" not in new_ipc and "TL_LYRICS_PATH" not in new_ipc)
 
 # 13d. host code (ours) contains no upstream names at all — attribution lives
 # only in BUILD_NOTES.md / README.md, never in code.
@@ -778,7 +760,9 @@ for rel, names in [("sources/TLHelper.h", ["@interface TLHelper", "startHUD", "s
                                         "SBSpringBoardDidLaunchNotification"]),
                    ("HUD/LyricsHUDController.swift", ["final class LyricsHUDController",
                                                       "LyricsHUDView", "updateLyrics",
-                                                      "TLHelper.stopHUD"]),
+                                                      "TLHelper.stopHUD",
+                                                      "UIPinchGestureRecognizer", "handlePinch",
+                                                      "0.65", "1.8"]),
                    ("App/TLAppRoot.swift", ["final class TLAppRoot", "makeRootViewController",
                                             "UIHostingController", "ContentView()",
                                             "keyWindowRootView"])]:

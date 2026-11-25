@@ -9,7 +9,7 @@
 - Bundle ID: `com.hailong.TrollLyricsDesk`
 - Widget Extension: WidgetKit（`TrollLyricsWidget`）
 - App Group: `group.com.hailong.TrollLyricsDesk`（App 和 Widget 共用，共享歌词状态）
-- 版本：1.0.4
+- 版本：1.0.5
 
 ## 结构（Lee 02:15 定的新树，原样）
 
@@ -100,7 +100,7 @@ ContentView 里还有“预览悬浮歌词”（只在 App 内弹卡片，先看
   没有 Swift 工具链，`make package` 卡在 Theos 编 swift-support 那步
   （`swift: not found`），连 .mm 都没轮到编。全局显示、拖动、歌词同步、
   生命周期（关闭/重启/卸载不残留 HUD）和 iPhone 13 Pro 真机验证都还没跑，
-  不标通过。版本号：1.0.4（皇上 2026-11-25 20:57 批）。
+  不标通过。版本号：1.0.5（补丁 IPC + 捏合缩放；推＋编等皇上批）。
 
 ## ⚠️ 跟随机制又变了，先说清楚（Lee 02:30：改回 MediaRemote 跟随）
 
@@ -151,7 +151,7 @@ MediaRemote，按钮的授权门也撤了——MediaRemote 不需要媒体资料
 
 推代码就自动跑 `.github/workflows/build.yml`：
 `xcodebuild archive`（不签名）→ `ldid` 按 entitlements 签名 →
-打 `TrollLyricsDesk-1.0.4.ipa` → 上传 Artifacts。
+打 `TrollLyricsDesk-1.0.5.ipa` → 上传 Artifacts。
 
 App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 （`com.apple.mediaremote.now-playing-read-access` /
@@ -162,7 +162,7 @@ App 的 entitlements 含 App Groups + 两个 mediaremote 读权限
 ## 验证
 
 ```sh
-python3 check_1.0.4.py
+python3 check_1.0.5.py
 ```
 
 检查结构、包名/组名一致、Lee 文件原样标记、无内置歌、无授权码、

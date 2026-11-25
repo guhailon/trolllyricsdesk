@@ -1,74 +1,185 @@
 #import "TLLyricsIPC.h"
-#import "TLPrivate.h"
+
+#import <notify.h>
+
+static NSString * const kTLLyricsAppGroup =
+    @"group.com.hailong.TrollLyricsDesk";
+
+static NSString * const kTLLyricsNotification =
+    @"com.hailong.TrollLyricsDesk.v05.lyrics.changed";
+
+static NSString * const kTLLyricsRelativePath =
+    @"Library/Caches/TrollLyricsDesk/lyrics.json";
+
+static int gTLLyricsNotifyToken = NOTIFY_TOKEN_INVALID;
+static void (^gTLLyricsObserver)(NSDictionary<NSString *, id> *) = nil;
 
 @implementation TLLyricsIPC
 
-+ (void)publishLyrics:(NSDictionary *)lyrics {
-    if (![lyrics isKindOfClass:NSDictionary.class]) {
++ (NSURL *)lyricsFileURLCreatingDirectory:(BOOL)createDirectory {
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+
+    NSURL *containerURL =
+        [fileManager containerURLForSecurityApplicationGroupIdentifier:
+            kTLLyricsAppGroup];
+
+    if (containerURL == nil) {
+        NSLog(@"[TrollLyricsDesk] App Group container unavailable: %@",
+              kTLLyricsAppGroup);
+        return nil;
+    }
+
+    NSURL *fileURL =
+        [containerURL URLByAppendingPathComponent:kTLLyricsRelativePath];
+
+    if (createDirectory) {
+        NSURL *directoryURL =
+            [fileURL URLByDeletingLastPathComponent];
+
+        NSError *directoryError = nil;
+        BOOL created =
+            [fileManager createDirectoryAtURL:directoryURL
+                  withIntermediateDirectories:YES
+                                   attributes:nil
+                                        error:&directoryError];
+
+        if (!created) {
+            NSLog(@"[TrollLyricsDesk] Cannot create lyrics cache: %@",
+                  directoryError);
+            return nil;
+        }
+    }
+
+    return fileURL;
+}
+
++ (BOOL)publishLyrics:(NSDictionary<NSString *, id> *)lyrics {
+    if (![lyrics isKindOfClass:[NSDictionary class]]) {
+        return NO;
+    }
+
+    NSError *jsonError = nil;
+    NSData *jsonData =
+        [NSJSONSerialization dataWithJSONObject:lyrics
+                                        options:0
+                                          error:&jsonError];
+
+    if (jsonData == nil) {
+        NSLog(@"[TrollLyricsDesk] Lyrics JSON serialization failed: %@",
+              jsonError);
+        return NO;
+    }
+
+    NSURL *fileURL = [self lyricsFileURLCreatingDirectory:YES];
+    if (fileURL == nil) {
+        return NO;
+    }
+
+    NSError *writeError = nil;
+    BOOL written =
+        [jsonData writeToURL:fileURL
+                     options:NSDataWritingAtomic
+                       error:&writeError];
+
+    if (!written) {
+        NSLog(@"[TrollLyricsDesk] Lyrics write failed: %@", writeError);
+        return NO;
+    }
+
+    uint32_t notifyStatus =
+        notify_post([kTLLyricsNotification UTF8String]);
+
+    if (notifyStatus != NOTIFY_STATUS_OK) {
+        NSLog(@"[TrollLyricsDesk] notify_post failed: %u", notifyStatus);
+        return NO;
+    }
+
+    return YES;
+}
+
++ (NSDictionary<NSString *, id> *)readLyrics {
+    NSURL *fileURL = [self lyricsFileURLCreatingDirectory:NO];
+    if (fileURL == nil) {
+        return @{};
+    }
+
+    NSData *jsonData = [NSData dataWithContentsOfURL:fileURL];
+    if (jsonData == nil) {
+        return @{};
+    }
+
+    NSError *jsonError = nil;
+    id object =
+        [NSJSONSerialization JSONObjectWithData:jsonData
+                                        options:NSJSONReadingFragmentsAllowed
+                                          error:&jsonError];
+
+    if (![object isKindOfClass:[NSDictionary class]]) {
+        if (jsonError != nil) {
+            NSLog(@"[TrollLyricsDesk] Lyrics JSON read failed: %@", jsonError);
+        }
+        return @{};
+    }
+
+    return (NSDictionary<NSString *, id> *)object;
+}
+
++ (void)observeLyrics:(void (^)(NSDictionary<NSString *, id> *))handler {
+    if (handler == nil) {
         return;
     }
 
-    BOOL saved = [lyrics writeToFile:@(TL_LYRICS_PATH)
-                           atomically:YES];
+    @synchronized(self) {
+        gTLLyricsObserver = [handler copy];
 
-    if (!saved) {
-        NSLog(@"[TrollLyricsDesk] Cannot save lyrics");
-        return;
+        if (gTLLyricsNotifyToken != NOTIFY_TOKEN_INVALID) {
+            return;
+        }
+
+        int token = NOTIFY_TOKEN_INVALID;
+        uint32_t status =
+            notify_register_dispatch(
+                [kTLLyricsNotification UTF8String],
+                &token,
+                dispatch_get_main_queue(),
+                ^(int callbackToken) {
+                    (void)callbackToken;
+
+                    NSDictionary<NSString *, id> *lyrics =
+                        [self readLyrics];
+
+                    void (^callback)(NSDictionary<NSString *, id> *) = nil;
+                    @synchronized(self) {
+                        callback = [gTLLyricsObserver copy];
+                    }
+
+                    if (callback != nil) {
+                        callback(lyrics);
+                    }
+                });
+
+        if (status == NOTIFY_STATUS_OK) {
+            gTLLyricsNotifyToken = token;
+        } else {
+            gTLLyricsObserver = nil;
+            NSLog(@"[TrollLyricsDesk] notify_register_dispatch failed: %u",
+                  status);
+        }
+    }
+}
+
++ (void)stopObserving {
+    int tokenToCancel = NOTIFY_TOKEN_INVALID;
+
+    @synchronized(self) {
+        tokenToCancel = gTLLyricsNotifyToken;
+        gTLLyricsNotifyToken = NOTIFY_TOKEN_INVALID;
+        gTLLyricsObserver = nil;
     }
 
-    CFNotificationCenterPostNotification(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        (__bridge CFStringRef)
-            [NSString stringWithUTF8String:TL_NOTIFY_LYRICS],
-        NULL,
-        NULL,
-        YES
-    );
-}
-
-+ (NSDictionary *)readLyrics {
-    NSDictionary *data =
-        [NSDictionary dictionaryWithContentsOfFile:
-            @(TL_LYRICS_PATH)];
-
-    return [data isKindOfClass:NSDictionary.class]
-        ? data
-        : @{};
-}
-
-// Darwin 通知的 C 回调：CFNotificationCenterAddObserver 的回调参数是
-// C 函数指针，不能直接传 block 字面量（编不过，跑起来也可能崩）。
-// observer 传进来的是 __bridge_retained 的 block 副本，进程生命周期内
-// 一直持有，是故意的（和上游的做法一样）。
-static void TL_LyricsNotifyCallback(CFNotificationCenterRef center,
-                                    void *observer,
-                                    CFStringRef name,
-                                    const void *object,
-                                    CFDictionaryRef userInfo) {
-    void (^handler)(NSDictionary *) =
-        (__bridge void (^)(NSDictionary *))observer;
-    if (!handler) return;
-
-    NSDictionary *lyrics = [TLLyricsIPC readLyrics];
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        handler(lyrics);
-    });
-}
-+ (void)observeLyrics:(void (^)(NSDictionary *))handler {
-    if (!handler) return;
-
-    void (^copied)(NSDictionary *) = [handler copy];
-
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        (__bridge_retained void *)copied,
-        TL_LyricsNotifyCallback,
-        (__bridge CFStringRef)
-            [NSString stringWithUTF8String:TL_NOTIFY_LYRICS],
-        NULL,
-        CFNotificationSuspensionBehaviorCoalesce
-    );
+    if (tokenToCancel != NOTIFY_TOKEN_INVALID) {
+        notify_cancel(tokenToCancel);
+    }
 }
 
 @end
