@@ -377,7 +377,9 @@ for f in ["App/TrollLyricsDeskApp.swift", "App/ContentView.swift",
           "MusicProviders/NetEaseAdapter.swift", "MusicProviders/QQMusicAdapter.swift",
           "MusicProviders/ExternalTrackInput.swift", "Lyrics/LRCLibClient.swift",
           "Lyrics/LyricParser.swift", "Lyrics/LyricStore.swift", "Lyrics/LyricLine.swift",
-          "Lyrics/LocalLRCImporter.swift"]:
+          "Lyrics/LocalLRCImporter.swift", "Core/MediaRemoteBridge.swift",
+          "Core/MediaRemoteSymbols.swift", "Core/PlaybackStateEngine.swift",
+          "Core/TrackIdentifier.swift"]:
     check(f"pbxproj: references {f}", f in _resolved)
 check("pbxproj: deleted files fully gone (MusicPlatformAdapter/NowPlayingFollower)",
       "MusicPlatformAdapter" not in pbx and "NowPlayingFollower" not in pbx)
@@ -440,8 +442,23 @@ check("no Swift code references deleted files",
       "NowPlayingFollower" not in all_swift and "MusicPlatformAdapter" not in all_swift
       and "importTrack" not in all_swift)
 mra = read("MusicProviders/MediaRemoteAdapter.swift")
-check("MediaRemoteAdapter: declares MRMediaRemoteGetNowPlayingInfo via @_silgen_name",
-      '@_silgen_name("MRMediaRemoteGetNowPlayingInfo")' in mra)
+check("MediaRemoteAdapter: loads MRMediaRemoteGetNowPlayingInfo via dlopen (no direct link)",
+      "MediaRemoteBridge" in mra and "MediaRemoteSymbols.getNowPlayingInfo" in mra and
+      "@_silgen_name" not in mra)
+bridge = read("Core/MediaRemoteBridge.swift")
+check("MediaRemoteBridge: dlopen + dlsym + dlclose",
+      "dlopen" in bridge and "dlsym" in bridge and "dlclose" in bridge)
+check("MediaRemoteBridge: framework path from MediaRemoteSymbols",
+      "MediaRemoteSymbols.frameworkPath" in bridge)
+symbols = read("Core/MediaRemoteSymbols.swift")
+check("MediaRemoteSymbols: framework path + 4 symbol names",
+      all(s in symbols for s in ["MediaRemote.framework/MediaRemote",
+                                 "MRMediaRemoteGetNowPlayingInfo",
+                                 "MRMediaRemoteGetNowPlayingApplicationIsPlaying",
+                                 "MRMediaRemoteRegisterForNowPlayingNotifications",
+                                 "MRMediaRemoteGetNowPlayingApplicationDisplayID"]))
+check("PlaybackStatus defined once (no duplicate enum in Core)",
+      all_swift.count("enum PlaybackStatus") == 1)
 check("MediaRemoteAdapter: timestamp + elapsed + rate keys",
       all(k in mra for k in ["kMRMediaRemoteNowPlayingInfoTimestamp",
                              "kMRMediaRemoteNowPlayingInfoElapsedTime",
@@ -519,10 +536,9 @@ check("LyricLogger.swift kept", os.path.exists(
     os.path.join(ROOT, "TrollLyricsDesk/LyricLogger.swift")))
 open_item("LyricLogger has no callers after NowPlayingFollower removal (kept per task)",
           "PlaybackCoordinator does not log yet")
-# MediaRemote link flags — follow uses them again (Lee 02:30, kept)
-check("pbxproj: OTHER_LDFLAGS links MediaRemote (follow uses them again)",
-      pbx.count("MediaRemote") >= 2 and "-framework" in pbx and
-      "PrivateFrameworks" in pbx)
+# MediaRemote no longer directly linked (Lee 10:44: dlopen via Core/MediaRemoteBridge)
+check("pbxproj: MediaRemote NOT directly linked (dlopen instead)",
+      "PrivateFrameworks" not in pbx and '"MediaRemote",' not in pbx)
 
 print("\n== 9. LRC sample parse (Lee's sample) ==")
 # Replicate Lee's LyricParser regex in Python (same pattern, same semantics).

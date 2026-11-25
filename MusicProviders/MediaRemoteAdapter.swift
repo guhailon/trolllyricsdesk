@@ -8,16 +8,20 @@ import Foundation
 /// 协调器会显示“没有检测到可读取的音乐”，不崩。
 /// 思路学 Lyrication（只学思路，不抄代码，不用它的私有接口）。
 
-@_silgen_name("MRMediaRemoteGetNowPlayingInfo")
-func MRMediaRemoteGetNowPlayingInfo(
-_ queue: DispatchQueue,
-_ completion: @escaping (CFDictionary?) -> Void
-)
+/// 运行时 dlopen 拿函数指针，不链接 MediaRemote 框架——
+/// 新 SDK 里没有它的 .tbd，直接链接会断。框架打不开时 symbol 就是 nil，
+/// 跟读不到一样返回 nil，不崩。
+private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (
+    DispatchQueue,
+    @escaping (CFDictionary?) -> Void
+) -> Void
 
 @MainActor
 final class MediaRemoteAdapter: PlaybackAdapter {
 
 let platform: MusicPlatform = .manual
+
+private let bridge = MediaRemoteBridge()
 
 private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
@@ -105,7 +109,12 @@ return
 
 fetching = true
 
-MRMediaRemoteGetNowPlayingInfo(
+guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingInfo) else {
+    fetching = false
+    return
+}
+let getNowPlayingInfo = unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingInfoFn.self)
+getNowPlayingInfo(
 DispatchQueue.global(qos: .background)
 ) { [weak self] info in
 

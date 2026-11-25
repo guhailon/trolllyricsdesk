@@ -152,6 +152,10 @@
 				21DEEF057D306BBAA1F17545,
 				EE1D905DCB2D5195E2CC455A,
 				DD5812107D213C881F5B0227,
+				B245C5C5ECA921805EC8013A /* MediaRemoteBridge.swift in Sources */,
+				10943F7E26B55DA72E244922 /* MediaRemoteSymbols.swift in Sources */,
+				1C1E9DE32AA927F0EBAC1F4A /* PlaybackStateEngine.swift in Sources */,
+				CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -234,6 +238,7 @@
 				BD9039214C2D61D74846CF65,
 				EC21069A65F2CA977FE14A64,
 				547D009064F7C3F13BEF3460,
+				389F15E87F1A2EC0C3E735AE /* Core */,
 			);
 			sourceTree = "<group>";
 		};
@@ -280,9 +285,6 @@
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
-				"-F$(SDKROOT)/System/Library/PrivateFrameworks",
-				"-framework",
-				"MediaRemote",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
@@ -513,9 +515,6 @@
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
-				"-F$(SDKROOT)/System/Library/PrivateFrameworks",
-				"-framework",
-				"MediaRemote",
 			);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
@@ -737,6 +736,18 @@
 			path = "MusicProviders";
 			sourceTree = "<group>";
 		};
+		389F15E87F1A2EC0C3E735AE /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				1BF626580805FC60CF5FFEEA /* MediaRemoteBridge.swift */,
+				476175A3EEABEF72AAB338C3 /* MediaRemoteSymbols.swift */,
+				97ED040A3A477ADB34C49181 /* PlaybackStateEngine.swift */,
+				C91B7043E06A333A2DE276BA /* TrackIdentifier.swift */,
+			);
+			name = "Core";
+			path = "Core";
+			sourceTree = "<group>";
+		};
 		D4A44524DE66F42C6367AC6A /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
@@ -779,6 +790,34 @@
 			path = "MediaRemoteAdapter.swift";
 			sourceTree = "<group>";
 		};
+		1BF626580805FC60CF5FFEEA /* MediaRemoteBridge.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "MediaRemoteBridge.swift";
+			path = "MediaRemoteBridge.swift";
+			sourceTree = "<group>";
+		};
+		476175A3EEABEF72AAB338C3 /* MediaRemoteSymbols.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "MediaRemoteSymbols.swift";
+			path = "MediaRemoteSymbols.swift";
+			sourceTree = "<group>";
+		};
+		97ED040A3A477ADB34C49181 /* PlaybackStateEngine.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "PlaybackStateEngine.swift";
+			path = "PlaybackStateEngine.swift";
+			sourceTree = "<group>";
+		};
+		C91B7043E06A333A2DE276BA /* TrackIdentifier.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "TrackIdentifier.swift";
+			path = "TrackIdentifier.swift";
+			sourceTree = "<group>";
+		};
 		0C29F9E72757F396FB7043CF /* PBXFileReference */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = "sourcecode.swift";
@@ -816,6 +855,22 @@
 		DD5812107D213C881F5B0227 /* MediaRemoteAdapter.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = A1368DE2883A1131B5FB796C /* MediaRemoteAdapter.swift */;
+		};
+		B245C5C5ECA921805EC8013A /* MediaRemoteBridge.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 1BF626580805FC60CF5FFEEA /* MediaRemoteBridge.swift */;
+		};
+		10943F7E26B55DA72E244922 /* MediaRemoteSymbols.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 476175A3EEABEF72AAB338C3 /* MediaRemoteSymbols.swift */;
+		};
+		1C1E9DE32AA927F0EBAC1F4A /* PlaybackStateEngine.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 97ED040A3A477ADB34C49181 /* PlaybackStateEngine.swift */;
+		};
+		CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = C91B7043E06A333A2DE276BA /* TrackIdentifier.swift */;
 		};
 		21DEEF057D306BBAA1F17545 /* PBXBuildFile */ = {
 			isa = PBXBuildFile;
