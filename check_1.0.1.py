@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.0 project: structure, ids, Lee's files verbatim,
+"""Verify TrollLyricsDesk 1.0.1 project: structure, ids, Lee's files verbatim,
 no built-in songs, no activation, adapters public-only, LRC sample parse,
 plists/entitlements/pbxproj/scheme valid, icons complete.
 
@@ -343,7 +343,7 @@ for rel, want in [("TrollLyricsDesk/Info.plist", APP_ID),
                   ("TrollLyricsWidget/Info.plist", WIDGET_ID)]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: bundle id", pl.get("CFBundleIdentifier") == want, pl.get("CFBundleIdentifier"))
-    check(f"{rel}: version 1.0.0", pl.get("CFBundleShortVersionString") == "1.0.0")
+    check(f"{rel}: version 1.0.1", pl.get("CFBundleShortVersionString") == "1.0.1")
     check(f"{rel}: min OS 16.0", pl.get("MinimumOSVersion") == "16.0", str(pl.get("MinimumOSVersion")))
 app_pl = plistlib.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
 check("app Info.plist: NSAppleMusicUsageDescription (Lee's text)",
@@ -427,7 +427,7 @@ wf = read(".github/workflows/build.yml")
 check("workflow: xcodebuild archive unsigned", "CODE_SIGNING_ALLOWED=NO" in wf)
 check("workflow: install zsign", "brew install zsign" in wf)
 check("workflow: zsign sign app + widget", wf.count("zsign -a") >= 2)
-check("workflow: package IPA", "TrollLyricsDesk-1.0.0.ipa" in wf)
+check("workflow: package IPA", "TrollLyricsDesk-1.0.1.ipa" in wf)
 
 print("\n== 6. No built-in songs / no activation ==")
 all_swift = ""

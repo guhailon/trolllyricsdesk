@@ -1,9 +1,9 @@
-# TrollStore 云端编译：TrollLyricsDesk v1.0.0
+# TrollStore 云端编译：TrollLyricsDesk v1.0.1
 # 做法照分屏那套（macOS runner + 签名，不需要任何密钥/ Secret，不需要 Mac）。
 # 区别：这是 Xcode 工程（SwiftUI App + Widget Extension），不用 Theos；
 # 先 xcodebuild 不签名导出（archive），再按 entitlements 签名，
 # 最后打成 .ipa。推代码就自动跑；跑完在该次运行的 Artifacts 里下载
-# TrollLyricsDesk-1.0.0.ipa。
+# TrollLyricsDesk-1.0.1.ipa。
 # 签名工具：zsign（Homebrew 1.1.3）。ldid 走不通了——
 # procursus7（2023 年）和 procursus8（2026-11-17 最新版）都读不懂
 # Xcode 26.6 编出的 Mach-O（Unknown header magic；run 45535776981、
@@ -67,15 +67,15 @@ jobs:
 
       - name: Package IPA
         run: |
-          rm -rf Payload TrollLyricsDesk-1.0.0.ipa
+          rm -rf Payload TrollLyricsDesk-1.0.1.ipa
           mkdir Payload
           cp -r build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app Payload/
-          zip -qr TrollLyricsDesk-1.0.0.ipa Payload
-          ls -la TrollLyricsDesk-1.0.0.ipa
-          unzip -l TrollLyricsDesk-1.0.0.ipa
+          zip -qr TrollLyricsDesk-1.0.1.ipa Payload
+          ls -la TrollLyricsDesk-1.0.1.ipa
+          unzip -l TrollLyricsDesk-1.0.1.ipa
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TrollLyricsDesk-1.0.0
-          path: TrollLyricsDesk-1.0.0.ipa
+          name: TrollLyricsDesk-1.0.1
+          path: TrollLyricsDesk-1.0.1.ipa
