@@ -254,6 +254,7 @@
 				CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */,
 				80F1B3D04A96B4B3B471EF80 /* AboutView.swift in Sources */,
 				6EFFD66A90219D827D56995A /* LogView.swift in Sources */,
+				39A05E393F3B239F0E2EF1BF /* ActivationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -591,6 +592,10 @@
 			isa = PBXBuildFile;
 			fileRef = E7695063FA73476DC5917E8E;
 		};
+		39A05E393F3B239F0E2EF1BF /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = CDEE6B04F5D5DA0211F2CBD7;
+		};
 		B56E96530BC9DC2EBA288692 /* PBXResourcesBuildPhase */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -709,6 +714,13 @@
 			lastKnownFileType = "sourcecode.swift";
 			name = "LogView.swift";
 			path = "LogView.swift";
+			sourceTree = "<group>";
+		};
+		CDEE6B04F5D5DA0211F2CBD7 /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "ActivationView.swift";
+			path = "ActivationView.swift";
 			sourceTree = "<group>";
 		};
 		DDE58E6DE8C3A7107DE018F9 /* PBXBuildFile */ = {
@@ -1044,6 +1056,7 @@
 				D5C30227B891262EA40DBB04,
 				8236BC683D875B749B244608,
 				E7695063FA73476DC5917E8E,
+				CDEE6B04F5D5DA0211F2CBD7,
 			);
 			name = "App";
 			path = "App";

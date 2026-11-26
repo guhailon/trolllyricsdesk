@@ -307,3 +307,32 @@ enum LyricStore {
         )
     }
 }
+
+// MARK: - 授权激活（1.0.3）
+// 整个 App 第一次打开就要码：激活标记存在 App Group 里，App 与 Widget 共用。
+// 码表只在服务端（Cloudflare Pages Functions），App 里没有任何码值，
+// 这里只有接口地址和标记键。验证走 POST /api/verify，服务端比对不分大小写，
+// App 端同样先 trim 再大写。
+// 本文件同时在 App 与 Widget 两个 target 里（两边都要读激活标记），
+// 所以只放 Foundation 层面的键与读写，不放任何 SwiftUI／网络代码。
+enum ActivationStore {
+
+    static let verifyURLString =
+        "https://guhailong-repo.pages.dev/api/verify"
+
+    static let activatedKey = "tld.activated"
+    static let activationTypeKey = "tld.activationType"
+
+    static var isActivated: Bool {
+        LyricStore.defaults?.bool(forKey: activatedKey) ?? false
+    }
+
+    static var activationType: String? {
+        LyricStore.defaults?.string(forKey: activationTypeKey)
+    }
+
+    static func markActivated(type: String) {
+        LyricStore.defaults?.set(true, forKey: activatedKey)
+        LyricStore.defaults?.set(type, forKey: activationTypeKey)
+    }
+}
