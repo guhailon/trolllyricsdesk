@@ -14,16 +14,7 @@ struct AboutView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color.purple.opacity(0.8),
-                    Color.black,
-                    Color.blue.opacity(0.5)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppBackgroundView()
 
             ScrollView {
                 VStack(spacing: 20) {

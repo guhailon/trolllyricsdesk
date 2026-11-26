@@ -37,17 +37,8 @@ struct PlaybackDashboardView: View {
 
             ZStack {
 
-                // 与原主界面（设置页）一致的渐变背景
-                LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.8),
-                        Color.black,
-                        Color.blue.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // 共用背景：跟设置页／关于页同一份，随「背景设置」换
+                AppBackgroundView()
 
                 VStack(spacing: 22) {
 

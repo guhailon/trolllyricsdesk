@@ -428,6 +428,34 @@ check("LogView: copy/clear/share disabled when log is empty",
       lv.count(".disabled(entries.isEmpty)") == 3,
       f"count={lv.count('.disabled(entries.isEmpty)')}")
 
+print("\n== 6.7 1.0.2：背景图任意更换 ==")
+cv = read("App/ContentView.swift")
+check("AppBackgroundView exists in ContentView.swift (no new file)",
+      "struct AppBackgroundView: View" in cv)
+check("AppBackgroundView reads all three background keys from the App Group",
+      '"animeBackgroundEnabled"' in cv and '"backgroundOpacity"' in cv
+      and '"selectedBackgroundData"' in cv
+      and cv.count('UserDefaults(suiteName: LyricStore.groupID)') >= 3)
+check("AppBackgroundView: switch off -> pure black, no image/gradient",
+      "Color.black" in cv and "if animeBackgroundEnabled" in cv)
+check("AppBackgroundView: custom image fullscreen, opacity = 1 - backgroundOpacity",
+      "UIImage(data: selectedBackgroundData)" in cv
+      and ".scaledToFill()" in cv
+      and ".opacity(1 - backgroundOpacity)" in cv)
+check("AppBackgroundView: no custom image -> original gradient, same opacity",
+      "Color.purple.opacity(0.8)" in cv and "Color.blue.opacity(0.5)" in cv)
+check("SettingsHubView / ContentView / AboutView / PlaybackDashboardView use AppBackgroundView",
+      cv.count("AppBackgroundView()") == 2
+      and "AppBackgroundView()" in read("App/AboutView.swift")
+      and "AppBackgroundView()" in read("App/PlaybackDashboardView.swift"))
+check("No hardcoded root gradient left outside AppBackgroundView",
+      cv.count("LinearGradient(") == 1
+      and "LinearGradient(" not in read("App/AboutView.swift")
+      and "LinearGradient(" not in read("App/PlaybackDashboardView.swift"))
+check("Version still 1.0.2 / build 15 (background change does not bump version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.2</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>15</string>") == 1)
+
 print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "1.0.1 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
@@ -439,6 +467,10 @@ open_item("1.0.2 新功能要真机验：Telegram 行点开进频道、日志复
           "再写日志时文件要重建；"
           "注：lastLiveState 编译错已在 1.0.1 修好（LiveLyricKey），run 45737671775 编过，"
           "1.0.4 build 17 Archive 失败基本坐实是同根原因，不再单列")
+open_item("1.0.2 背景更换要真机验（新增第三件）",
+          "设置页「背景设置」选图后，主界面／设置页／关于页要立即换成这张图；"
+          "开关关掉变纯黑；透明度滑杆拖动图跟着变透（默认 0.25 即图 75% 显示）；"
+          "没选过图时是原来的紫／黑／蓝渐变；悬浮窗与小组件不受影响")
 open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")

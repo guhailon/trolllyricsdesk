@@ -178,5 +178,11 @@ python3 check_1.0.3.py
   **清除**先弹确认框（“确定要清除全部日志吗？”＋取消），确认后 `LyricLogger.clear()` 删掉日志文件，
   页面刷新成空状态；删后 `read()` 返回空，`log()` 下次写时重建。分享按钮原样保留。
   `LyricLogger.clear()` 只删文件，不改 maxBytes／trim 逻辑。
+- **背景图任意更换**：之前全工程只有 SettingsView 写 `animeBackgroundEnabled`／`backgroundOpacity`／
+  `selectedBackgroundData` 三个键、没有任何界面读它们，选了图也换不了背景。
+  新共用背景 `AppBackgroundView`（在 `App/ContentView.swift` 里，没新建文件）：开关关→纯黑；
+  开且选过图→全屏显示这张图，不透明度 = 1 − backgroundOpacity（默认 0.25 即图 75% 显示，底下黑色）；
+  开但没选图→原来的紫／黑／蓝渐变（同样套这个不透明度）。用到主界面（PlaybackDashboardView，根视图）、
+  设置中心、设置页、关于页四处；选图后立即生效（@AppStorage 实时刷新）；悬浮窗与小组件不动。
 - 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；产物名桌面歌词-1.0.2.ipa）。
   其余内容与 1.0.1 一字未动。
