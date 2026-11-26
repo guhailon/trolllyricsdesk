@@ -46,13 +46,16 @@ enum EffectiveEntitlements {
             return nil
         }
         typealias CreateFn = @convention(c) (CFAllocator?) -> UnsafeMutableRawPointer?
-        typealias CopyFn = @convention(c) (UnsafeMutableRawPointer, CFString) -> Unmanaged<CFTypeRef>?
+        // 1.0.6/build 21：SecTaskCopyValueForEntitlement 正确要 3 个参数
+        //（task、key、CFErrorRef *error）；2 参数版是隐患——哪个键查不到，
+        // 系统往缺失的第三个参数写东西就真崩。第三个参数传 nil（不要错误对象）。
+        typealias CopyFn = @convention(c) (UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFTypeRef>?
         guard let task = unsafeBitCast(createSym, to: CreateFn.self)(nil) else {
             return nil
         }
         // SecTaskCreateFromSelf 是 Create 规则（＋1），用完放掉，不留引用。
         defer { Unmanaged<CFTypeRef>.fromOpaque(task).release() }
-        guard let unmanaged = unsafeBitCast(copySym, to: CopyFn.self)(task, key as CFString) else {
+        guard let unmanaged = unsafeBitCast(copySym, to: CopyFn.self)(task, key as CFString, nil) else {
             return nil
         }
         // SecTaskCopyValueForEntitlement 是 Copy 规则（＋1），takeRetainedValue 接管。

@@ -13,6 +13,11 @@ base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
     只摘 binder＋藏窗口（走 1.0.5 的做法）；触发侧（DidBecomeActive／
     2 秒看门狗）在连接窗口里跳过这次恢复。1.0.6 其余全部不动，
     不修 isPlaying 探针（#2），不加新功能。
+  + build 21 第二处（皇上 2026-11-27 02:27 定，两个都修）：
+    SecTaskCopyValueForEntitlement 三参数修——CopyFn 由 2 参数改 3 参数
+    （task、key、CFErrorRef *error），调用补 nil；2 参数版是真隐患
+    （哪个键查不到就真崩），但 7 个键在 entitlements 里全都有、查都会成功，
+    且它跑在主页面出现之前，所以这次「主页面立刻闪」很可能不是它。
   + 皇上 10 项（2026-11-26 22:59 令）：
     1. RuntimeEnvironment 重写：禁止「非 LC 就当 TrollStore」；
        TrollStore 必须用正面证据判（EffectiveEntitlements 实测）。
@@ -962,7 +967,7 @@ check("前缀统一：测试文字已是 1.0.6（LyricStore／PiP／SettingsView
       and "桌面歌词 1.0.5" not in ls and "桌面歌词 1.0.5" not in pip
       and "桌面歌词 1.0.5" not in read("App/SettingsView.swift"))
 
-print("\n== 16. build 21 重建竞态修（皇上 2026-11-27 02:18 令：先修最可疑那处） ==")
+print("\n== 16. build 21 两处修（#1 重建竞态＋SecTask 三参数，皇上 2026-11-27 02:27 定） ==")
 td21 = read("Overlay/TLDSAppDelegate.m")
 sd21 = read("Overlay/TLDSSceneDelegate.m")
 hd21 = read("Overlay/TLDSAppDelegate.h")
@@ -993,6 +998,18 @@ check("build 21：其余不动——isPlaying 探针、native-candidate、PiP �
       and "native-candidate" in td21
       and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
       and "https://guhailong-repo.pages.dev/api/verify" in ls)
+ee21 = read("Compatibility/EffectiveEntitlements.swift")
+check("build 21：SecTask 三参数修——CopyFn 是三参数（task、key、CFErrorRef *error），调用传 nil，2 参数版不在",
+      "(UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?)" in ee21
+      and "(task, key as CFString, nil)" in ee21
+      and "(task, key as CFString) else" not in ee21)
+check("build 21：SecTask 7 个探针键仍在 entitlements 文件里（查都会成功，缺失参数平时不写东西）",
+      all(k in read("TrollLyricsDesk/TrollLyricsDesk.entitlements")
+          for k in ["platform-application", "com.apple.private.security.no-sandbox",
+                    "com.apple.frontboard.launchapplications",
+                    "com.apple.mediaremote.now-playing-read-access",
+                    "com.apple.mediaremote.full-now-playing-read-access",
+                    "com.apple.backboard.client", "get-task-allow"]))
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
