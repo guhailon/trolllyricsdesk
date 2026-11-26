@@ -463,7 +463,13 @@ open_item("锁屏要真机验：开启／停止、横幅跟随、灵动岛三态
 open_item("LC 兼容要真机验：同 IPA 导入 LiveContainer 能启动、应用内歌词 0.25s 刷新、"
           "暂停／归零可用；巨魔模式悬浮窗／锁屏／保活一切照旧",
           "LiveContainer 的进程模型＋后台行为没验过；检测是启发式，不是权限证明")
-open_item("otool 弱链接核实（编成后验包新增）",
+open_item("二进制字面量扫描的限制（已查明，非缺陷；见 RUN 第三阶段）",
+          "Release 二进制里 ≤15 字节的行内字面量（livecontainer／/lcapps/／"
+          "LCAppDelegate／桌面歌词等）以 small-string immediates 进代码段，"
+          "不在 __cstring 里，字节扫描不到；＞15 字节或 static-let 字面量"
+          "（TLDSLiveContainer／lyric.timeOffset|／tld.activated）在位；"
+          "方法名符号 Release 下被 strip，源码级核查为准；LC 宿主模式"
+          "是否真生效只能真机验")
           "App 与 Widget 两个二进制各跑 macho_inspect.py 查 ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB（0x80000018）；强链接则 iOS 15 有启动失败风险")
 
