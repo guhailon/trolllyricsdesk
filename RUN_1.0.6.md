@@ -125,3 +125,55 @@
 - 第 4 笔（待补）：RUN 补头 run 45864188284 成功＋验包节。
 - 头 run：45864188284（head d699df1）completed／success；IPA `桌面歌词-1.0.6-newbase.ipa`，1,675,065 B，SHA256 `70e8b329…`，验包 68 项全过。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。
+
+## §十一 build 21（1.0.6/build 21，两处修：#1 重建竞态＋SecTask 三参数）
+
+### 为什么修
+
+- **#1 最可疑（主因）**：1.0.6 build 20 在 LC 机（硬件 iPhone 13 Pro，iOS 27.0.1——「iPhone 18 Pro Max」是皇上自己改的显示名）上进主页面就闪退，1.0.5 同台不闪。皇上 **2026-11-27 02:19 证实崩的时机是「主页面立刻闪」**——主页面一出现就闪，不是停一两秒后才闪。按审计的时机表，这指向第一批：DidBecomeActive → reactivate → rebuild（#1 那条路），或第一次轮询 → isPlaying 探针（#2）；2 秒看门狗不太可能是第一下。皇上 **02:22 又确认：重启手机后还是进主页面立刻闪**——重启清掉了内存压力还照样闪，说明不是内存紧那一下，是代码那处撞上了。#1 仍是最可疑，修 #1、编 build 21 的方向是对的。
+- **SecTask 是真隐患（顺带修）**：皇上发来的 ChatGPT 链接（第 7 条）指出 `Compatibility/EffectiveEntitlements.swift` 第 49、55 行——`SecTaskCopyValueForEntitlement` 正确要 3 个参数（task、key、CFErrorRef *error），咱们的 CopyFn 只定义了 2 个、调用也只传 2 个。父级亲手核过代码，确实如此；协调员也亲自核过（见下）。但注意：7 个要查的键在 entitlements 文件里全都有，查都会成功，成功时系统不会往那个缺失的参数里写东西，所以这次闪退很可能不是它；而且它跑在主页面出现之前，崩了就看不到主页面——皇上是看到主页面立刻闪，时间对不上。皇上 **2026-11-27 02:27 定：两个都修，放进 build 21**。
+
+### 改了什么（两笔提交，分开写清）
+
+- **第 1 笔 `3c39be6`（#1 重建竞态）**：新锚点 `floatingSceneEverConnected`（`TLDSAppDelegate.h` 声明；`createFloatingSceneWithIdentifier` 里创建时清 NO；`TLDSSceneDelegate.m` willConnectToSession 悬浮分支里连上后置 YES）——区分「建了还没连上（连接窗口，绝不能销毁／重建）」和「连上过、后来断开（可以销毁重建）」。`rebuildFloatingOverlay` 里只有旧场景曾经连上才调 `requestSceneSessionDestruction`；旧场景建了还没连上时跳过销毁，只做 binder 摘场景＋窗口隐藏（走 1.0.5 的做法），让正在连接的会话自然完成或被放弃。触发侧（DidBecomeActive 的 `tlds_reactivateFromForegroundNotification` 与 2 秒看门狗 `tlds_watchdogReactivate`，都走 `reactivateFloatingOverlayWithTrigger:`）在连接窗口里跳过这次恢复（20 秒节流日志），等连接完成后再说。14:59:44 第二窗修法不回归：连上过、后来断开的旧场景照旧销毁。
+  - 为什么不用 `floatingSceneCreated` 判断：它只表示「当前连着」，连上过、后来断开的场景也会是 NO——那一路（解锁重建）必须照旧销毁，否则旧窗残留。
+  - 另：`didFinishLaunching` 里 `lastRebuildTime` 的 3 秒启动宽限是时间型保护，不可靠（主页面出现时若已过 3 秒就拦不住）；这次的守卫是状态型，窗口在就不撞。
+- **第 2 笔 `e062657`（SecTask 三参数）**：`EffectiveEntitlements.swift` 第 49 行 `CopyFn` 改三参数：`typealias CopyFn = @convention(c) (UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFTypeRef>?`；第 55 行调用补 nil：`... (task, key as CFString, nil)`。亲核：49 行 typealias 与 55 行调用确实都只有 2 个；7 个探针键（platform-application、com.apple.private.security.no-sandbox、com.apple.frontboard.launchapplications、com.apple.mediaremote.now-playing-read-access、com.apple.mediaremote.full-now-playing-read-access、com.apple.backboard.client、get-task-allow）在 `TrollLyricsDesk.entitlements` 里全都有、都是 true。
+- **版本**：1.0.6 不变，build 20→21（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处；MARKETING_VERSION 仍 1.0.6；build.yml 不动）。其余全部不动：不修 #2（isPlaying 探针），不加新功能，不动 entitlements、包名、MinOS 15.0。
+- **diff 规模**：第 1 笔 7 个文件（+99/-13）；第 2 笔 2 个文件（+23/-3）。提交前逐行核对过，只在修法范围内。
+- **作废的中间头**：`3c39be6` 推后曾建头 run 45875510487（只有 #1、缺 SecTask 修），皇上定两个都修后作废，不用它的包；最终头 run 以 `e062657` 为准。
+
+### 构建（头 run 45876153085，head e062657）
+
+- **completed／success，11 步全 success**（job 140078068668 同款流程：Set up job／Checkout／Xcode version／Install zsign／Archive (unsigned)／Verify archive layout／Sign with zsign (TrollStore)／Package IPA／Upload artifact／Post Checkout／Complete job）。轮询读 `status_field`／`conclusion`。
+- 池子取消 ×4（每次都是 job "Build" 结论 cancelled＋steps 为 0，rerun-failed-jobs → 201 默默重跑，不报）；12 轮超時 ×4（分段接力監視，共 9 輪）；第 9 輪 poll 4 終於 in_progress，poll 6 success。晚间池子拥堵比 1.0.6 build 20 那次更严重（build 20 只取消 2 次）。
+- 旧头 run 45875510487（head 3c39be6）一直 queued，未出结果就已作废，不跟。
+
+### 验包（编成后下载真 IPA 亲验，不要只信 run 绿）
+
+- **验包 PASS（71 项，`hidden_files/verify_1.0.6.py`，详见 `hidden_files/ipa_verify_1.0.6_build21.log`）**——68 项原有＋3 项 build 21 新增（新守卫字串「场景正在连接中，跳过这次恢复」「跳过销毁旧场景会话」「floatingSceneEverConnected」在二进制里在位）。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build21-newbase.ipa`（另存，**build 20 的 `桌面歌词-1.0.6-newbase.ipa` 未动**；注意 build 21 文件名用的是繁體「歌詞」，build 20 那个是简体「歌词」），**1,675,821 B，SHA256 `8fe421aaa8ee725da3ac55a9e77c081c0818f306f08187ce637af9203d8cd63a`**（artifact id 15149441254，名 桌面歌词-1.0.6，1,673,958 B；解出与拷本 SHA 一致）。
+- 版本 1.0.6／build 21、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 21、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **entitlements 与 1.0.5 一致（零新增，二进制级核对）**：app 二进制签名槽里的 entitlements（3,308 B）与 build 20 一字不差，widget（464 B，仅 application-groups）也一字不差；自检 §9 另查 entitlements 文件与 4f43991 一字未动。
+- 同步修正、激活、五件、三档、三渲染器、PiP 实验标记、诊断串（1.0.6 前缀）、Engine Fix 串全在位；第 6 项新结论「托管结构检查通过；实际屏幕可见性未确认」在位，「已确认可见」0 命中；第 4 项 P0 行「P0——放着歌还读不到」在位，isPlaying 探针符号在位；第 9 项 PiP 两段键在位；第 1 项 native-candidate 在位。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**261 PASS，0 FAIL，29 OPEN**（build 20 是 250 PASS／28 OPEN；§16 加 11 项——#1 守卫 9 项＋SecTask 2 项，全过；OPEN 加 1 条 build 21 真机验）。
+
+### 待真机验证（LC 机 iPhone 13 Pro／iOS 27.0.1 为主线）
+
+1. **进主页面不再闪退（第一项）**：主页面出现那一刻 DidBecomeActive／2 秒看门狗在连接窗口里跳过恢复，rebuild 不销毁未连上的会话；日志里若出现「场景正在连接中，跳过这次恢复」，说明守卫踩到了。
+2. 悬浮窗／激活／逐歌偏移照常；解锁重建仍只建一个窗（连上过、后来断开的旧场景照旧销毁）。
+3. PiP 两段、P0 仍按 build 20 的清单验（§七 A）。
+4. **如果 build 21 试了还闪，下一处就查 #2（isPlaying 探针）**——那是下一步，不在这次范围里（皇上 02:22 已记下这条）。
+5. 巨魔机 iPhone 11／TrollStore 回归照 §七 B（巨魔原生模式、无复核行、检测引擎计数恒为 1、悬浮窗／激活／逐歌偏移照常）。
+
+### 提交链（build 21）
+
+- 第 1 笔 `3c39be6`：#1 重建竞态（7 个文件，+99/-13）——锚点＋rebuild 守卫＋触发侧守卫＋版本 1.0.6/21＋自检 §16（9 项）。
+- 第 2 笔 `e062657`：SecTask 三参数（2 个文件，+23/-3）——CopyFn 三参数＋调用补 nil＋自检 §16（2 项）。
+- 第 3 笔（本节）：RUN 补 build 21 一节。
+- 头 run：45876153085（head e062657）completed／success；IPA `桌面歌詞-1.0.6-build21-newbase.ipa`，1,675,821 B，SHA256 `8fe421aa…`，验包 71 项全过。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。
