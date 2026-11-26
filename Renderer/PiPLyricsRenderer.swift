@@ -141,7 +141,7 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
     private func ensurePlayer() {
         if player == nil {
             let queuePlayer = AVQueuePlayer()
-            queuePlayer.actionAtItemEnd = .advanceToNextItem
+            queuePlayer.actionAtItemEnd = .advance
             player = queuePlayer
             let layer = AVPlayerLayer(player: queuePlayer)
             layer.frame = CGRect(x: 0, y: 0, width: 320, height: 180)

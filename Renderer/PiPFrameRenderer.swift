@@ -161,7 +161,7 @@ enum PiPFrameRenderer {
             )
             return bounds.size
         }
-        while fontSize > 20 && drawMain(size: fontSize).height > height * 0.6 {
+        while fontSize > 20 && drawMain(size: fontSize).height > CGFloat(height) * 0.6 {
             fontSize -= 4
         }
         let mainAttrs: [NSAttributedString.Key: Any] = [
