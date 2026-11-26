@@ -279,18 +279,18 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 - `c6821f1` — PiP 实验引擎＋皇上树新结构（11 个新文件＋接线改动）。
 - `29a26c6` — 自检升级（187 PASS）＋RUN 更新（三档→引擎／树出入／PiP 两段待验）。
   头 run 45830330430 只排到队、没跑完就被锁屏移除的新提交取代（见下），结论作废。
-- `（第五笔）` — **1.0.5 移除锁屏（皇上 2026-11-26 21:46 令，真机从未证实可用；可从 newbase e0c154a 恢复）**。
+- `b10a2ba`（第五笔） — **1.0.5 移除锁屏（皇上 2026-11-26 21:46 令，真机从未证实可用；可从 newbase e0c154a 恢复）**。
   注：皇上原令是「先做这笔，在功能提交之前」，但这条令到时四笔功能提交已经推上去了，
   退不回去——移除仍是单独一笔、可 revert 的提交，只是顺序上落在功能提交之后。
-- `（第六笔）` — 锁屏移除修正：LyricStore 注释还原（红线零删行）＋自检允许清单补 ContentView／Widget 四文件。
+- `ae74495`（第六笔） — 锁屏移除修正：LyricStore 注释还原（红线零删行）＋自检允许清单补 ContentView／Widget 四文件。
   头 run 45833177574（b10a2ba）在排队，未出结论就被后续提交取代。
-- `（第七笔）` — 修 PiP 编译错（run 45833421434 Archive 败）：ActionAtItemEnd 用 .advance；
-  height * 0.6 改 CGFloat(height) * 0.6。头 run 45834568842 在排队。
-- `（第八笔）` — ChatGPT 审查两 bug 修复（皇上 22:00 令）：暂停进度 rate 公式＋
+- `839efb8`（第七笔） — 修 PiP 编译错（run 45833421434 Archive 败）：ActionAtItemEnd 用 .advance；
+  height * 0.6 改 CGFloat(height) * 0.6。头 run 45834568842 success（见下节）。
+- `fad1e84`（第八笔） — ChatGPT 审查两 bug 修复（皇上 22:00 令）：暂停进度 rate 公式＋
   请求超时 2 秒／编号／缓存硬过期 3 秒；全工程存储统一走 LyricStore.defaults。
-- `（第九笔）` — Engine Fix 并入（皇上 22:03 令）：adapter 用包版＋诊断钩子、
+- `c2b3ced`（第九笔） — Engine Fix 并入（皇上 22:03 令）：adapter 用包版＋诊断钩子、
   coordinator 按包 hunks 并（锁屏跳过）、LyricParser 整文件采用、ENGINE_FIX.md＋EngineTests 带入。
-- `（第十笔）` — 自检升级（§13 按包改写＋§14 并入检查＋OPEN 更新）＋本 RUN 文件更新。
+- `ea69cdd`（第十笔） — 自检升级（§13 按包改写＋§14 并入检查＋OPEN 更新）＋本 RUN 文件更新。
 
 ## 六、编译日志
 - 诊断版头 run：**45828687961**，head a5ae262，workflow Build，job Build，
@@ -306,7 +306,15 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 - PiP 编译修复版头 run：**45834568842**，head 839efb8，status_field=completed，
   **conclusion=success**，job Build success，11 个步骤全部 success——
   PiP 编译错修好了（产物未下载，最终 IPA 以并入后的新头 run 为准）。
-- Engine Fix 并入后头 run：（推第九、十笔后填：run 号／结论／产物大小／SHA256。）
+- Engine Fix 并入后头 run：**45836245886**，head ea69cdd，第一次尝试
+  status_field=completed、**conclusion=failure**——job Build 结论 cancelled、steps 0/0，
+  **池子取消**，不是代码失败（晚间免费池拥堵老样子）；按 02:32 的定
+  rerun-failed-jobs API 默默重跑（→201），第二次尝试 status_field=completed、
+  **conclusion=success**，9 个步骤全部 success。同批中间 run
+  45836176584（fad1e84）、45836223403（c2b3ced）也 success。
+  产物：artifact 15128140319（名「桌面歌词-1.0.5」，1,657,346 B，
+  SHA256 b320a785…）；IPA 桌面歌词-1.0.5-newbase.ipa，1,659,575 B，
+  SHA256 af9e9e93…，已拷 ~/workspace/your_files/。真 IPA 验包见 §十一。
 
 ## 七、自检
 `python3 check_1.0.5.py`（锚点 6857d3c）：**207 PASS，FAILED: none，OPEN 16**。
@@ -358,7 +366,7 @@ parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入
 1. **启动就看模式（最重要）**：装 1.0.5 进 LiveContainer，打开 App，等 5 秒，
    进关于页 → 日志，抄回「运行模式：…」那一行和「托管复核结论：…」那一行。
    - 若是「增强宿主模式／已确认可见」→ 复核过了，但原生悬浮窗仍不信任（创建成功≠可见），
-     首选是 PiP——去第 8 项试 PiP；原生悬浮窗就算出来了也不算数。
+     首选是 PiP——去第 13 项试 PiP；原生悬浮窗就算出来了也不算数。
    - 若是「普通签名兼容模式／未确认可见（原因：…）」→ 抄回括号里的原因，
      那就是病根（binder 没收录／窗口为空／isHidden 等）；悬浮窗不出现是**预期**的，
      应用内歌词应正常。
@@ -395,7 +403,7 @@ parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入
 11. **Engine Fix [offset:] 叠加**：找一首 LRC 带 [offset:] 的歌，看歌词时间对不对；
     以前给这首歌调过的逐歌偏移可能要重调（旧解析忽略 [offset:]，手调值可能一直在替它补）。
 12. **Engine Fix 多时间标签**：一行多个时间标签的歌词（如副歌重复行），各时间点都应出现。
-8. **PiP 实验第一段（固定测试文字）**：在 LiveContainer 里打开 App → 设置页 → 诊断（1.0.5）
+13. **PiP 实验第一段（固定测试文字）**：在 LiveContainer 里打开 App → 设置页 → 诊断（1.0.5）
    → 点「开始 PiP 测试（固定文字，实验）」，然后按 Home 回桌面、再打开别的 App（如 Safari）：
    - 若桌面／别的 App 上方出现一个小窗，里面是「悬浮测试 · 桌面歌词 1.0.5」白字黑底
      → 第一段成了，抄回日志里「PiP 已显示（实验）」那一行。
@@ -403,10 +411,45 @@ parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入
      尤其是有没有 `failedToStartPictureInPictureWithError` 的错误原因。
    - 小窗是黑底不是透明、大小拖动由系统定——都是已知的实验限制，不是 bug。
    - 关掉：点小窗的关闭按钮，或回设置页点「停止 PiP」。
-9. **PiP 实验第二段（实时歌词）**：第一段成了之后再试——放一首歌（先确认主界面应用内歌词
+14. **PiP 实验第二段（实时歌词）**：第一段成了之后再试——放一首歌（先确认主界面应用内歌词
    在跟），设置页点「接入实时歌词到 PiP（实验）」，看 PiP 小窗里的行是否跟着歌词走。
    行一切换要等新视频段现编码（约半秒到一秒），不是逐字跳——逐字同步本来就没实现，
    不要按逐字标准验。若行不动，先看主界面歌词动不动：主界面不动就是识别／同步的问题，
    不是 PiP 的问题。
-10. **诊断页**：设置页 → 诊断（1.0.5）→「查看诊断详情」，看模式／MediaRemote／PiP 状态／
+15. **诊断页**：设置页 → 诊断（1.0.5）→「查看诊断详情」，看模式／MediaRemote／PiP 状态／
     权限对照四区显示是否与日志一致；点「刷新快照」应记一行能力快照进日志。
+
+## 十一、真 IPA 验包（头 run 45836245886，收尾亲验 2026-11-26）
+- 产物：artifact 15128140319（1,657,346 B）→ IPA 1,659,575 B，
+  SHA256 af9e9e935b2a290c54d985eb752e217027b1af7c744ac6e52f23408d2c097e48，
+  已拷 `~/workspace/your_files/桌面歌词-1.0.5-newbase.ipa`（SHA 与 artifact 解出一致）。
+- 包名 com.ycwl.Lyrics、版本 1.0.5／build 19、MinOS 15.0、thin arm64、
+  两二进制 LC_CODE_SIGNATURE 在位、无 _CodeSignature 目录（zsign）；
+  ActivityKit 两二进制均 NOT LINKED；NSSupportsLiveActivities 不在。
+- 在位：同步修正（timeOffset／noMusic／needsRebuildOnUnlock；
+  isDisplayEquivalent／syncLiveLyricsAndProgress 是私有方法名，Release 符号 strip，
+  coordinator 本体另有 searchGeneration／requestID 等字串旁证）、
+  激活（api/verify、tld.activated）、五件（tg://resolve?domain=Guhailon、
+  https://t.me/Guhailon、「已固定」；「@Guhailon」9 字节短字串是 small-string，
+  字节扫不到，链接串在位为准）、LC 检测（TLDSLiveContainer；
+  livecontainer／/lcapps/／LCAppDelegate 同款 small-string 限制，build 18 已记）、
+  三档（nativeHUD／pip／inApp、trollstore／enhanced-host）、
+  三渲染器（NativeHUDRenderer／PiPLyricsRenderer／InAppLyricsRenderer／PiPFrameRenderer）、
+  PiP 实验标记（「PiP 画中画歌词（实验）」「PiP 实验：未开始」）、
+  诊断（dlopen／dlsym、「诊断1.0.5 MediaRemote」「诊断1.0.5 强制测试」、
+  场景＋托管复核逐项日志串全在位，见验包日志）、
+  Engine Fix（requestID、maxCacheAge、searchGeneration、rate／elapsed 键、
+  `[offset:]` 正则字串）。
+- 不在位：38473、DualProcessBridge、dynamic_lookup、NSSupportsLiveActivities、
+  accessoryRectangular、LyricsLiveActivity／LiveLyricKey／publishLiveLyrics／
+  LiveActivitySectionView、ActivityKit 全 0 命中；码值扫描 0 命中。
+  BackBoard 字节命中 1 处，仅是 EntitlementDiagnostics 权限对照表的显示标签
+  （「BackBoard 客户端（com.apple.backboard.client）」，注「未单独测」），
+  无框架直链、无 API 调用——标签不是实现（§七已写明）。
+- 已知缺口（不重编）：`OverlayDiagnostics.logSummary()` 全树无调用者，
+  被整模块优化裁掉，字串「诊断1.0.5 悬浮窗复核摘要：」不在包里；
+  日志页少这一行冗余摘要，等价内容已有 ObjC 侧「托管复核结论」行＋
+  诊断页摘要行（summaryLines 三行在位）覆盖。§二样例「windowScene 通过」
+  是意译，源码原文是格式串「windowScene %@，rootView 已挂到 window %@」，
+  两段都在位。
+- 验包记录：`hidden_files/ipa_verify_1.0.5.log`（本机留存，不进 git）。
