@@ -1,12 +1,12 @@
 import SwiftUI
 import WidgetKit
 
-/// 激活页入口（1.0.3）：启动时读 App Group 的激活标记，未激活就全屏显示
+/// 激活页入口（1.0.3）：启动时读 LyricStore.defaults 的激活标记（巨魔 App Group／宿主 .standard），未激活就全屏显示
 /// 激活页，不进主界面；激活成功写标记后 @AppStorage 实时刷新，直接进主界面，
 /// 不用重启。整个 App 第一次打开就要码；码不对不放行，没网也不放行。
 struct ActivationGateView<Content: View>: View {
 
-    @AppStorage(ActivationStore.activatedKey, store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage(ActivationStore.activatedKey, store: LyricStore.defaults)
     private var activated = false
 
     let content: Content
@@ -85,7 +85,7 @@ enum ActivationVerifier {
 }
 
 /// 激活页：输码框＋激活按钮，全屏显示。背景与主界面共用 AppBackgroundView。
-/// 验过后把激活标记＋类型写进 App Group（tld.activated=true、
+/// 验过后把激活标记＋类型写进 LyricStore.defaults（tld.activated=true、
 /// tld.activationType=master/code），@AppStorage 实时切到主界面；
 /// 同时刷新小组件时间轴，未激活的占位立即换成正常内容。
 /// 日志只记「成功／码不正确／网络失败」，绝不记码值。

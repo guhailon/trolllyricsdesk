@@ -11,18 +11,18 @@ struct PlaybackDashboardView: View {
     // 复用 App 级检测引擎（TrollLyricsRuntime 注入）。
     @EnvironmentObject private var coordinator: PlaybackCoordinator
 
-    /// 悬浮歌词窗开关（与悬浮控制器共享 App Group 的 floatingLyric.enabled）。
+    /// 悬浮歌词窗开关（与悬浮控制器共享存储 LyricStore.defaults 的 floatingLyric.enabled）。
     /// UserDefaults.bool 未设置时返回 false，所以这里显式注册默认值 true。
-    @AppStorage("floatingLyric.enabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.enabled", store: LyricStore.defaults)
     private var floatingEnabled = true
 
-    /// 悬浮窗固定位置开关（与悬浮控制器共享 App Group 的 floatingLyric.positionLocked）。
+    /// 悬浮窗固定位置开关（与悬浮控制器共享存储 LyricStore.defaults 的 floatingLyric.positionLocked）。
     /// 默认 false（可拖）；打开后悬浮窗拖不动，位置保持上次存好的地方。
-    @AppStorage("floatingLyric.positionLocked", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.positionLocked", store: LyricStore.defaults)
     private var positionLocked = false
 
-    /// 悬浮歌词文字颜色（0xRRGGBB，写进 App Group，悬浮窗每次刷新时读取）。
-    @AppStorage("floatingLyric.textColorHex", store: UserDefaults(suiteName: LyricStore.groupID))
+    /// 悬浮歌词文字颜色（0xRRGGBB，写进共享存储，悬浮窗每次刷新时读取）。
+    @AppStorage("floatingLyric.textColorHex", store: LyricStore.defaults)
     private var lyricTextColorHex: Int = 0xFFFFFF
 
     @State private var showSettings = false
@@ -33,7 +33,7 @@ struct PlaybackDashboardView: View {
     /// 从共享存储读回开关值并赋给 @AppStorage，强制刷新开关 UI。
     /// 悬浮窗双击隐藏写入的是另一个 UserDefaults 实例，@AppStorage 不会自动感应。
     private func syncFloatingEnabled() {
-        let store = UserDefaults(suiteName: LyricStore.groupID)
+        let store = LyricStore.defaults
         let enabled = store?.object(forKey: "floatingLyric.enabled") as? Bool ?? true
         if floatingEnabled != enabled {
             floatingEnabled = enabled

@@ -65,13 +65,13 @@ struct SettingsHubView: View {
 /// @AppStorage 会实时刷新。MinOS 15.0 兼容（UIImage(data:) 等老 API）。
 struct AppBackgroundView: View {
 
-    @AppStorage("animeBackgroundEnabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("animeBackgroundEnabled", store: LyricStore.defaults)
     private var animeBackgroundEnabled = true
 
-    @AppStorage("backgroundOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("backgroundOpacity", store: LyricStore.defaults)
     private var backgroundOpacity = 0.25
 
-    @AppStorage("selectedBackgroundData", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("selectedBackgroundData", store: LyricStore.defaults)
     private var selectedBackgroundData = Data()
 
     var body: some View {
@@ -111,9 +111,9 @@ struct ContentView: View {
     @State private var opacity = 1.0
     @State private var fontSize = 23.0
 
-    /// 悬浮窗背景透明度（与悬浮控制器共享 App Group 的 floatingLyric.cardOpacity）。
+    /// 悬浮窗背景透明度（与悬浮控制器共享存储 LyricStore.defaults 的 floatingLyric.cardOpacity）。
     /// 0 = 背景完全透明，只显示歌词；1 = 完全不透明。
-    @AppStorage("floatingLyric.cardOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.cardOpacity", store: LyricStore.defaults)
     private var cardOpacity = 0.23
 
     var body: some View {

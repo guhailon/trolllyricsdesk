@@ -76,6 +76,17 @@ final class MediaRemoteDiagnostics {
         if !isNil { lastInfoTitle = title }
     }
 
+    /// 请求超时自动复位（ChatGPT 审查 bug 1）：上一次请求超过 2 秒没回回调，
+    /// fetching 放开、下一次 poll 重发。第一次记一行，之后每 10 次记一行，
+    /// 接口彻底不通时不至于每 2 秒刷一条日志。
+    static private(set) var fetchTimeoutCount = 0
+    static func recordFetchTimeout(requestID: Int) {
+        fetchTimeoutCount += 1
+        if fetchTimeoutCount == 1 || fetchTimeoutCount % 10 == 0 {
+            LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 请求超时（编号 \(requestID)，2 秒无回调，第 \(fetchTimeoutCount) 次），fetching 已复位，下次 poll 重发")
+        }
+    }
+
     /// 诊断页用的一句话结论（没测过就写「未测」，不编通过）。
     static var summaryLine: String {
         guard let dlopenOK else { return "MediaRemote：未测（App 启动后第一次跟随才会测）" }

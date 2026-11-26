@@ -98,6 +98,14 @@ final class TrollLyricsRuntime: NSObject {
     /// App 启动即自动跟随所有播放器（ObjC AppDelegate 调用）。
     @objc func isHosted() -> Bool { LyricStore.isLiveContainer }
 
+    /// 1.0.5（ChatGPT 审查 bug 2）：ObjC 侧统一存储入口——
+    /// 就是 LyricStore.defaults（巨魔 App Group／宿主 .standard），
+    /// ObjC 代码不要自己 initWithSuiteName。
+    /// suite 拿不到时回 .standard（与 @AppStorage store=nil 的兜底一致）。
+    @objc static func sharedDefaults() -> UserDefaults {
+        LyricStore.defaults ?? .standard
+    }
+
     /// 1.0.5 三档模式：ObjC 侧（TLDSAppDelegate 托管复核）写判定结果，
     /// 走 LyricStore.defaults（巨魔 App Group／宿主 .standard，与快照同存储）。
     /// 每次写都记一行日志，日志页能看到「进了哪档、凭什么」。

@@ -15,7 +15,9 @@ import WidgetKit
 final class FloatingLyricViewController: UIViewController {
 
     // 与主 App / Widget 完全一致的共享存储
-    private let prefs = UserDefaults(suiteName: LyricStore.groupID)
+    /// 1.0.5（ChatGPT 审查 bug 2）：悬浮窗读写全部走 LyricStore.defaults
+    /// （巨魔 App Group／宿主 .standard），不直接建 App Group 实例。
+    private var prefs: UserDefaults? { LyricStore.defaults }
     private let snapshotKey = LyricStore.dataKey
 
     // 显示开关：双击隐藏后写入 false，主界面开关可重新打开

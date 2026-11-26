@@ -487,7 +487,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     }
 
     // 用户关掉了悬浮窗：不恢复
-    NSUserDefaults *watchPrefs = [[NSUserDefaults alloc] initWithSuiteName:@"group.com.hailong.TrollLyricsDesk"];
+    NSUserDefaults *watchPrefs = [TLDSRuntime sharedDefaults];  // 1.0.5 bug 2：走 LyricStore.defaults
     BOOL watchEnabled = [watchPrefs objectForKey:@"floatingLyric.enabled"] == nil
                       ? YES : [watchPrefs boolForKey:@"floatingLyric.enabled"];
     if (!watchEnabled) {
@@ -534,7 +534,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // 这里只纠正"被系统意外隐藏、但用户开关仍是开"的情况。
     UIViewController *root = self.floatingWindow.rootViewController;
     if (root && root.view.isHidden) {
-        NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"group.com.hailong.TrollLyricsDesk"];
+        NSUserDefaults *prefs = [TLDSRuntime sharedDefaults];  // 1.0.5 bug 2：走 LyricStore.defaults
         BOOL enabled = [prefs objectForKey:@"floatingLyric.enabled"] == nil
                      ? YES : [prefs boolForKey:@"floatingLyric.enabled"];
         if (enabled) {
@@ -581,7 +581,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         return;
     }
     // 用户双击隐藏了悬浮窗 → 不要重建（尊重开关）
-    NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"group.com.hailong.TrollLyricsDesk"];
+    NSUserDefaults *prefs = [TLDSRuntime sharedDefaults];  // 1.0.5 bug 2：走 LyricStore.defaults
     BOOL enabled = [prefs objectForKey:@"floatingLyric.enabled"] == nil
                  ? YES : [prefs boolForKey:@"floatingLyric.enabled"];
     if (!enabled) {
