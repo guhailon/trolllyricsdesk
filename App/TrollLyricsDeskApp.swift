@@ -101,6 +101,11 @@ final class TrollLyricsRuntime: NSObject {
         if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }
         DualProcessBridge.shared.start()
 
+        // 运行环境写进日志：日志页能看到当前是独立版还是 LC 客人，方便真机定位。
+        LyricLogger.log(LyricStore.isLiveContainer
+            ? "运行环境：LiveContainer 客人（应用内歌词模式）"
+            : "运行环境：独立版（TrollStore）")
+
         let coordinator = ensurePlayback()
         Task { @MainActor in
             if !LyricStore.isLiveContainer { coordinator.start() }

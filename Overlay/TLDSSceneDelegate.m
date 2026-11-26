@@ -30,10 +30,11 @@ willConnectToSession:(UISceneSession *)session
         isMain = YES;   // 首个未知会话当主界面
     }
 
-    #ifdef TLDS_LIVE_CONTAINER
-    isMain = YES;
-    isFloating = NO;
-#endif
+    // LC 客人环境：没有悬浮场景，所有会话都当主界面
+    if ([TLDSEnvironment isLiveContainerGuest]) {
+        isMain = YES;
+        isFloating = NO;
+    }
     if (isMain) {
         appDelegate.mainSceneConnected = YES;
 

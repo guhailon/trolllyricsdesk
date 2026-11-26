@@ -9,7 +9,10 @@
 // 承载 FBScene 画面，默认不透明黑底且盖在场景窗口之上。
 // 用 category 强制透明 + 高 windowLevel，避免打开 App 全黑。
 // ============================================================
-#ifndef TLDS_LIVE_CONTAINER
+// 1.0.6：这个 category 永远编进去（category 没法运行时开关）。
+// LC 客人环境下它是惰性的：UIRootSceneWindow 只在我们创建悬浮场景
+// 的 Binder 时才出现，而起悬浮场景只在独立版（见 startFloatingOverlay
+// 的调用处），所以 LC 客人里它不会被实例化、不会起作用。
 @interface UIRootSceneWindow : UIWindow
 @end
 
@@ -26,8 +29,6 @@
 
 @end
 
-#endif
-
 @implementation TLDSAppDelegate
 
 - (BOOL)application:(UIApplication *)application
@@ -39,15 +40,15 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [[TLDSRuntime shared] start];
     [self log:@"App 启动：自动跟随已开启"];
 
-    // 注册系统级 Shell + 创建全局悬浮歌词场景
-    #ifndef TLDS_LIVE_CONTAINER
-    [self startFloatingOverlay];
-#endif
+    // 注册系统级 Shell + 创建全局悬浮歌词场景（只在独立版；
+    // LC 客人环境下不初始化 Overlay，悬浮窗不会起来）
+    if (![TLDSEnvironment isLiveContainerGuest]) {
+        [self startFloatingOverlay];
+    }
 
     return YES;
 }
 
-#ifndef TLDS_LIVE_CONTAINER
 - (void)startFloatingOverlay {
     if (self.shellInitialized) {
         return;
@@ -110,8 +111,6 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [binder addScene:scene];
     return binder;
 }
-
-#endif
 
 - (void)log:(NSString *)message {
     [[TLDSRuntime shared] logMessage:message];
