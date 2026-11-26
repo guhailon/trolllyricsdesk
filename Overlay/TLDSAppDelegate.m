@@ -5,10 +5,23 @@
 #import <CoreFoundation/CoreFoundation.h>
 #import <objc/runtime.h>
 
+// 1.0.5 诊断（第 5 项）：启动与初始化计数——标清第几次，查 LiveContainer
+// 里是不是启动了两次、初始化了两遍。计数只记日志，不改行为。
+static NSInteger TLDSLaunchCount = 0;
+static NSInteger TLDSStartFloatingOverlayCalls = 0;
+static NSInteger TLDSCreateFloatingSceneCalls = 0;
+static BOOL TLDSNativeWindowFixInstalled = NO;
+
 // Apply the native window fix only to our standalone process, not the host.
 // 与下面已有的 UIRootSceneWindow 分类（TLDSHook）同款：背景透明＋windowLevel 10000；
 // 分类在加载时就生效，宿主模式下这个 swizzle 不调用，只保留给巨魔模式。
 static void TLDSInstallNativeWindowFix(void) {
+    // 1.0.5（第 5 项）：一次性守卫，重复调用记「已安装，跳过」，不重复包两层。
+    if (TLDSNativeWindowFixInstalled) {
+        [[TLDSRuntime shared] logMessage:@"诊断1.0.5 重复初始化：NativeWindowFix 已安装，跳过"];
+        return;
+    }
+    TLDSNativeWindowFixInstalled = YES;
     Class cls = NSClassFromString(@"UIRootSceneWindow");
     if (!cls) return;
     SEL layout = @selector(layoutSubviews);
@@ -83,6 +96,13 @@ static void TLDSLockStateChanged(CFNotificationCenterRef center,
 - (BOOL)application:(UIApplication *)application
 didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 
+    // 1.0.5（第 5 项）：App 启动计数，带第几次。
+    TLDSLaunchCount += 1;
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 启动：App 启动第 %ld 次", (long)TLDSLaunchCount]];
+    if (TLDSLaunchCount > 1) {
+        [self log:@"诊断1.0.5 启动：注意——App 在同一进程里启动了多次（LiveContainer 可能重复启动）"];
+    }
+
     self.floatingSceneIdentifier = @"TLDSFloatingLyric";
     // 启动宽限：初始化重建节流时间戳，避免 watchdog 在首启 scene 尚未连上时
     // 误判为断开、立刻重建导致刚建好的场景被拆掉而闪退。
@@ -92,11 +112,38 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [[TLDSRuntime shared] start];
     [self log:@"App 启动：自动跟随已开启"];
 
-    // 注册系统级 Shell + 创建全局悬浮歌词场景
-    // LiveContainer 宿主不装 native window fix、不启动悬浮窗（只有应用内歌词）。
+    // 1.0.5 三档模式判定（第一步信号＋第二步能力探测）：
+    // - 不是 LiveContainer → 巨魔原生模式，悬浮窗照现在走（行为一字不动）。
+    // - 是 LiveContainer → 先记「待探测」，再尝试创建悬浮窗，等托管复核
+    //   （2 秒后）凭实际能力定增强宿主／普通签名兼容。以前宿主分支直接跳过
+    //   悬浮窗，那就永远验不出「增强宿主」——所以现在改为尝试＋复核。
+    // 注册成功 ≠ 可见：复核没结论前，任何「创建成功」日志都不当成功用。
     if (![[TLDSRuntime shared] isHosted]) {
+        [[TLDSRuntime shared] setRunMode:@"trollstore"
+                                  reason:@"非 LiveContainer（路径／类名／plist 均无宿主信号）"];
+        [self log:@"运行模式：巨魔原生模式（TrollStore，私有接口全可用，悬浮窗照常）"];
         TLDSInstallNativeWindowFix();
         [self startFloatingOverlay];
+    } else {
+        [[TLDSRuntime shared] setRunMode:@"probing"
+                                  reason:@"LiveContainer 信号已出（路径／类名／plist），等托管复核定档"];
+        [self log:@"运行模式：待探测（LiveContainer 信号已出，尝试创建悬浮窗，等 2 秒后托管复核定档）"];
+        @try {
+            [self startFloatingOverlay];
+        } @catch (NSException *e) {
+            [self log:[NSString stringWithFormat:@"诊断1.0.5 托管：Shell 注册抛异常：%@（直接降级普通签名兼容模式）", e.reason ?: @"?"]];
+            [self downgradeToCompatModeWithReasons:@[@"Shell 注册抛异常"]];
+        }
+        // 兜底：Shell 回调一直不来（createFloatingScene 没跑、复核没排上），
+        // 6 秒后仍没结论就直接复核一次——scene 为空也会判兼容，不会一直悬在「待探测」。
+        __weak TLDSAppDelegate *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (strongSelf && !strongSelf.modeDecided) {
+                [strongSelf verifyFloatingVisibility];
+            }
+        });
     }
 
     // 监听锁屏状态：解锁后重新激活悬浮窗（锁屏会隐藏 Shell 前台场景）
@@ -127,6 +174,25 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                                  name:UIApplicationWillEnterForegroundNotification
                                                object:nil];
 
+    // 1.0.5（第 6 项）：后台挂起及恢复日志——真机日志要能看出悬浮窗消失
+    // 是不是因为 App 被挂起了。只记日志，不改行为。
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(tlds_logDidEnterBackground)
+                                                 name:UIApplicationDidEnterBackgroundNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(tlds_logWillResignActive)
+                                                 name:UIApplicationWillResignActiveNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(tlds_logWillTerminate)
+                                                 name:UIApplicationWillTerminateNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(tlds_logDidBecomeActive)
+                                                 name:UIApplicationDidBecomeActiveNotification
+                                               object:nil];
+
     // 静音保活由 Swift 侧 BackgroundKeepAlive（AVAudioEngine）负责，此处不重复
     // 配置 audio session，避免两套 AVAudioSession 设置互相冲突导致启动异常。
 
@@ -143,7 +209,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 }
 
 - (void)startFloatingOverlay {
+    // 1.0.5（第 5 项）：调用计数＋一次性守卫，重复时记「已初始化，跳过」。
+    TLDSStartFloatingOverlayCalls += 1;
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 启动：startFloatingOverlay 调用第 %ld 次", (long)TLDSStartFloatingOverlayCalls]];
     if (self.shellInitialized) {
+        [self log:@"诊断1.0.5 重复初始化：Shell 已初始化，跳过（不建第二个窗）"];
         return;
     }
     self.shellInitialized = YES;
@@ -153,20 +223,28 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 
     // 把本进程注册为系统级 Shell，成功后创建的 FBScene
     // 才能成为"压在其他 App / 桌面之上"的前台场景。
-    FBSystemShellInitialize(^(id arg) {
-        __strong TLDSAppDelegate *strongSelf = weakSelf;
-        if (!strongSelf) {
-            return;
-        }
-        [strongSelf log:@"系统 Shell 注册成功"];
-        strongSelf.floatingBinder =
-            [strongSelf createFloatingSceneWithIdentifier:strongSelf.floatingSceneIdentifier];
-        [strongSelf log:@"全局悬浮歌词场景已创建"];
-    });
+    @try {
+        FBSystemShellInitialize(^(id arg) {
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (!strongSelf) {
+                return;
+            }
+            [strongSelf log:@"系统 Shell 注册成功"];
+            strongSelf.floatingBinder =
+                [strongSelf createFloatingSceneWithIdentifier:strongSelf.floatingSceneIdentifier];
+            [strongSelf log:@"全局悬浮歌词场景已创建"];
+        });
+    } @catch (NSException *e) {
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管：Shell 注册抛异常：%@（直接降级普通签名兼容模式）", e.reason ?: @"?"]];
+        [self downgradeToCompatModeWithReasons:@[@"Shell 注册抛异常"]];
+    }
 }
 
 /// 创建一个全局悬浮 Scene（TrollStore 前台场景方案）
 - (id)createFloatingSceneWithIdentifier:(NSString *)sceneIdentifier {
+    // 1.0.5（第 5 项）：scene 创建计数，带第几次。
+    TLDSCreateFloatingSceneCalls += 1;
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 启动：createFloatingScene 调用第 %ld 次（标识 %@）", (long)TLDSCreateFloatingSceneCalls, sceneIdentifier]];
     FBSceneManager *sceneManager = [FBSceneManager sharedInstance];
 
     FBSMutableSceneDefinition *definition = [FBSMutableSceneDefinition definition];
@@ -200,18 +278,206 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     self.floatingScene = scene;
     self.floatingSceneEverCreated = YES;
 
+    // 1.0.5（第 3 项）：场景创建时的诊断——只打日志，不改行为。
+    // Context ID 用 KVC 读（不同 iOS 版本键未必在，读不到就记「读不到」，不 crash）。
+    NSString *contextIDText = @"读不到（无此键）";
+    @try {
+        id ctxID = [scene valueForKey:@"contextID"];
+        if (ctxID) {
+            contextIDText = [NSString stringWithFormat:@"%@", ctxID];
+        }
+    } @catch (NSException *e) {
+        contextIDText = @"读不到（取值抛异常）";
+    }
+    NSString *foregroundText = @"读不到";
+    @try {
+        id settings = [scene settings];
+        id fg = [settings valueForKey:@"foreground"];
+        if (fg) {
+            foregroundText = [fg boolValue] ? @"YES" : @"NO";
+        }
+    } @catch (NSException *e) {
+        foregroundText = @"读不到（取值抛异常）";
+    }
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 场景：createScene 返回 %@，Context ID=%@，settings.foreground=%@（创建成功≠可见，等复核）",
+               scene ? @"非空" : @"空（创建失败）", contextIDText, foregroundText]];
+
     UIRootWindowScenePresentationBinder *binder =
         [[UIRootWindowScenePresentationBinder alloc]
             initWithPriority:0
            displayConfiguration:settings.displayConfiguration];
     [binder addScene:scene];
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 场景：binder %@，addScene 已调用（binder 收没收录，等复核查 scenes）",
+               binder ? @"已创建" : @"创建失败（空）"]];
+
+    // 1.0.5（第 4 项）：创建后 2 秒延迟复核——窗口是不是真在层级里、
+    // Context ID 是否有效、binder 是不是真收录了场景。复核结果定三档模式。
+    __weak TLDSAppDelegate *weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        __strong TLDSAppDelegate *strongSelf = weakSelf;
+        if (strongSelf && !strongSelf.modeDecided) {
+            [strongSelf verifyFloatingVisibility];
+        }
+    });
     return binder;
+}
+
+#pragma mark - 1.0.5 托管复核与三档模式判定（第 3／4 项）
+
+/// 悬浮窗创建后延迟复核：逐项查「真生效」，结论记成
+/// 「已确认可见／未确认可见＋原因」。只打日志＋定模式，不改悬浮窗本身；
+/// 未通过时走 downgradeToCompatModeWithReasons 摘掉场景、只走应用内歌词。
+- (void)verifyFloatingVisibility {
+    if (self.modeDecided) {
+        return;
+    }
+    self.verifyAttempts += 1;
+
+    // 场景还没连上（悬浮 window 还是空）：只给一次重试机会，
+    // 3 秒后再复核；两次都没连上就按「未确认可见」判兼容。
+    if (!self.floatingWindow && self.verifyAttempts < 2) {
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：第 %ld 次——悬浮窗口尚未创建（场景未连上），3 秒后重核", (long)self.verifyAttempts]];
+        __weak TLDSAppDelegate *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (strongSelf && !strongSelf.modeDecided) {
+                [strongSelf verifyFloatingVisibility];
+            }
+        });
+        return;
+    }
+
+    NSMutableArray<NSString *> *failReasons = [NSMutableArray array];
+
+    BOOL hasScene = self.floatingScene != nil;
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：场景对象 %@",
+               hasScene ? @"通过（floatingScene 非空）" : @"失败（floatingScene 为空）"]];
+    if (!hasScene) [failReasons addObject:@"场景对象为空"];
+
+    BOOL binderHasScene = NO;
+    if (self.floatingBinder && self.floatingScene &&
+        [self.floatingBinder respondsToSelector:@selector(scenes)]) {
+        NSSet *scenes = [(UIRootWindowScenePresentationBinder *)self.floatingBinder scenes];
+        binderHasScene = [scenes containsObject:self.floatingScene];
+    }
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：binder 收录场景 %@",
+               self.floatingBinder ? (binderHasScene ? @"通过（scenes 含本场景）" : @"失败（scenes 不含本场景，SpringBoard 没接受／binder 丢了场景）") : @"失败（binder 为空）"]];
+    if (!binderHasScene) [failReasons addObject:@"binder 未收录场景"];
+
+    BOOL hasWindow = self.floatingWindow != nil;
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：悬浮窗口 %@",
+               hasWindow ? @"通过（floatingWindow 非空）" : @"失败（floatingWindow 为空，SceneDelegate 没连上悬浮场景）"]];
+    if (!hasWindow) [failReasons addObject:@"悬浮窗口为空"];
+
+    BOOL windowVisible = NO;
+    BOOL windowInScene = NO;
+    BOOL viewAttached = NO;
+    if (hasWindow) {
+        UIWindow *w = self.floatingWindow;
+        windowVisible = !w.isHidden;
+        windowInScene = w.windowScene != nil;
+        viewAttached = w.rootViewController.view.window != nil;
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：窗口 isHidden=%@（%@），windowLevel=%.0f（期望 10000），alpha=%.2f，backgroundColor=%@",
+                   w.isHidden ? @"YES" : @"NO",
+                   windowVisible ? @"通过" : @"失败（窗口被隐藏）",
+                   w.windowLevel, w.alpha, w.backgroundColor ? @"已设置" : @"nil"]];
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：windowScene %@，rootView 已挂到 window %@，frame=%@",
+                   windowInScene ? @"通过（非空）" : @"失败（为空，场景没活）",
+                   viewAttached ? @"通过（view.window 非空）" : @"失败（view.window 为空，视图没挂上）",
+                   NSStringFromCGRect(w.frame)]];
+        if (!windowVisible) [failReasons addObject:@"窗口 isHidden=YES"];
+        if (!windowInScene) [failReasons addObject:@"窗口无 windowScene"];
+        if (!viewAttached) [failReasons addObject:@"视图未挂到窗口"];
+        // 观察项（不进判定）：App 级 windows 列表里有没有它。
+        BOOL inAppWindows = [[[UIApplication sharedApplication] windows] containsObject:w];
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核（观察）：窗口在 UIApplication.windows 里 %@（仅供参考，不进判定）",
+                   inAppWindows ? @"有" : @"无"]];
+    }
+
+    // Context ID：有效（非 0 数字）算通过；读不到只记警告，不进判定
+    // （不同 iOS 版本未必暴露这个键，读不到 ≠ 没托管）。
+    NSString *contextIDText = @"读不到（无此键）";
+    BOOL contextIDValid = NO;
+    BOOL contextIDUnknown = YES;
+    if (hasScene) {
+        @try {
+            id ctxID = [(FBScene *)self.floatingScene valueForKey:@"contextID"];
+            if (ctxID) {
+                contextIDUnknown = NO;
+                contextIDText = [NSString stringWithFormat:@"%@", ctxID];
+                contextIDValid = [ctxID respondsToSelector:@selector(unsignedIntValue)]
+                    ? [ctxID unsignedIntValue] != 0
+                    : YES;
+            }
+        } @catch (NSException *e) {
+            contextIDText = @"读不到（取值抛异常）";
+        }
+    }
+    [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核：Context ID=%@（%@）",
+               contextIDText,
+               contextIDUnknown ? @"未知（读不到，不进判定）" : (contextIDValid ? @"通过（有效）" : @"失败（为 0／无效）")]];
+    if (!contextIDUnknown && !contextIDValid) [failReasons addObject:@"Context ID 无效"];
+
+    // 结论：关键项全过 → 增强宿主；任一关键项失败 → 普通签名兼容。
+    // 巨魔模式不走这里（巨魔在启动时已定档，不复核）。
+    if (failReasons.count == 0) {
+        self.modeDecided = YES;
+        self.compatMode = NO;
+        NSString *reason = [NSString stringWithFormat:@"复核全过：场景／binder／窗口／windowScene／视图挂载均通过，Context ID=%@", contextIDText];
+        [[TLDSRuntime shared] setRunMode:@"enhanced-host" reason:reason];
+        [self log:@"运行模式：增强宿主模式（LiveContainer，悬浮窗已确认可见，走悬浮窗）"];
+        [self log:@"诊断1.0.5 托管复核结论：已确认可见"];
+    } else {
+        [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核结论：未确认可见（原因：%@）", [failReasons componentsJoinedByString:@"；"]]];
+        [self downgradeToCompatModeWithReasons:failReasons];
+    }
+}
+
+/// 复核未通过 → 降级普通签名兼容模式：摘掉场景、隐藏窗口、不再重建，
+/// 只走应用内歌词。清理动作本身也记日志（探测建的窗要清理掉，不留残窗）。
+- (void)downgradeToCompatModeWithReasons:(NSArray<NSString *> *)reasons {
+    if (self.modeDecided && self.compatMode) {
+        return;
+    }
+    self.modeDecided = YES;
+    self.compatMode = YES;
+
+    if (self.floatingBinder && self.floatingScene &&
+        [self.floatingBinder respondsToSelector:NSSelectorFromString(@"removeScene:")]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        [self.floatingBinder performSelector:NSSelectorFromString(@"removeScene:")
+                                  withObject:self.floatingScene];
+#pragma clang diagnostic pop
+        [self log:@"诊断1.0.5 降级：已从 binder 摘掉悬浮场景"];
+    }
+    if (self.floatingWindow) {
+        [self.floatingWindow setHidden:YES];
+        [self log:@"诊断1.0.5 降级：悬浮窗口已隐藏"];
+    }
+    self.floatingBinder = nil;
+    self.floatingScene = nil;
+    self.floatingSceneCreated = NO;
+
+    NSString *reason = [NSString stringWithFormat:@"复核未过：%@", [reasons componentsJoinedByString:@"；"]];
+    [[TLDSRuntime shared] setRunMode:@"compat" reason:reason];
+    [self log:@"运行模式：普通签名兼容模式（LiveContainer 经第三方签名、权限受限，悬浮窗未确认可见，不建悬浮窗，走应用内歌词）"];
 }
 
 /// 锁屏解锁 / 回到前台后重新激活悬浮窗。
 /// 锁屏时 SpringBoard 会把 Shell 前台场景的 settings.foreground 置 NO 并隐藏窗口，
 /// 解锁后不会自动恢复；这里重新下发 foreground=YES 并强制窗口显示。
 - (void)reactivateFloatingOverlay {
+    // 1.0.5：普通签名兼容模式下不再恢复悬浮窗（只记一次，不让 2 秒看门狗刷屏）。
+    if (self.compatMode) {
+        if (!self.compatSkipLogged) {
+            self.compatSkipLogged = YES;
+            [self log:@"诊断1.0.5 降级：普通签名兼容模式，跳过悬浮窗恢复（只走应用内歌词）"];
+        }
+        return;
+    }
     // 悬浮窗还没真正建起来（启动竞态）：无需恢复
     if (!self.shellInitialized || !self.floatingSceneEverCreated) {
         return;
@@ -300,6 +566,14 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 解锁后调用：丢弃旧 scene / binder / window，走与首次启动完全一致的创建路径。
 /// 相比只下发 updateSettings，重建能保证 SpringBoard 真正把 scene 呈现为前台。
 - (void)rebuildFloatingOverlay {
+    // 1.0.5：普通签名兼容模式下不再重建悬浮窗。
+    if (self.compatMode) {
+        if (!self.compatSkipLogged) {
+            self.compatSkipLogged = YES;
+            [self log:@"诊断1.0.5 降级：普通签名兼容模式，跳过悬浮窗重建（只走应用内歌词）"];
+        }
+        return;
+    }
     if (!self.shellInitialized || !self.floatingSceneEverCreated) {
         return;
     }
@@ -349,6 +623,24 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 
 - (void)log:(NSString *)message {
     [[TLDSRuntime shared] logMessage:message];
+}
+
+#pragma mark - 1.0.5 后台挂起及恢复日志（第 6 项）
+
+- (void)tlds_logDidEnterBackground {
+    [self log:@"诊断1.0.5 后台：App 进入后台（悬浮窗若此时消失，先看是不是被挂起）"];
+}
+
+- (void)tlds_logWillResignActive {
+    [self log:@"诊断1.0.5 后台：App 即将失去前台（WillResignActive）"];
+}
+
+- (void)tlds_logDidBecomeActive {
+    [self log:@"诊断1.0.5 后台：App 回到前台（DidBecomeActive）"];
+}
+
+- (void)tlds_logWillTerminate {
+    [self log:@"诊断1.0.5 后台：App 即将终止（WillTerminate）"];
 }
 
 #pragma mark - UISceneSession lifecycle

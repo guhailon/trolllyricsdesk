@@ -157,6 +157,12 @@ struct SettingsView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var backgroundImage: UIImage?
 
+    /// 1.0.5 诊断：强制悬浮测试文字开关（不用 @AppStorage——巨魔走 App Group、
+    /// 宿主走 .standard，存储由 LyricStore.defaults 定，这里直接读写它）。
+    @State private var testTextEnabled = false
+    /// 1.0.5：运行模式显示（进设置页时读一次当时判定结果）。
+    @State private var runModeText = "待探测（启动后复核中）"
+
     var body: some View {
         NavigationView {
             Form {
@@ -246,6 +252,38 @@ struct SettingsView: View {
                         Text("歌词总是慢半拍就往右调（提前），太快就往左调。每首歌独立记忆。")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+                }
+
+                // 诊断（1.0.5，测试用）
+                Section(header: Text("诊断（1.0.5）")) {
+
+                    Toggle(
+                        "强制悬浮测试文字（测试用）",
+                        isOn: $testTextEnabled
+                    )
+                    .onChange(of: testTextEnabled) { newValue in
+                        LyricStore.isTestTextEnabled = newValue
+                        LyricLogger.log(newValue
+                            ? "诊断1.0.5 强制测试：开关已打开（悬浮窗显示固定测试文字）"
+                            : "诊断1.0.5 强制测试：开关已关闭（恢复正常歌词）")
+                    }
+                    .onAppear {
+                        testTextEnabled = LyricStore.isTestTextEnabled
+                    }
+
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 1.0.5」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        Text("运行模式")
+                        Spacer()
+                        Text(runModeText)
+                            .foregroundColor(.secondary)
+                    }
+                    .onAppear {
+                        runModeText = LyricStore.runModeDescription
                     }
                 }
 

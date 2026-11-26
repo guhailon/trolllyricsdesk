@@ -16,6 +16,15 @@ private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (
     @escaping (CFDictionary?) -> Void
 ) -> Void
 
+/// 1.0.5 诊断（第 1 项）：MRMediaRemoteRegisterForNowPlayingNotifications
+/// 的真签名——注册成功不代表回调会来，只有回调真触发才算通道通。
+/// 只记日志：注册成败记一次，回调触发记第一次＋每 50 次记一次，
+/// info 有无内容只在 nil／非 nil 切换时记，不刷屏。
+private typealias MRMediaRemoteRegisterForNowPlayingNotificationsFn = @convention(c) (
+    DispatchQueue,
+    @escaping (CFNotificationCenter?, UnsafeRawPointer?, CFString?, UnsafeRawPointer?, CFDictionary?) -> Void
+) -> Void
+
 @MainActor
 final class MediaRemoteAdapter: PlaybackAdapter {
 
@@ -26,6 +35,38 @@ private let bridge = MediaRemoteBridge()
 private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
 private var fetching = false
+
+/// 1.0.5 诊断计数（只为日志节流，不影响逻辑）。
+private var notificationRegistered = false
+private var notificationFireCount = 0
+private var nowPlayingCallbackCount = 0
+private var lastInfoWasNil: Bool?
+
+init() {
+    registerForNowPlayingNotifications()
+}
+
+/// 只注册一次：符号找不到就记失败原因；注册了也不代表回调会来，
+/// 回调真触发时（下面计数里）才会再记一行。
+private func registerForNowPlayingNotifications() {
+    guard !notificationRegistered else { return }
+    notificationRegistered = true
+    guard let sym = bridge.symbol(MediaRemoteSymbols.registerForNowPlayingNotifications) else {
+        LyricLogger.log("诊断1.0.5 MediaRemote：回调注册失败：MRMediaRemoteRegisterForNowPlayingNotifications 符号缺失")
+        return
+    }
+    let register = unsafeBitCast(sym, to: MRMediaRemoteRegisterForNowPlayingNotificationsFn.self)
+    register(DispatchQueue.main) { [weak self] _, _, name, _, _ in
+        Task { @MainActor in
+            guard let self else { return }
+            self.notificationFireCount += 1
+            if self.notificationFireCount == 1 || self.notificationFireCount % 50 == 0 {
+                LyricLogger.log("诊断1.0.5 MediaRemote：NowPlaying 通知回调已触发（第 \(self.notificationFireCount) 次，name=\(name as String? ?? "?")）")
+            }
+        }
+    }
+    LyricLogger.log("诊断1.0.5 MediaRemote：回调注册已调用（等回调触发才算通道通）")
+}
 
 /// 缓存保鲜 0.3 秒：换歌/开始播放要「即播即显」，2 秒缓存会让歌词慢半拍。
 /// MediaRemote 是本机 XPC，读取很快，0.3 秒足够去重且不会拖慢检测。
@@ -121,6 +162,18 @@ DispatchQueue.global(qos: .background)
 
 Task { @MainActor in
 guard let self else { return}
+
+self.nowPlayingCallbackCount += 1
+let isNil = info == nil
+if self.nowPlayingCallbackCount == 1 || self.lastInfoWasNil != isNil {
+    if isNil {
+        LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 回调已触发（第 \(self.nowPlayingCallbackCount) 次），info=nil（无播放器／读不到）")
+    } else {
+        let title = (info as? [String: Any])?["kMRMediaRemoteNowPlayingInfoTitle"] as? String ?? "?"
+        LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 回调已触发（第 \(self.nowPlayingCallbackCount) 次），info 有内容（歌名=\(title)）")
+    }
+}
+self.lastInfoWasNil = isNil
 
 self.cachedInfo = info as? [String: Any]
 self.cachedAt = Date()

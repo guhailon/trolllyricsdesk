@@ -14,6 +14,9 @@ final class PlaybackCoordinator: ObservableObject {
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
 
+    /// 1.0.5 诊断（第 5 项）：检测引擎启动计数。
+    private var startCount = 0
+
     /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
     private var searchTask: Task<Void, Never>?
 
@@ -45,6 +48,10 @@ final class PlaybackCoordinator: ObservableObject {
     func start() {
 
         stop()
+
+        // 1.0.5（第 5 项）：标清第几次启动检测引擎。
+        startCount += 1
+        LyricLogger.log("诊断1.0.5 启动：检测引擎启动第 \(startCount) 次")
 
         message = "正在检测音乐..."
         LyricLogger.log("开始检测音乐")

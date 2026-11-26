@@ -63,12 +63,23 @@ final class FloatingLyricViewController: UIViewController {
     private var refreshTimer: Timer?
     private var lastLineText: String?
 
+    // 1.0.5 诊断（第 5 项）：悬浮窗控制器初始化计数。
+    private static var initCount = 0
+    // 1.0.5（第 2 项）：测试开关开着但窗口被隐藏时，只在隐藏状态变化时记一次。
+    private var lastTestHiddenState: Bool?
+
     // UI —— 只有歌词行
     private let cardView = UIView()
     private let currentLabel = UILabel()    // 当前歌词行（唯一一行，自适应完整显示）
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // 1.0.5（第 5 项）：标清第几次初始化，查是不是建了两个窗。
+        Self.initCount += 1
+        LyricLogger.log("诊断1.0.5 启动：悬浮窗控制器初始化第 \(Self.initCount) 次")
+        if Self.initCount > 1 {
+            LyricLogger.log("诊断1.0.5 启动：注意——悬浮窗控制器初始化了多次（可能建了两个窗）")
+        }
         view.backgroundColor = .clear
         buildUI()
         // 位置恢复不能在 viewDidLoad 做：此时 view.window 还是 nil，
@@ -182,6 +193,23 @@ final class FloatingLyricViewController: UIViewController {
     @objc private func refresh() {
         // 主界面改开关后，悬浮窗在 0.25s 内自动恢复显示
         applyVisibility()
+
+        // 1.0.5（第 2 项）：强制悬浮测试文字——不依赖音乐、不读歌词。
+        // 开后立即显示固定测试文字（带时间戳，证明窗口在活着刷新）；
+        // 关后回到下面正常歌词分支，不残留测试文字（lastLineText 会被正常
+        // 文本覆盖）。开关关／未激活时窗口本身仍隐藏，这里只记一行说明。
+        if LyricStore.isTestTextEnabled {
+            if view.isHidden && lastTestHiddenState != true {
+                lastTestHiddenState = true
+                LyricLogger.log("诊断1.0.5 强制测试：开关已开，但悬浮窗被隐藏（浮窗开关关／未激活，先开「显示悬浮歌词窗」并确认已激活）")
+            } else if !view.isHidden && lastTestHiddenState != false {
+                lastTestHiddenState = false
+                LyricLogger.log("诊断1.0.5 强制测试：开关已开，悬浮窗正在显示测试文字")
+            }
+            apply(text: LyricStore.testText(), fontSize: 23, opacity: 1.0)
+            return
+        }
+        lastTestHiddenState = nil
 
         // 检测不到播放器时，不要停留在上一次的歌词快照：显示提示文字。
         // 该标志由 PlaybackCoordinator.poll() 与主界面 state 同步写入。

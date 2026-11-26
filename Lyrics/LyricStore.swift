@@ -350,3 +350,61 @@ enum ActivationStore {
         LyricStore.defaults?.set(type, forKey: activationTypeKey)
     }
 }
+
+// MARK: - 1.0.5 诊断：强制悬浮测试文字（第 2 项）
+// 开关存在 LyricStore.defaults 里（巨魔走 App Group，宿主走 .standard，
+// 与快照同一份存储，悬浮窗与应用内歌词区读的是同一把开关）。
+// 开后悬浮窗／应用内歌词区显示固定测试文字，不依赖音乐、不读歌词；
+// 关后立刻回到正常歌词，不残留测试文字。
+extension LyricStore {
+
+    static let testTextKey = "floatingLyric.testTextEnabled"
+
+    static var isTestTextEnabled: Bool {
+        get { defaults?.bool(forKey: testTextKey) ?? false }
+        set { defaults?.set(newValue, forKey: testTextKey) }
+    }
+
+    /// 固定测试文字＋当前时间（时间戳每刷一次就更新，证明悬浮窗在活着刷新）。
+    static func testText() -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm:ss"
+        return "悬浮测试 · 桌面歌词 1.0.5 · \(fmt.string(from: Date()))"
+    }
+}
+
+// MARK: - 1.0.5 诊断：运行模式三档（新增范围）
+// 判定分两步：isLiveContainer（路径／类名／plist）只是第一步信号，
+// 第二步是能力探测（悬浮窗真被托管显示＋窗口真进层级＋Context ID 有效）。
+// 判定结果由 ObjC 侧（TLDSAppDelegate 托管复核）写进这里，设置页与日志页都能看到。
+// 模式值：trollstore（巨魔原生）／enhanced-host（增强宿主）／compat（普通签名兼容）／
+// probing（待探测，LiveContainer 信号已出、复核还没结论）。
+extension LyricStore {
+
+    static let runModeKey = "tlds.runMode"
+    static let runModeReasonKey = "tlds.runModeReason"
+
+    static var runMode: String {
+        get { defaults?.string(forKey: runModeKey) ?? "probing" }
+        set { defaults?.set(newValue, forKey: runModeKey) }
+    }
+
+    static var runModeReason: String {
+        get { defaults?.string(forKey: runModeReasonKey) ?? "" }
+        set { defaults?.set(newValue, forKey: runModeReasonKey) }
+    }
+
+    /// 设置页显示用：模式中文名＋判定依据（没判定出时显示「待探测」）。
+    static var runModeDescription: String {
+        switch runMode {
+        case "trollstore":
+            return "巨魔原生模式"
+        case "enhanced-host":
+            return "增强宿主模式（悬浮窗已确认可见）"
+        case "compat":
+            return "普通签名兼容模式（悬浮窗未确认可见，应用内歌词）"
+        default:
+            return "待探测（启动后复核中）"
+        }
+    }
+}

@@ -144,7 +144,10 @@ struct PlaybackDashboardView: View {
                             if let snapshot = LyricStore.load() {
                                 VStack(spacing: 12) {
                                     Text(snapshot.title).font(.headline)
-                                    Text(LyricStore.currentLyric(snapshot, at: context.date)?.text ?? "等待歌词 / 请到设置导入")
+                                    // 1.0.5（第 2 项）：宿主模式本来就没有悬浮窗，
+                                    // 测试开关开时测试文字显示在这里（应用内歌词区），
+                                    // 并明确说明这不是悬浮窗；关后恢复正常歌词。
+                                    Text(LyricStore.isTestTextEnabled ? (LyricStore.testText() + "（应用内显示，非悬浮窗）") : (LyricStore.currentLyric(snapshot, at: context.date)?.text ?? "等待歌词 / 请到设置导入"))
                                         .font(.title2).multilineTextAlignment(.center)
                                     Button(snapshot.isPlaying ? "暂停歌词" : "开始歌词") {
                                         var updated = snapshot

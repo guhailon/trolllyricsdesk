@@ -4,6 +4,10 @@
 #import "Private/UIKitPrivate.h"
 #import "TrollLyricsDesk-Swift.h"
 
+// 1.0.5 诊断（第 5 项）：场景连接计数——主界面／悬浮各连了几次。
+static NSInteger TLDSMainSceneConnectCount = 0;
+static NSInteger TLDSFloatingSceneConnectCount = 0;
+
 @implementation TLDSSceneDelegate
 
 - (void)scene:(UIScene *)scene
@@ -32,13 +36,17 @@ willConnectToSession:(UISceneSession *)session
         isMain = YES;   // 首个未知会话当主界面
     }
 
-    // LiveContainer 宿主：只有一个主界面场景，没有悬浮歌词场景。
-    if ([[TLDSRuntime shared] isHosted]) {
+    // 1.0.5 三档模式：LiveContainer 宿主只有在「已判普通签名兼容」时才
+    // 强制走主界面（没有悬浮歌词场景）。判定前是「待探测」，悬浮场景
+    // 照常连接、等 AppDelegate 的托管复核定档；巨魔模式不受这分支影响。
+    // 以前这里宿主一律强制 isMain，导致增强宿主永远验不出来。
+    if ([[TLDSRuntime shared] isHosted] && appDelegate.compatMode) {
         isMain = YES;
         isFloating = NO;
     }
 
     if (isMain) {
+        TLDSMainSceneConnectCount += 1;
         appDelegate.mainSceneConnected = YES;
 
         UIWindow *window = [[UIWindow alloc] initWithWindowScene:windowScene];
@@ -47,12 +55,13 @@ willConnectToSession:(UISceneSession *)session
         self.window = window;
         appDelegate.window = window;
         [window makeKeyAndVisible];
-        [appDelegate log:[NSString stringWithFormat:@"主界面场景已连接：%@", identifier]];
+        [appDelegate log:[NSString stringWithFormat:@"主界面场景已连接：%@（第 %ld 次）", identifier, (long)TLDSMainSceneConnectCount]];
         return;
     }
 
     // ==== 悬浮歌词场景 ====
     if (isFloating && !appDelegate.floatingSceneCreated) {
+        TLDSFloatingSceneConnectCount += 1;
         appDelegate.floatingSceneCreated = YES;
 
         // 宽度固定，高度只给一个紧凑初始值；实际高度由 FloatingLyricViewController
@@ -73,6 +82,15 @@ willConnectToSession:(UISceneSession *)session
         appDelegate.floatingWindow = window;   // 锁屏解锁恢复时要用
 
         [window setHidden:NO];   // 悬浮窗不抢 keyWindow
+        // 1.0.5（第 3 项）：创建时的窗口诊断——层级／透明度／隐藏状态的实际值。
+        // 只打日志，不改行为；「已显示」这里只代表窗口建出来了，可见与否等复核。
+        [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 场景：悬浮窗口已创建（第 %ld 次，标识 %@）：windowLevel=%.0f，alpha=%.2f，backgroundColor=%@，isHidden=%@，windowScene=%@，frame=%@（创建成功≠可见，等复核）",
+                          (long)TLDSFloatingSceneConnectCount, identifier,
+                          window.windowLevel, window.alpha,
+                          window.backgroundColor ? @"已设置" : @"nil",
+                          window.isHidden ? @"YES" : @"NO",
+                          window.windowScene ? @"非空" : @"空",
+                          NSStringFromCGRect(window.frame)]];
         [appDelegate log:@"悬浮歌词场景窗口已显示"];
         return;
     }
@@ -88,6 +106,36 @@ willConnectToSession:(UISceneSession *)session
         appDelegate.floatingSceneCreated = NO;
         [appDelegate log:[NSString stringWithFormat:@"悬浮歌词场景断开：%@", identifier]];
     }
+}
+
+#pragma mark - 1.0.5 场景生命周期日志（第 6 项）
+
+- (void)sceneDidBecomeActive:(UIScene *)scene {
+    TLDSAppDelegate *appDelegate =
+        (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景回到前台（DidBecomeActive）：%@",
+                      scene.session.persistentIdentifier ?: @"?"]];
+}
+
+- (void)sceneWillResignActive:(UIScene *)scene {
+    TLDSAppDelegate *appDelegate =
+        (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景即将失去前台（WillResignActive）：%@",
+                      scene.session.persistentIdentifier ?: @"?"]];
+}
+
+- (void)sceneDidEnterBackground:(UIScene *)scene {
+    TLDSAppDelegate *appDelegate =
+        (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景进入后台（DidEnterBackground）：%@",
+                      scene.session.persistentIdentifier ?: @"?"]];
+}
+
+- (void)sceneWillEnterForeground:(UIScene *)scene {
+    TLDSAppDelegate *appDelegate =
+        (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景即将进入前台（WillEnterForeground）：%@",
+                      scene.session.persistentIdentifier ?: @"?"]];
 }
 
 @end

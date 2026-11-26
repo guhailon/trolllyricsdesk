@@ -77,6 +77,9 @@ final class TrollLyricsRuntime: NSObject {
 
     private var started = false
 
+    // 1.0.5 诊断（第 5 项）：start() 被调用次数（重复调用只记日志，不重建）。
+    private var startCallCount = 0
+
     private override init() {
         super.init()
     }
@@ -95,8 +98,25 @@ final class TrollLyricsRuntime: NSObject {
     /// App 启动即自动跟随所有播放器（ObjC AppDelegate 调用）。
     @objc func isHosted() -> Bool { LyricStore.isLiveContainer }
 
+    /// 1.0.5 三档模式：ObjC 侧（TLDSAppDelegate 托管复核）写判定结果，
+    /// 走 LyricStore.defaults（巨魔 App Group／宿主 .standard，与快照同存储）。
+    /// 每次写都记一行日志，日志页能看到「进了哪档、凭什么」。
+    @objc func setRunMode(_ mode: String, reason: String) {
+        LyricStore.runMode = mode
+        LyricStore.runModeReason = reason
+        LyricLogger.log("诊断1.0.5 运行模式：写入 \(mode)（\(reason)）")
+    }
+
+    /// 1.0.5：读当前模式（设置页显示用；没写过时默认 probing）。
+    @objc func runModeString() -> String { LyricStore.runMode }
+
     @objc func start() {
-        guard !started else { return }
+        // 1.0.5（第 5 项）：重复调用记「已启动，跳过」，不建第二个检测引擎。
+        startCallCount += 1
+        if started {
+            LyricLogger.log("诊断1.0.5 重复初始化：TLDSRuntime.start 第 \(startCallCount) 次调用，已启动，跳过")
+            return
+        }
         started = true
 
         if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }
