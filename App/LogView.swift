@@ -54,6 +54,8 @@ private struct ActivityShareSheet: UIViewControllerRepresentable {
 struct LogView: View {
 
     @State private var entries: [LogEntry] = []
+    @State private var copiedFeedback = false
+    @State private var showClearConfirm = false
 
     var body: some View {
         Group {
@@ -101,14 +103,52 @@ struct LogView: View {
         }
         .navigationTitle("日志")
         .toolbar {
+            Button {
+                copyLog()
+            } label: {
+                Label(copiedFeedback ? "已复制" : "复制",
+                      systemImage: copiedFeedback ? "checkmark" : "doc.on.doc")
+            }
+            .disabled(entries.isEmpty)
+
+            Button {
+                showClearConfirm = true
+            } label: {
+                Label("清除", systemImage: "trash")
+            }
+            .disabled(entries.isEmpty)
+
             ShareLink(item: shareText) {
                 Label("分享", systemImage: "square.and.arrow.up")
             }
             .disabled(entries.isEmpty)
         }
+        .alert("确定要清除全部日志吗？", isPresented: $showClearConfirm) {
+            Button("清除", role: .destructive) {
+                clearLog()
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("清除后日志无法恢复。")
+        }
         .onAppear {
             entries = LogEntry.parse(LyricLogger.read())
         }
+    }
+
+    // 复制：整份日志原文写进剪贴板，按钮短暂变“已复制”后恢复。
+    private func copyLog() {
+        UIPasteboard.general.string = LyricLogger.read()
+        copiedFeedback = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            copiedFeedback = false
+        }
+    }
+
+    // 清除：删日志文件，页面刷新成空状态。
+    private func clearLog() {
+        LyricLogger.clear()
+        entries = []
     }
 
     private var shareText: String {

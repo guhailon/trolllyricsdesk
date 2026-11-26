@@ -219,3 +219,20 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
 
 检查：`python3 check_1.0.1.py`（106 PASS，FAILED: none，OPEN 17；
 含三项否定检查：无 Engine V2、无 1.0.6 播放改进、无 BackBoard/-hud/dynamic_lookup）。
+
+## 1.0.2 build 15（v1.0.1 分支，2026-11-26，1.0.1 只加两件小改）
+
+- `App/AboutView.swift`：Telegram 行标签 `@seadragonjb`→`@Guhailon`；
+  `openTelegram()` 改 `tg://resolve?domain=Guhailon`，退回 `https://t.me/Guhailon`；
+  旧邀请链接与“私密频道无公开用户名”注释一并删掉。作者／QQ 群／版本行不动。
+- `TrollLyricsDesk/LyricLogger.swift`：加 `clear()`（`FileManager.removeItem` 删日志文件；
+  删后 `read()` 返回空，`log()` 下次写时重建；maxBytes／trim 不动）。
+- `App/LogView.swift`：工具栏加复制（`UIPasteboard.general.string = LyricLogger.read()`，
+  按钮短暂变“已复制”，`DispatchQueue.main.asyncAfter` 1.5 秒恢复）与清除
+  （`.alert` 确认框“确定要清除全部日志吗？”，确认调 `LyricLogger.clear()` 并 `entries = []`）；
+  复制／清除／分享三个按钮日志为空时都禁用。分享原样保留。UIPasteboard 与 Alert 都是老 API，MinOS 15.0 没问题。
+- 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
+  产物名桌面歌词-1.0.2.ipa）。其余与 1.0.1 一字未动。
+
+检查：`python3 check_1.0.2.py`（116 PASS，FAILED: none，OPEN 17；
+新增 §6.6 十项：Telegram 三项、LyricLogger 两项、LogView 五项）。

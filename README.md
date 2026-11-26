@@ -165,3 +165,18 @@ python3 check_1.0.3.py
   LiveContainer 下（iOS 27.0.1）理论上能用，没真机验过。
 - 底子是皇上重发的 1.0.0（build 13）纯底子，只加锁屏：Engine V2 与 1.0.6 的播放改进一律未并；
   Overlay 悬浮窗一个字没动；v0.5 BackBoard 代码一个字没动。
+
+## 1.0.2 build 15：Telegram 行改公开频道＋日志页加清除／复制
+
+- **Telegram 频道行**：SeaDragon 越狱源已公开，用户名 @Guhailon（2026-11-26 皇上改的，t.me/Guhailon 已核实能打开）。
+  关于页 Telegram 行标签 `@seadragonjb` 改成 `@Guhailon`；点开改走 `tg://resolve?domain=Guhailon`
+  （公开用户名现在能 resolve），没装 Telegram 退回 `https://t.me/Guhailon`。
+  旧邀请链接（`tg://join?invite=I-I8aw7HUAw1NGY9`／`https://t.me/+I-I8aw7HUAw1NGY9`）已从 AboutView 删掉——
+  公开后旧链接目前还能用，但行里不再用它。
+- **日志页**：工具栏分享旁边加两个按钮（日志为空时都禁用）：
+  **复制**把整份日志原文（同分享的 `LyricLogger.read()`）写进剪贴板，按钮短暂变“已复制”约 1.5 秒后恢复；
+  **清除**先弹确认框（“确定要清除全部日志吗？”＋取消），确认后 `LyricLogger.clear()` 删掉日志文件，
+  页面刷新成空状态；删后 `read()` 返回空，`log()` 下次写时重建。分享按钮原样保留。
+  `LyricLogger.clear()` 只删文件，不改 maxBytes／trim 逻辑。
+- 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；产物名桌面歌词-1.0.2.ipa）。
+  其余内容与 1.0.1 一字未动。

@@ -52,4 +52,12 @@ enum LyricLogger {
         }
         return text
     }
+
+    // 清除全部日志：删掉日志文件；删后 read() 返回空，log() 下次写时重建。
+    static func clear() {
+        guard let url = logURL else {
+            return
+        }
+        try? FileManager.default.removeItem(at: url)
+    }
 }
