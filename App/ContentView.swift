@@ -226,6 +226,33 @@ struct ContentView: View {
                         .background(.ultraThinMaterial)
                         .cornerRadius(20)
 
+                        VStack(spacing: 12) {
+                            Text("锁屏歌词")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if LyricStore.isLiveContainer {
+                                Text("LiveContainer 模式不支持锁屏歌词和小组件")
+                                    .foregroundColor(.white)
+                            } else if #available(iOS 16.1, *) {
+                                LiveActivitySectionView()
+                            } else {
+                                Text("锁屏歌词需要 iOS 16.1 或以上")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            Text("锁屏小组件：长按锁屏 → 自定 → 添加小组件 → 选「Troll Lyrics」长方形。")
+                                .font(.footnote)
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(20)
+
                         NavigationLink {
                             LyricsSearchView()
                         } label: {
@@ -262,5 +289,59 @@ struct ContentView: View {
         LyricStore.save(snapshot)
 
         WidgetCenter.shared.reloadAllTimelines()
+    }
+}
+
+/// 锁屏歌词开关（路子 A：Live Activities，iOS 16.1+）。
+/// 单独抽成子视图，整个包在 @available 里；ContentView 本体保持 MinOS 15.0。
+@available(iOS 16.1, *)
+private struct LiveActivitySectionView: View {
+
+    @EnvironmentObject private var coordinator: PlaybackCoordinator
+    @ObservedObject private var liveActivity = LyricsLiveActivityController.shared
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Button {
+                // 先保证检测引擎在跑（没跑才起，跑着不动），再开锁屏歌词；
+                // 不要直接调 coordinator.start()，它会先 stop() 取消搜词任务。
+                coordinator.ensureRunning()
+                liveActivity.start()
+            } label: {
+                Label(
+                    "开启锁屏歌词",
+                    systemImage: "lock.fill"
+                )
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.purple)
+                .foregroundColor(.white)
+                .cornerRadius(15)
+            }
+            .disabled(liveActivity.isActive)
+
+            Button {
+                liveActivity.stop()
+            } label: {
+                Label(
+                    "停止锁屏歌词",
+                    systemImage: "lock.open.fill"
+                )
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.white.opacity(0.14))
+                .foregroundColor(.white)
+                .cornerRadius(15)
+            }
+            .disabled(!liveActivity.isActive)
+
+            Text(liveActivity.statusMessage)
+                .font(.footnote)
+                .foregroundColor(.white.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onAppear {
+            liveActivity.refresh()
+        }
     }
 }
