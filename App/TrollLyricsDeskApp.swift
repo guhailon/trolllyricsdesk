@@ -109,9 +109,13 @@ final class TrollLyricsRuntime: NSObject {
     /// 构造主界面（ObjC SceneDelegate 放进 UIWindow.rootViewController）。
     @objc func makeRootViewController() -> UIViewController {
         let coordinator = ensurePlayback()
+        // 1.0.3：未激活先全屏显示激活页，不进主界面；激活成功后
+        // @AppStorage 实时切到主界面，不用重启。
         // 主界面改为播放状态页；原 ContentView 作为「设置」子页面从右上角齿轮进入。
-        let root = PlaybackDashboardView()
-            .environmentObject(coordinator)
+        let root = ActivationGateView {
+            PlaybackDashboardView()
+        }
+        .environmentObject(coordinator)
         return UIHostingController(rootView: root)
     }
 

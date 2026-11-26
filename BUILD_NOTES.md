@@ -256,3 +256,26 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
 新增 §6.6 十项：Telegram 三项、LyricLogger 两项、LogView 五项；新增 §6.7 八项：背景图任意更换；
 新增 §6.8 六项：悬浮窗固定位置开关；新增 §6.9 七项：提示文字移到界面＋标题居中；
 §6 红线收窄：Overlay/ 只许 FloatingLyricViewController.swift 一处改动）。
+
+## 1.0.3 build 16（v1.0.1 分支，2026-11-26，1.0.2 只加授权激活）
+
+- `Lyrics/LyricStore.swift`：新 `ActivationStore`（App 与 Widget 两个 target 共用，只放 Foundation 层面的键与读写）：
+  接口地址 `https://guhailong-repo.pages.dev/api/verify`、键 `tld.activated`／`tld.activationType`、
+  `isActivated`／`activationType`／`markActivated(type:)`。App 里没有任何码值。
+- `App/ActivationView.swift`（新文件，pbxproj 四处注册：PBXBuildFile＋PBXFileReference＋App 组 children＋App Sources）：
+  `ActivationGateView`（@AppStorage 读 App Group 标记，未激活显示 ActivationView，否则显示主界面）、
+  `ActivationVerifier.verify(code:)`（码 trim＋大写后 POST /api/verify，`URLSession.shared.data(for:)`，iOS 15.0+；
+  valid＋type 才返回类型，码不对抛 wrongCode，没网／非 200／解不出抛 needsNetwork）、
+  `ActivationView`（输码框＋激活按钮，全屏，背景共用 AppBackgroundView；成功写标记＋`WidgetCenter.reloadAllTimelines()`；
+  日志只记成功／码不正确／网络失败，绝不记码值）。
+- `App/TrollLyricsDeskApp.swift`：`makeRootViewController` 改包 `ActivationGateView { PlaybackDashboardView() }`，
+  environmentObject 照旧透传。
+- `Overlay/FloatingLyricViewController.swift`：`applyVisibility` 加 `|| !ActivationStore.isActivated`，
+  未激活悬浮窗隐藏；0.25s 定时刷新，激活后自动恢复。
+- `TrollLyricsWidget/WidgetView.swift`：body 顶层先判激活，未激活显示「请先在 App 内激活」占位
+  （主屏幕／锁屏两种 family 都走这里）；激活后走原有分支。
+- 锁屏（LiveActivity／LyricsLiveActivityController／Widget 锁屏分支）一字未动；MinOS 15.0 不动；
+  `data(for:)` 与 `.autocapitalization(.allCharacters)` 都是 iOS 15 老 API。
+  检测引擎照常在启动时自动跟随（激活前也在跑，但主界面／悬浮窗／小组件三处都不显示歌词，激活后即时恢复，不用重启）。
+- 版本 1.0.3，build 15→16（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
+  产物名桌面歌词-1.0.3.ipa）。

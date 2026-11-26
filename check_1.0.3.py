@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.3 project: structure, ids, Lee's files verbatim,
-no built-in songs, no activation, adapters public-only, LRC sample parse,
-plists/entitlements/pbxproj/scheme valid, icons complete.
+"""Verify TrollLyricsDesk 1.0.3 (1.0.2 + server-verified activation):
+1.0.3 = 1.0.2 只加授权激活——整个 App 第一次打开就要码，POST
+https://guhailong-repo.pages.dev/api/verify 服务端验证（码先 trim 再大写）；
+验过写 App Group 标记 tld.activated=true、tld.activationType=master/code，
+以后直接进主界面。未激活：主界面全屏激活页、悬浮窗隐藏、小组件占位
+「请先在 App 内激活」。码表只在服务端，App 源码与仓库里没有任何码值；
+锁屏（A Live Activities + B 锁屏小组件）一字未动，MinOS 15.0 不动。
+红线锚点是固定基点 7e39edf（1.0.2 末提交），提交后再重跑才算数。
 
 FAILED: none is the goal. OPEN items are recorded, not failures:
 things that cannot be verified on Linux (macOS compile, device) or that
-are still waiting on Lee (push+build approval).
+need Lee's device test (PLAN §7/§8).
 """
-import hashlib
-import json
 import os
 import plistlib
 import re
+import subprocess
 import sys
 
-ROOT = os.path.expanduser("~/workspace/trolllyricsdesk")
+ROOT = os.path.dirname(os.path.abspath(__file__))
 fails = []
 opens = []
 
@@ -35,12 +39,15 @@ def read(rel):
         return f.read()
 
 
-# A file ref's on-disk path is its parent group's path + the ref path
-# (Xcode semantics). The old checks assumed ref paths were
-# project-root-relative ("Lyrics/X.swift"); that assumption is exactly
-# the doubled-path bug (group path + ref path was "Lyrics/Lyrics/X.swift").
-# Resolve through the group tree instead.
+def git_head(rel):
+    return subprocess.check_output(
+        ["git", "show", f"HEAD:{rel}"],
+        cwd=ROOT, text=True)
+
+
 def pbx_resolved_files(pbx_text):
+    # Same group-tree resolver as check_1.0.3.py (file ref path =
+    # parent group path + ref path; the old doubled-path assumption was wrong).
     objs = {}
     cur = None
     for ln in pbx_text.split("\n"):
@@ -53,9 +60,11 @@ def pbx_resolved_files(pbx_text):
             m2 = re.match(r"\t\t\tisa = (\w+);", ln)
             if m2:
                 cur["isa"] = m2.group(1)
-            m3 = re.match(r'\t\t\tpath = "([^"]+)";', ln)
+            m3 = re.match(r'\t\t\tpath = "?([^";]+)"?;', ln)
             if m3:
                 cur["path"] = m3.group(1)
+            # Overlay 组用的是不带引号的 path = Overlay;（Lee 本地树的写法），
+            # 上面的正则要同时吃带引号和不带引号两种，否则组内文件会解析成裸文件名。
             if re.match(r"\t\t\tchildren = \(", ln):
                 cur["in_children"] = True
                 cur["children"] += re.findall(r"[0-9A-F]{24}", ln.split("(", 1)[1])
@@ -97,545 +106,666 @@ def pbx_resolved_files(pbx_text):
     return resolved
 
 
-def sha256(b):
-    return hashlib.sha256(b).hexdigest()
+def pbx_sources_files(pbx_text, phase_id):
+    # Resolve a PBXSourcesBuildPhase's BuildFile ids to file paths
+    # (Target Membership check: which target actually compiles a file).
+    m = re.search(re.escape(phase_id)
+                  + r" /\* PBXSourcesBuildPhase \*/ = \{(.*?)\n\t\t\};",
+                  pbx_text, re.S)
+    if not m:
+        return []
+    out = []
+    for bf in re.findall(r"([0-9A-F]{24})", m.group(1)):
+        fm = re.search(re.escape(bf)
+                       + r" /\* [^*]*\*/ = \{\s*isa = PBXBuildFile;"
+                       + r"\s*fileRef = ([0-9A-F]{24})",
+                       pbx_text)
+        if not fm:
+            continue
+        fr = fm.group(1)
+        rm = re.search(re.escape(fr)
+                       + r" /\* [^*]*\*/ = \{\s*isa = PBXFileReference;"
+                       + r"\s*lastKnownFileType = [^;]+;"
+                       + r"\s*name = \"?([^\n\";]+)\"?;",
+                       pbx_text)
+        out.append(rm.group(1).strip().strip('"') if rm else fr)
+    return out
 
 
-print("== project size / manifest ==")
-total = 0
-manifest = []
-for dirpath, _, filenames in os.walk(ROOT):
-    if ".git" in dirpath:
-        continue
-    for fn in sorted(filenames):
-        p = os.path.join(dirpath, fn)
-        rel = os.path.relpath(p, ROOT)
-        data = open(p, "rb").read()
-        total += len(data)
-        manifest.append((rel, len(data), sha256(data)[:12]))
-print(f"total: {total} B across {len(manifest)} files")
-for rel, size, h in manifest:
-    print(f"  {h} {size:>7}  {rel}")
+print("== 1. 新文件 ==")
+for rel in ["LiveActivity/LyricsLiveActivity.swift",
+            "PlaybackEngine/LyricsLiveActivityController.swift"]:
+    check(f"exists: {rel}", os.path.exists(os.path.join(ROOT, rel)))
 
-print("\n== 1. Lee's new tree (02:15, exact structure) ==")
-lee_tree = [
-    "App/TrollLyricsDeskApp.swift",
-    "App/ContentView.swift",
-    "App/PlaybackDashboardView.swift",
-    "App/LyricsSearchView.swift",
-    "PlaybackEngine/PlaybackState.swift",
-    "PlaybackEngine/PlaybackAdapter.swift",
-    "PlaybackEngine/PlaybackCoordinator.swift",
-    "PlaybackEngine/LyricMatcher.swift",
-    "MusicProviders/MusicTrack.swift",
-    "MusicProviders/AppleMusicAdapter.swift",
-    "MusicProviders/MediaRemoteAdapter.swift",
-    "MusicProviders/NetEaseAdapter.swift",
-    "MusicProviders/QQMusicAdapter.swift",
-    "MusicProviders/ExternalTrackInput.swift",
-    "Lyrics/LRCLibClient.swift",
-    "Lyrics/LyricParser.swift",
-    "Lyrics/LyricStore.swift",
-    "Lyrics/LyricLine.swift",
-    "Lyrics/LocalLRCImporter.swift",
-    "App/SettingsView.swift",
-    "App/AboutView.swift",
-    "App/LogView.swift",
-    "TrollLyricsDesk/LyricLogger.swift",
-    "TrollLyricsDesk/Assets.xcassets",
-    "TrollLyricsWidget/TrollLyricsWidget.swift",
-    "TrollLyricsWidget/TimelineProvider.swift",
-    "TrollLyricsWidget/WidgetView.swift",
-    "TrollLyricsWidget/TrollLyricsWidgetBundle.swift",
-]
-for rel in lee_tree:
-    if rel == "TrollLyricsWidget/TimelineProvider.swift":
-        # Provider lives inside TrollLyricsWidget.swift (Lee's file); no separate file.
-        content = read("TrollLyricsWidget/TrollLyricsWidget.swift")
-        check("TimelineProvider.swift -> inside TrollLyricsWidget.swift (Lee's file)",
-              "struct TrollLyricsProvider: TimelineProvider" in content)
-        continue
-    check(f"tree item exists: {rel}", os.path.exists(os.path.join(ROOT, rel)))
-for dead_dir in ["Shared", "LocalLyrics", "LyricsSearch"]:
-    check(f"old group gone: {dead_dir}/",
-          not os.path.exists(os.path.join(ROOT, dead_dir)))
-
-print("\n== 2. Lee's files verbatim (content markers) ==")
-markers = {
-    "Lyrics/LyricLine.swift": ["struct LyricLine: Codable, Identifiable",
-                               "var time: TimeInterval", "var text: String"],
-    "Lyrics/LyricParser.swift": ['#"\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,3}))?\\](.*)"#',
-                                 "static func parse(_ lrc: String) -> [LyricLine]",
-                                 "return result.sorted"],
-    "Lyrics/LyricStore.swift": ['"group.com.hailong.TrollLyricsDesk"',
-                                "struct LyricSnapshot: Codable",
-                                "static func currentLyric("],
-    "App/TrollLyricsDeskApp.swift": ["@main", "struct TrollLyricsDeskApp: App",
-                                     "ContentView()"],
-    "App/ContentView.swift": ["加载测试歌词", "demoLyrics",
-                              "透明动漫歌词桌面", "请在主屏幕添加 TrollLyrics Widget",
-                              "歌词搜索与导入", "LyricsSearchView()",
-                              "统一音乐播放引擎", "PlaybackDashboardView()"],
-    "TrollLyricsWidget/TrollLyricsWidget.swift": ["struct TrollLyricsProvider: TimelineProvider",
-                                                  'let kind = "TrollLyricsWidget"',
-                                                  "supportedFamilies([",
-                                                  ".configurationDisplayName(\"Troll Lyrics\")",
-                                                  "预先安排后续歌词",
-                                                  "finalDate.addingTimeInterval(30)"],
-    "TrollLyricsWidget/WidgetView.swift": ["struct TrollLyricsWidgetView: View",
-                                           "LyricStore.currentLyric(",
-                                           "打开 App 加载歌词"],
-    "TrollLyricsWidget/TrollLyricsWidgetBundle.swift": ["@main",
-                                                        "struct TrollLyricsWidgetBundle: WidgetBundle",
-                                                        "TrollLyricsWidget()"],
-    "MusicProviders/MusicTrack.swift": ["enum MusicPlatform: String, Codable, CaseIterable, Identifiable",
-                                        "struct MusicTrack: Codable, Identifiable, Equatable",
-                                        'case netEase = "网易云音乐"',
-                                        'case qqMusic = "QQ音乐"'],
-    "MusicProviders/NetEaseAdapter.swift": ["struct NetEaseAdapter {",
-                                            "func makeTrack(",
-                                            "platform: .netEase"],
-    "MusicProviders/QQMusicAdapter.swift": ["struct QQMusicAdapter {",
-                                            "func makeTrack(",
-                                            "platform: .qqMusic"],
-    "MusicProviders/ExternalTrackInput.swift": ["enum ExternalTrackInput",
-                                                "static func makeTrack(",
-                                                "platform: platform"],
-    "MusicProviders/AppleMusicAdapter.swift": ["final class AppleMusicAdapter: PlaybackAdapter",
-                                               "MPMusicPlayerController.systemMusicPlayer",
-                                               "MPMediaItemPropertyTitle",
-                                               "func requestMusicPermission(",
-                                               "MPMediaLibrary.requestAuthorization",
-                                               "completion(status == .authorized)"],
-    "MusicProviders/MediaRemoteAdapter.swift": ["final class MediaRemoteAdapter: PlaybackAdapter",
-                                                "MRMediaRemoteGetNowPlayingInfo",
-                                                "kMRMediaRemoteNowPlayingInfoTimestamp",
-                                                "kMRMediaRemoteNowPlayingInfoPlaybackRate",
-                                                "static func cleanTitle(",
-                                                "platform: .manual"],
-    "PlaybackEngine/PlaybackState.swift": ["enum PlaybackStatus: String, Codable",
-                                           "struct PlaybackState: Equatable",
-                                           "var trackKey: String"],
-    "PlaybackEngine/PlaybackAdapter.swift": ["@MainActor",
-                                             "protocol PlaybackAdapter",
-                                             "func currentState() -> PlaybackState?"],
-    "PlaybackEngine/LyricMatcher.swift": ["struct LyricMatcher",
-                                          "static func bestMatch(",
-                                          "value += 60",
-                                          "value += 40"],
-    "PlaybackEngine/PlaybackCoordinator.swift": ["final class PlaybackCoordinator: ObservableObject",
-                                                 "withTimeInterval: 1.0",
-                                                 "LyricMatcher.bestMatch(",
-                                                 "防止搜索期间歌曲已经切换"],
-    "App/PlaybackDashboardView.swift": ["struct PlaybackDashboardView: View",
-                                        "PlaybackCoordinator(",
-                                        "adapter: MediaRemoteAdapter()",
-                                        "开始检测音乐",
-                                        "网易云 / QQ / 本地歌词"],
-    "Lyrics/LRCLibClient.swift": ["final class LRCLibClient",
-                                  "https://lrclib.net",
-                                  '"/api/search"',
-                                  "fetchSyncedLyrics"],
-    "Lyrics/LocalLRCImporter.swift": ["enum LocalLRCImporter",
-                                      "startAccessingSecurityScopedResource",
-                                      "LyricParser.parse(content)"],
-    "App/LyricsSearchView.swift": ["struct LyricsSearchView: View",
-                                   "LRCLibClient.shared.search",
-                                   "fileImporter",
-                                   "歌词管理"],
-    "App/AboutView.swift": ["struct AboutView: View",
-                            "LogView()",
-                            "当前版本",
-                            "加入官方群组",
-                            "166623677",
-                            "mqqapi://card/show_pslcard",
-                            "作者",
-                            "China fly",
-                            "Telegram 频道",
-                            "@seadragonjb",
-                            "tg://join?invite=I-I8aw7HUAw1NGY9",
-                            "https://t.me/+I-I8aw7HUAw1NGY9"],
-    "App/LogView.swift": ["struct LogView: View",
-                          "LyricLogger.read()",
-                          "暂无日志",
-                          "ShareLink"],
-}
-for rel, ms in markers.items():
-    text = read(rel)
-    for m in ms:
-        check(f"{rel} contains {m[:48]!r}", m in text)
-check("ContentView links to AboutView", "AboutView()" in read("App/ContentView.swift"))
-check("SettingsView links to AboutView", "AboutView()" in read("App/SettingsView.swift"))
-
-print("\n== 3. SettingsView (Lee's original, 02:37) ==")
-settings = read("App/SettingsView.swift")
-check("SettingsView.swift at App/SettingsView.swift (Lee's tree)",
-      os.path.exists(os.path.join(ROOT, "App/SettingsView.swift")))
-check("SettingsView.swift old placeholder gone",
-      not os.path.exists(os.path.join(ROOT, "TrollLyricsDesk/SettingsView.swift")))
-check("SettingsView.swift: no placeholder text", "PLACEHOLDER" not in settings)
-check("SettingsView.swift in pbxproj at App/ path",
-      "App/SettingsView.swift" in
-      pbx_resolved_files(read("TrollLyricsDesk.xcodeproj/project.pbxproj")))
-for key in ["lyricsFontSize", "lyricsOpacity", "backgroundOpacity",
-            "lyricsDisplayMode", "showNextLine", "animeBackgroundEnabled",
-            "selectedBackgroundData"]:
-    check(f"SettingsView @AppStorage key in App Group store: {key}",
-          f'@AppStorage("{key}", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))' in settings)
-check("SettingsView: no plain @AppStorage left (all 7 migrated, Lee 02:39)",
-      settings.count('@AppStorage("') == 7 and
-      all(f'@AppStorage("{k}")' not in settings for k in
-          ["lyricsFontSize", "lyricsOpacity", "backgroundOpacity",
-           "lyricsDisplayMode", "showNextLine", "animeBackgroundEnabled",
-           "selectedBackgroundData"]))
-# Lee's 7 features (his 02:38 list — all in his original file):
-check("SettingsView f1: font-size slider 14-36",
-      "value: $lyricsFontSize" in settings and "in: 14...36" in settings)
-check("SettingsView f2: lyrics-opacity slider 0.1-1.0",
-      "value: $lyricsOpacity" in settings and "in: 0.1...1.0" in settings)
-check("SettingsView f3: display mode highlight/karaoke",
-      "逐句高亮" in settings and "逐字卡拉OK" in settings)
-check("SettingsView f4: background-opacity slider 0-1",
-      "value: $backgroundOpacity" in settings and "in: 0...1" in settings)
-check("SettingsView f5: anime bg toggle + PhotosPicker + preview",
-      "animeBackgroundEnabled" in settings and "PhotosPicker" in settings
-      and "backgroundImage" in settings)
-check("SettingsView f6: saveSettings stores @AppStorage + bg JPEG",
-      "private func saveSettings()" in settings
-      and "jpegData(compressionQuality: 0.8)" in settings)
-check("SettingsView f7: save reloads widget timelines",
-      "WidgetCenter.shared.reloadAllTimelines()" in settings)
-open_item("SettingsView settings now in App Group store; widget still reads snapshot",
-          "7 keys migrated to UserDefaults(suiteName: group...) (Lee 02:39); "
-          "widget still reads opacity/fontSize from LyricSnapshot (App Group) — "
-          "Lee decides whether the widget reads the shared keys or the snapshot")
-open_item("karaoke is an option only, not implemented (Lee 02:39)",
-          "lyricsDisplayMode 'karaoke' has no per-character timeline parsing yet; "
-          "needs per-character lyric data structure + sync logic — follow-up work, not this round")
-
-print("\n== 3b. App Group consistency (Lee 02:39) ==")
-GROUP = "group.com.hailong.TrollLyricsDesk"
-pbx3b = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
-for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
-            "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
-    ent = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
-    check(f"{rel}: app group is {GROUP}",
-          ent.get("com.apple.security.application-groups") == [GROUP],
-          str(ent.get("com.apple.security.application-groups")))
-check("pbxproj: App target CODE_SIGN_ENTITLEMENTS -> TrollLyricsDesk entitlements",
-      pbx3b.count('CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements"') == 2)
-check("pbxproj: Widget target CODE_SIGN_ENTITLEMENTS -> TrollLyricsWidget entitlements",
-      pbx3b.count('CODE_SIGN_ENTITLEMENTS = "TrollLyricsWidget/TrollLyricsWidget.entitlements"') == 2)
-check("pbxproj: no other CODE_SIGN_ENTITLEMENTS values",
-      pbx3b.count("CODE_SIGN_ENTITLEMENTS") == 4)
-
-print("\n== 4. Bundle IDs / App Group consistency ==")
-APP_ID = "com.hailong.TrollLyricsDesk"
-WIDGET_ID = "com.hailong.TrollLyricsDesk.TrollLyricsWidget"
-GROUP_ID = "group.com.hailong.TrollLyricsDesk"
-pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
-check("pbxproj: app bundle id", f"PRODUCT_BUNDLE_IDENTIFIER = {APP_ID}" in pbx or
-      f'PRODUCT_BUNDLE_IDENTIFIER = "{APP_ID}"' in pbx)
-check("pbxproj: widget bundle id", WIDGET_ID in pbx)
-check("pbxproj: deployment target 16.0", "IPHONEOS_DEPLOYMENT_TARGET = 16.0" in pbx)
-check("pbxproj: Swift 5.0", "SWIFT_VERSION = 5.0" in pbx)
-for rel, want in [("TrollLyricsDesk/Info.plist", APP_ID),
-                  ("TrollLyricsWidget/Info.plist", WIDGET_ID)]:
+print("\n== 2. 版本 / MinOS ==")
+for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
-    check(f"{rel}: bundle id", pl.get("CFBundleIdentifier") == want, pl.get("CFBundleIdentifier"))
-    check(f"{rel}: version 1.0.3", pl.get("CFBundleShortVersionString") == "1.0.3")
-    check(f"{rel}: min OS 16.0", pl.get("MinimumOSVersion") == "16.0", str(pl.get("MinimumOSVersion")))
-app_pl = plistlib.loads(open(os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
-check("app Info.plist: NSAppleMusicUsageDescription (Lee's text)",
-      app_pl.get("NSAppleMusicUsageDescription") == "用于读取用户授权的音乐资料和显示歌曲信息。",
-      str(app_pl.get("NSAppleMusicUsageDescription")))
-for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
-            "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
-    ent = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
-    groups = ent.get("com.apple.security.application-groups", [])
-    check(f"{rel}: app group", groups == [GROUP_ID], str(groups))
-app_ent = plistlib.loads(open(
-    os.path.join(ROOT, "TrollLyricsDesk/TrollLyricsDesk.entitlements"), "rb").read())
-check("app entitlements: mediaremote now-playing-read-access (follow uses them again, Lee 02:30)",
-      app_ent.get("com.apple.mediaremote.now-playing-read-access") is True)
-check("app entitlements: mediaremote full-now-playing-read-access (follow uses them again, Lee 02:30)",
-      app_ent.get("com.apple.mediaremote.full-now-playing-read-access") is True)
-check("LyricStore groupID matches", f'"{GROUP_ID}"' in read("Lyrics/LyricStore.swift"))
-check("widget Info.plist: widgetkit extension point",
-      plistlib.loads(open(os.path.join(
-          ROOT, "TrollLyricsWidget/Info.plist"), "rb").read())
-      .get("NSExtension", {}).get("NSExtensionPointIdentifier")
-      == "com.apple.widgetkit-extension")
+    check(f"{rel}: version 1.0.3", pl.get("CFBundleShortVersionString") == "1.0.3",
+          str(pl.get("CFBundleShortVersionString")))
+    check(f"{rel}: build 16", pl.get("CFBundleVersion") == "16",
+          str(pl.get("CFBundleVersion")))
+    check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
+          str(pl.get("MinimumOSVersion")))
+app_pl = plistlib.loads(open(
+    os.path.join(ROOT, "TrollLyricsDesk/Info.plist"), "rb").read())
+check("app Info.plist: NSSupportsLiveActivities = true",
+      app_pl.get("NSSupportsLiveActivities") is True)
+check("app Info.plist: bundle id still Desk2",
+      app_pl.get("CFBundleIdentifier") == "com.hailong.TrollLyricsDesk2")
 
-print("\n== 5. pbxproj / scheme structure ==")
-check("pbxproj: app target present", '"TrollLyricsDesk"' in pbx and
-      "com.apple.product-type.application" in pbx)
-check("pbxproj: widget target present", '"TrollLyricsWidget"' in pbx and
-      "com.apple.product-type.app-extension" in pbx)
-check("pbxproj: Embed App Extensions phase", "Embed App Extensions" in pbx)
-check("pbxproj: embed dstSubfolderSpec 13 (PlugIns)", "dstSubfolderSpec = 13" in pbx)
-check("pbxproj: App Groups capability enabled (both targets)",
-      pbx.count("com.apple.ApplicationGroups") >= 2, str(pbx.count("com.apple.ApplicationGroups")))
-check("pbxproj: app entitlements path",
-      "TrollLyricsDesk/TrollLyricsDesk.entitlements" in pbx)
-check("pbxproj: widget entitlements path",
-      "TrollLyricsWidget/TrollLyricsWidget.entitlements" in pbx)
-check("pbxproj: widget extension API only", "APPLICATION_EXTENSION_API_ONLY = YES" in pbx)
-check("pbxproj: new groups App/PlaybackEngine/Lyrics/MusicProviders",
-      all(g in pbx for g in ['name = "App"', 'name = "PlaybackEngine"',
-                             'name = "Lyrics"', 'name = "MusicProviders"']))
-check("pbxproj: old groups Shared/LocalLyrics/LyricsSearch gone",
-      all(g not in pbx for g in ['name = "Shared"', 'name = "LocalLyrics"',
-                                  'name = "LyricsSearch"']))
+print("\n== 3. 路子 A：Live Activities ==")
+live = read("LiveActivity/LyricsLiveActivity.swift")
+ctrl = read("PlaybackEngine/LyricsLiveActivityController.swift")
+check("LyricsLiveActivity.swift: @available(iOS 16.1, *)",
+      "@available(iOS 16.1, *)" in live)
+check("LyricsLiveActivity.swift: ActivityAttributes + ContentState",
+      "struct LyricsLiveAttributes: ActivityAttributes" in live
+      and "struct ContentState: Codable, Hashable" in live)
+check("LyricsLiveActivity.swift: lockScreen + DynamicIsland",
+      "ActivityConfiguration(for: LyricsLiveAttributes.self)" in live
+      and "DynamicIsland" in live)
+check("LyricsLiveActivity.swift: expanded/compact/minimal",
+      all(s in live for s in ["DynamicIslandExpandedRegion(.leading)",
+                              "DynamicIslandExpandedRegion(.trailing)",
+                              "DynamicIslandExpandedRegion(.center)",
+                              "DynamicIslandExpandedRegion(.bottom)",
+                              "compactLeading", "compactTrailing", "minimal"]))
+check("LyricsLiveActivity.swift: shared 3-line view (lock screen + island)",
+      "struct LyricsLiveLinesView: View" in live
+      and "LyricsLiveLockScreenView(state: context.state)" in live)
+check("LyricsLiveActivity.swift: lyric color from hex (取色器复用）",
+      "lyricColorHex" in live and "init(hex: Int)" in live)
+check("LyricsLiveActivity.swift: compact truncation (ChatGPT 问题 4)",
+      ".font(.caption2)" in live and ".truncationMode(.tail)" in live
+      and ".minimumScaleFactor(0.8)" in live)
+check("LyricsLiveActivity.swift: no stray separator when artist empty + pause hint",
+      "state.artist.isEmpty ? state.title" in live
+      and "已暂停" in live)
+check("controller: @available(iOS 16.1, *)",
+      "@available(iOS 16.1, *)" in ctrl)
+check("controller: singleton + @Published isActive/statusMessage",
+      "static let shared = LyricsLiveActivityController()" in ctrl
+      and "@Published private(set) var isActive" in ctrl
+      and "@Published private(set) var statusMessage" in ctrl)
+check("controller: start/stop/update/refresh",
+      all(s in ctrl for s in ["func start()", "func stop()", "func update(",
+                              "func refresh()"]))
+check("controller: Activity.request local only (pushType nil)",
+      "Activity.request(" in ctrl and "pushType: nil" in ctrl)
+check("controller: end dismissalPolicy .immediate",
+      "dismissalPolicy: .immediate" in ctrl)
+check("controller: observes activity end (sync switch state)",
+      "activityStateUpdates" in ctrl and ".ended" in ctrl and ".dismissed" in ctrl)
+check("controller: checks areActivitiesEnabled",
+      "ActivityAuthorizationInfo().areActivitiesEnabled" in ctrl)
+check("controller: lyric color reads floatingLyric.textColorHex (default white)",
+      '"floatingLyric.textColorHex"' in ctrl and "0xFFFFFF" in ctrl)
+check("controller: 16.2 branches (request/update/end) + 16.1 fallback (ChatGPT 问题 2)",
+      ctrl.count("if #available(iOS 16.2, *)") == 3
+      and "contentState: placeholderState()" in ctrl
+      and "await current.update(using:" in ctrl
+      and "await current.end(" in ctrl and "using: placeholderState()" in ctrl,
+      f"16.2-branches={ctrl.count('if #available(iOS 16.2, *)')}")
+check("controller: update serial coalescing queue (BUG-06)",
+      "pendingUpdate" in ctrl and "updateTask" in ctrl
+      and "while let pending = self.pendingUpdate" in ctrl)
+check("controller: Activity id check before update/end-clear (BUG-06/问题 B)",
+      "activityID" in ctrl and "self.activity?.id == id" in ctrl)
+check("controller: observeEnd stored as observationTask + refresh re-binds (问题 A/B)",
+      "observationTask" in ctrl and "observationTask?.cancel()" in ctrl
+      and "observeEnd()" in ctrl)
+check("controller: stop waits for end() before clearing state (问题 C)",
+      "isBusy" in ctrl and "isBusy = true" in ctrl and "isBusy = false" in ctrl)
+
+pc = read("PlaybackEngine/PlaybackCoordinator.swift")
+check("coordinator: state = newState still present (no 1.0.6 regression)",
+      "state = newState" in pc)
+check("coordinator: publishLiveLyrics defined",
+      "private func publishLiveLyrics()" in pc)
+check("coordinator: publishLiveLyrics called at end of poll() + track-change branch",
+      pc.count("publishLiveLyrics()") == 3,  # 1 def + 2 call sites
+      f"count={pc.count('publishLiveLyrics()')}")
+check("coordinator: full-state dedup (BUG-02/04) + Activity id (BUG-01 第二层）",
+      "lastLiveState" in pc and "lastLiveActivityID" in pc
+      and "lastLiveLyricIndex" not in pc and "lastLiveTrackKey" not in pc
+      and "key == lastLiveState" in pc
+      and "activityID != lastLiveActivityID" in pc)
+check("coordinator: isActive guard resets dedup when Live Activity off (BUG-01 第一层）",
+      "guard LyricsLiveActivityController.shared.isActive else" in pc
+      and "lastLiveState = nil" in pc)
+check("coordinator: prelude shows ♪ {title} + first line as next (BUG-03)",
+      '"♪ \\(snapshot.title)"' in pc
+      and "next = snapshot.lyrics.first?.text ?? \"\"" in pc)
+check("coordinator: content length cap 120 (P2 超长歌词）",
+      "clipped(" in pc and "text.count > 120" in pc)
+check("coordinator: ensureRunning() idempotent, no direct start() from lock screen",
+      "func ensureRunning()" in pc and "var isRunning: Bool" in pc)
+check("coordinator: lastLiveState is a plain Equatable key struct, NOT a stored ContentState (run 45737184426 fix)",
+      "private struct LiveLyricKey: Equatable" in pc
+      and "private var lastLiveState: LiveLyricKey?" in pc
+      and "LyricsLiveAttributes.ContentState?" not in pc
+      and "@available(iOS 16.1, *)\n    private var lastLiveState" not in pc)
+check("coordinator: staleDate = next line + 5s",
+      "addingTimeInterval(nextIn + 5)" in pc)
+check("coordinator: call sites guarded by if #available(iOS 16.1, *)",
+      "if #available(iOS 16.1, *)" in pc)
+check("coordinator: poll() detection logic untouched (no-state branch still returns early)",
+      'message = "没有检测到可读取的音乐"' in pc)
+
+cv = read("App/ContentView.swift")
+check("ContentView: 锁屏歌词 section",
+      '"锁屏歌词"' in cv)
+check("ContentView: start/stop buttons + status text",
+      '"开启锁屏歌词"' in cv and '"停止锁屏歌词"' in cv
+      and "liveActivity.statusMessage" in cv)
+check("ContentView: LiveActivitySectionView @available(iOS 16.1, *)",
+      "struct LiveActivitySectionView: View" in cv
+      and "@available(iOS 16.1, *)" in cv)
+check("ContentView: iOS <16.1 hint line",
+      '"锁屏歌词需要 iOS 16.1 或以上"' in cv)
+check("ContentView: lock-screen widget add hint (B)",
+      "长按锁屏 → 自定 → 添加小组件" in cv)
+check("ContentView: existing sections untouched (音乐检测／歌词透明度／悬浮窗透明度）",
+      '"音乐检测"' in cv and '"歌词透明度"' in cv and '"悬浮窗透明度"' in cv)
+check("ContentView: lock-screen start ensures engine running (审查第 7 项）",
+      "coordinator.ensureRunning()" in cv
+      and "liveActivity.start()" in cv)
+check("ContentView: refresh() on appear (前台恢复时同步开关状态）",
+      "liveActivity.refresh()" in cv)
+
+print("\n== 4. 路子 B：锁屏小组件 ==")
+wg = read("TrollLyricsWidget/TrollLyricsWidget.swift")
+check("widget: .accessoryRectangular in supportedFamilies",
+      ".accessoryRectangular" in wg)
+check("widget: .accessoryRectangular guarded by if #available(iOS 16.0, *)",
+      "if #available(iOS 16.0, *)" in wg)
+check("widget: systemSmall/systemMedium still present",
+      ".systemSmall" in wg and ".systemMedium" in wg)
+check("widget: getTimeline untouched (pre-scheduled per-line entries)",
+      "预先安排后续歌词" in wg)
+wv = read("TrollLyricsWidget/WidgetView.swift")
+check("WidgetView: lock-screen branch uses @Environment widgetFamily (ChatGPT fix)",
+      "@Environment(\\.widgetFamily)" in wv
+      and "family == .accessoryRectangular" in wv)
+check("WidgetView: no undefined 'context' (ChatGPT: cannot find 'context' in scope)",
+      "context.family" not in wv)
+check("WidgetView: lock-screen view (title + current + next)",
+      "lockScreenView" in wv and "桌面歌词 · " in wv)
+check("WidgetView: main-screen layout kept (moved verbatim to mainScreenView)",
+      "mainScreenView" in wv and "打开 App 加载歌词" in wv
+      and '"等待歌词..."' in wv and "LyricStore.currentLyric(" in wv)
+wb = read("TrollLyricsWidget/TrollLyricsWidgetBundle.swift")
+check("WidgetBundle: LyricsLiveActivity registered (ChatGPT 问题 3，接线遗漏）",
+      "LyricsLiveActivity()" in wb
+      and "if #available(iOS 16.1, *)" in wb)
+
+print("\n== 5. pbxproj ==")
+pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
+check("pbxproj: LiveActivity group present",
+      'name = "LiveActivity"' in pbx and 'path = "LiveActivity"' in pbx)
+check("pbxproj: both new files in App Sources phase",
+      "LyricsLiveActivity.swift in Sources" in pbx
+      and "LyricsLiveActivityController.swift in Sources" in pbx)
+_widget_sources = pbx_sources_files(pbx, "37A859133C5B7A49CE597D35")
+check("pbxproj: LyricsLiveActivity.swift in Widget Extension Sources (Target Membership)",
+      "LyricsLiveActivity.swift" in _widget_sources,
+      str(_widget_sources))
+check("pbxproj: ActivityKit weak-linked (4x: App 2 + Widget 2)",
+      pbx.count('"-weak_framework"') == 4 and pbx.count('"ActivityKit"') == 4,
+      f"weak={pbx.count(chr(34) + '-weak_framework' + chr(34))}")
+check("pbxproj: no strong ActivityKit link phase entry",
+      "ActivityKit.framework" not in pbx)
+check("pbxproj: MinOS still 15.0 everywhere",
+      "IPHONEOS_DEPLOYMENT_TARGET = 15.0" in pbx
+      and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
+check("pbxproj: MARKETING_VERSION 1.0.3 (4x)",
+      pbx.count("MARKETING_VERSION = 1.0.3;") == 4
+      and "MARKETING_VERSION = 1.0.2" not in pbx)
 _resolved = pbx_resolved_files(pbx)
-for f in ["App/TrollLyricsDeskApp.swift", "App/ContentView.swift",
-          "App/PlaybackDashboardView.swift", "App/LyricsSearchView.swift",
-          "PlaybackEngine/PlaybackState.swift", "PlaybackEngine/PlaybackAdapter.swift",
-          "PlaybackEngine/PlaybackCoordinator.swift", "PlaybackEngine/LyricMatcher.swift",
-          "MusicProviders/MusicTrack.swift", "MusicProviders/AppleMusicAdapter.swift",
-          "MusicProviders/MediaRemoteAdapter.swift",
-          "MusicProviders/NetEaseAdapter.swift", "MusicProviders/QQMusicAdapter.swift",
-          "MusicProviders/ExternalTrackInput.swift", "Lyrics/LRCLibClient.swift",
-          "Lyrics/LyricParser.swift", "Lyrics/LyricStore.swift", "Lyrics/LyricLine.swift",
-          "Lyrics/LocalLRCImporter.swift", "Core/MediaRemoteBridge.swift",
-          "Core/MediaRemoteSymbols.swift", "Core/PlaybackStateEngine.swift",
-          "Core/TrackIdentifier.swift"]:
-    check(f"pbxproj: references {f}", f in _resolved)
-check("pbxproj: deleted files fully gone (MusicPlatformAdapter/NowPlayingFollower)",
-      "MusicPlatformAdapter" not in pbx and "NowPlayingFollower" not in pbx)
-check("pbxproj: deleted files fully gone (LyricSearchService/ImportSearchView)",
-      "LyricSearchService" not in pbx and "ImportSearchView" not in pbx)
-check("pbxproj: MediaPlayer.framework linked (app target)",
-      "MediaPlayer.framework" in pbx and
-      "System/Library/Frameworks/MediaPlayer.framework" in pbx)
-# every file referenced in pbxproj must exist on disk (resolved via group tree)
+for f in ["LiveActivity/LyricsLiveActivity.swift",
+          "PlaybackEngine/LyricsLiveActivityController.swift",
+          "App/ActivationView.swift"]:
+    check(f"pbxproj: resolves {f}", f in _resolved)
+_app_sources = pbx_sources_files(pbx, "4821909E9BF9E73E471FEA84")
+check("pbxproj: ActivationView.swift in App Sources (Target Membership)",
+      "ActivationView.swift" in _app_sources,
+      str(_app_sources))
 missing = [r for r in _resolved if not os.path.exists(os.path.join(ROOT, r))]
 check("pbxproj: all referenced files exist on disk", not missing, str(missing))
-# every build file's fileRef must resolve to a real object
 obj_ids = set(re.findall(r"\t\t([0-9A-F]{24}) /\* \w+ \*/ = \{", pbx))
-dangling = [fr for fr in re.findall(r"fileRef = ([0-9A-F]{24});", pbx) if fr not in obj_ids]
+dangling = [fr for fr in re.findall(r"fileRef = ([0-9A-F]{24});", pbx)
+            if fr not in obj_ids]
 check("pbxproj: no dangling fileRefs", not dangling, str(dangling))
-scheme = read("TrollLyricsDesk.xcodeproj/xcshareddata/xcschemes/TrollLyricsDesk.xcscheme")
-check("scheme exists", os.path.exists(os.path.join(
-    ROOT, "TrollLyricsDesk.xcodeproj/xcshareddata/xcschemes/TrollLyricsDesk.xcscheme")))
-check("scheme: no placeholder target ids", "APP_TARGET_ID" not in scheme and
-      "WIDGET_TARGET_ID" not in scheme)
-for tid in re.findall(r'BlueprintIdentifier = "([0-9A-F]{24})"', scheme):
-    check(f"scheme target {tid} exists in pbxproj", tid in pbx)
-check("workflow exists", os.path.exists(os.path.join(ROOT, ".github/workflows/build.yml")))
-wf = read(".github/workflows/build.yml")
-check("workflow: xcodebuild archive unsigned", "CODE_SIGNING_ALLOWED=NO" in wf)
-check("workflow: install zsign", "brew install zsign" in wf)
-check("workflow: zsign sign app + widget", wf.count("zsign -a") >= 2)
-check("workflow: package IPA", "TrollLyricsDesk-1.0.3.ipa" in wf)
+check("pbxproj: braces/parens balanced",
+      pbx.count("{") == pbx.count("}") and pbx.count("(") == pbx.count(")"))
 
-print("\n== 6. No built-in songs / no activation ==")
+print("\n== 6. 红线 ==")
+# 红线锚点是固定基点 7e39edf（1.0.2 末提交）：不要用 `git diff HEAD`
+# （提交后工作区干净，diff 永远是空），也不要用 HEAD~1（每多一个提交就漂走）。
+# 1.0.3 只许四处改动：Overlay/ 只动 FloatingLyricViewController.swift 一处
+# （applyVisibility 加激活判断）；锁屏文件一字未动；其余改动在 App/、
+# Lyrics/LyricStore.swift（只加 ActivationStore）、WidgetView.swift（只加占位门）。
+# 以下 diff 一律用 `git diff 7e39edf HEAD -- <路径>`，提交后再重跑才算数。
+def diff_names(rel):
+    out = subprocess.check_output(
+        ["git", "diff", "--name-only", "7e39edf", "HEAD", "--", rel],
+        cwd=ROOT, text=True).strip().splitlines()
+    return [f for f in out if f.strip()]
+
+def diff_text(rel):
+    return subprocess.check_output(
+        ["git", "diff", "7e39edf", "HEAD", "--", rel],
+        cwd=ROOT, text=True)
+
+diff_overlay_files = diff_names("Overlay/")
+check("Overlay/: only FloatingLyricViewController.swift changed (activation gate)",
+      diff_overlay_files == ["Overlay/FloatingLyricViewController.swift"],
+      str(diff_overlay_files))
+diff_fl = diff_text("Overlay/FloatingLyricViewController.swift")
+check("Overlay diff: only applyVisibility activation gate (no scene/entry changes)",
+      "ActivationStore.isActivated" in diff_fl
+      and "applyVisibility" in diff_fl
+      and "registerWindowWithContextID" not in diff_fl
+      and "FBSystemShellInitialize" not in diff_fl
+      and "positionLocked" not in [ln for ln in diff_fl.splitlines() if ln.startswith("+")])
+for rel in ["LiveActivity/LyricsLiveActivity.swift",
+            "PlaybackEngine/LyricsLiveActivityController.swift",
+            "PlaybackEngine/PlaybackCoordinator.swift",
+            "TrollLyricsWidget/TrollLyricsWidget.swift",
+            "TrollLyricsWidget/TrollLyricsWidgetBundle.swift"]:
+    check(f"{rel}: unchanged vs 7e39edf (lockscreen untouched)",
+          diff_names(rel) == [], str(diff_names(rel)))
+diff_app_files = diff_names("App/")
+check("App/: only ActivationView.swift (new) + TrollLyricsDeskApp.swift (gate)",
+      sorted(diff_app_files) == ["App/ActivationView.swift",
+                                 "App/TrollLyricsDeskApp.swift"],
+      str(diff_app_files))
+diff_wv = diff_text("TrollLyricsWidget/WidgetView.swift")
+check("WidgetView diff: only activation placeholder gate (lockscreen branches intact)",
+      "请先在 App 内激活" in diff_wv
+      and "notActivatedView" in diff_wv
+      and "lockScreenView" in diff_wv
+      and "mainScreenView" in diff_wv)
+diff_ls = diff_text("Lyrics/LyricStore.swift")
+added_ls = [ln for ln in diff_ls.splitlines()
+            if ln.startswith("+") and not ln.startswith("+++")]
+removed_ls = [ln for ln in diff_ls.splitlines()
+              if ln.startswith("-") and not ln.startswith("---")]
+check("LyricStore diff: pure addition, only ActivationStore appended",
+      not removed_ls
+      and "enum ActivationStore" in diff_ls
+      and "verifyURLString" in diff_ls
+      and "tld.activated" in diff_ls
+      and "markActivated" in diff_ls,
+      f"added={len(added_ls)} removed={len(removed_ls)}")
+for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
+            "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
+    head = git_head(rel)
+    check(f"{rel}: unchanged vs HEAD (zero new entitlements)",
+          read(rel) == head)
 all_swift = ""
 for dirpath, _, filenames in os.walk(ROOT):
+    if ".git" in dirpath or "hidden_files" in dirpath:
+        continue
     for fn in filenames:
         if fn.endswith(".swift"):
-            all_swift += open(os.path.join(dirpath, fn), encoding="utf-8").read() + "\n"
-for bad in ["激活", "activation", "LW-", "codes-", "licenseCode", "activate("]:
-    check(f"no activation string {bad!r}", bad not in all_swift)
-check("no 123-song library", "audio-ssl.itunes.apple.com" not in all_swift)
-check("no SONGS array", re.search(r'\bSONGS\s*=', all_swift) is None)
-check("demo lyrics only in ContentView (Lee's demo)",
-      all_swift.count("TrollLyricsDesk Demo") == 1)
+            all_swift += open(os.path.join(dirpath, fn),
+                              encoding="utf-8").read() + "\n"
+for bad in ["BackBoard", "TLHUD", "TLHUDApplication", "TLHUDWindow",
+            "registerWindowWithContextID", "SBSAccessibilityWindowHostingController",
+            "TLLyricsIPC", "LyricWord", "LyricSyncEngine"]:
+    check(f"no BackBoard/逐字 string {bad!r}", bad not in all_swift)
+for f in ["LiveActivity/LyricsLiveActivity.swift",
+          "PlaybackEngine/LyricsLiveActivityController.swift",
+          "PlaybackEngine/PlaybackCoordinator.swift",
+          "App/ContentView.swift",
+          "App/ActivationView.swift",
+          "Lyrics/LyricStore.swift",
+          "TrollLyricsWidget/TrollLyricsWidget.swift",
+          "TrollLyricsWidget/WidgetView.swift"]:
+    t = read(f)
+    check(f"{f}: braces balanced", t.count("{") == t.count("}"),
+          f"{{={t.count(chr(123))} }}={t.count(chr(125))}")
+    check(f"{f}: parens balanced", t.count("(") == t.count(")"),
+          f"(={t.count(chr(40))} )={t.count(chr(41))}")
 
-print("\n== 7. No AGPL / no Textyl ==")
-# Textyl/AGPL must not appear in Swift code at all now (the warning comment
-# that used to live in NowPlayingFollower.swift moved to BUILD_NOTES.md).
-for bad in ["textyl", "Textyl", "AGPL", "GNU Affero"]:
-    check(f"no {bad!r} in Swift code", bad not in all_swift)
-bn = read("BUILD_NOTES.md")
-check("warning about Textyl/AGPL lives in BUILD_NOTES.md (documentation)",
-      "Textyl" in bn and "AGPL" in bn)
+print("\n== 6.5 否定检查（1.0.1：Engine V2 与 1.0.6 改进一律未并） ==")
+check("no Engine V2 files (Tests/, ENGINE_V2.md)",
+      not os.path.exists(os.path.join(ROOT, "Tests"))
+      and not os.path.exists(os.path.join(ROOT, "ENGINE_V2.md")))
+check("no Engine V2 strings in coordinator (generation/freezeSnapshot/0.8s re-anchor)",
+      "generation" not in pc and "freezeSnapshot" not in pc
+      and "missingSince" not in pc and "nextPoll" not in pc)
+for rel in ["MusicProviders/MediaRemoteAdapter.swift",
+            "PlaybackEngine/LyricMatcher.swift"]:
+    d = subprocess.check_output(
+        ["git", "diff", "--stat", "7e39edf", "HEAD", "--", rel], cwd=ROOT, text=True)
+    check(f"{rel}: unchanged vs 7e39edf (no Engine V2)", d.strip() == "", d.strip())
+check("no 1.0.6 playback improvements in coordinator (idle-saving poll tiers)",
+      "pollInterval" not in pc and "scheduleTimer" not in pc
+      and "activePollInterval" not in pc)
+check("no 1.0.6 keep-alive switch in ContentView (2288444 的开关未并）",
+      "keepAlive" not in cv.lower() and "保活开关" not in cv)
+check("no BackBoard/-hud/dynamic_lookup anywhere (pbxproj + swift)",
+      "dynamic_lookup" not in pbx
+      and "-hud" not in all_swift and "TLHUDApplication" not in all_swift
+      and "TLLyricsIPC" not in all_swift and "BackBoard" not in all_swift)
+check("build number is 16 (1.0.3, not 1.0.2 build 15)",
+      app_pl.get("CFBundleVersion") == "16")
+build_yml = read(".github/workflows/build.yml")
+check("build.yml: product name 桌面歌词-1.0.3.ipa",
+      "桌面歌词-1.0.3.ipa" in build_yml and "桌面歌词-1.0.2.ipa" not in build_yml
+      and "1.0.4" not in build_yml)
 
-print("\n== 8. New structure (02:15) + engine ==")
-# Follow restored as MediaRemoteAdapter (Lee 02:30: 改回 MediaRemote 跟随）.
-check("MediaRemoteAdapter.swift exists (follow restored as a PlaybackAdapter)",
-      os.path.exists(os.path.join(ROOT, "MusicProviders/MediaRemoteAdapter.swift")))
-check("MusicPlatformAdapter.swift deleted (superseded by PlaybackAdapter)",
-      not os.path.exists(os.path.join(ROOT, "MusicProviders/MusicPlatformAdapter.swift")))
-check("old NowPlayingFollower.swift path still gone (replaced by MediaRemoteAdapter)",
-      not os.path.exists(os.path.join(ROOT, "TrollLyricsDesk/NowPlayingFollower.swift")))
-check("no Swift code references deleted files",
-      "NowPlayingFollower" not in all_swift and "MusicPlatformAdapter" not in all_swift
-      and "importTrack" not in all_swift)
-mra = read("MusicProviders/MediaRemoteAdapter.swift")
-check("MediaRemoteAdapter: loads MRMediaRemoteGetNowPlayingInfo via dlopen (no direct link)",
-      "MediaRemoteBridge" in mra and "MediaRemoteSymbols.getNowPlayingInfo" in mra and
-      "@_silgen_name" not in mra)
-bridge = read("Core/MediaRemoteBridge.swift")
-check("MediaRemoteBridge: dlopen + dlsym + dlclose",
-      "dlopen" in bridge and "dlsym" in bridge and "dlclose" in bridge)
-check("MediaRemoteBridge: framework path from MediaRemoteSymbols",
-      "MediaRemoteSymbols.frameworkPath" in bridge)
-symbols = read("Core/MediaRemoteSymbols.swift")
-check("MediaRemoteSymbols: framework path + 4 symbol names",
-      all(s in symbols for s in ["MediaRemote.framework/MediaRemote",
-                                 "MRMediaRemoteGetNowPlayingInfo",
-                                 "MRMediaRemoteGetNowPlayingApplicationIsPlaying",
-                                 "MRMediaRemoteRegisterForNowPlayingNotifications",
-                                 "MRMediaRemoteGetNowPlayingApplicationDisplayID"]))
-check("PlaybackStatus defined once (no duplicate enum in Core)",
-      all_swift.count("enum PlaybackStatus") == 1)
-check("MediaRemoteAdapter: timestamp + elapsed + rate keys",
-      all(k in mra for k in ["kMRMediaRemoteNowPlayingInfoTimestamp",
-                             "kMRMediaRemoteNowPlayingInfoElapsedTime",
-                             "kMRMediaRemoteNowPlayingInfoPlaybackRate"]))
-check("MediaRemoteAdapter: title cleaning (brackets + markers)",
-      "cleanTitle" in mra and "Nightcore" in mra)
-check("MediaRemoteAdapter: tracks are platform .manual (source app unknown)",
-      "platform: .manual" in mra)
-check("MediaRemoteAdapter: 2s cache bound",
-      "cacheLifetime" in mra and "2.0" in mra)
-check("MediaRemote API used only by MediaRemoteAdapter.swift",
-      all("MRMediaRemote" not in read(rel) and "kMRMediaRemoteNowPlayingInfo" not in read(rel) for rel in
-          ["MusicProviders/AppleMusicAdapter.swift", "PlaybackEngine/PlaybackCoordinator.swift",
-           "App/PlaybackDashboardView.swift", "Lyrics/LRCLibClient.swift"]))
-lsv = read("App/LyricsSearchView.swift")
-check("LyricsSearchView: platform picker (Apple/网易云/QQ/手动）",
-      "MusicPlatform.allCases" in lsv)
-check("LyricsSearchView: online search via LRCLibClient",
-      "LRCLibClient.shared.search" in lsv)
-check("LyricsSearchView: import local .lrc", "fileImporter" in lsv and '"lrc"' in lsv)
-check("LyricsSearchView: uses makeTrack (new adapters, no importTrack)",
-      lsv.count(".makeTrack(") == 2, f"count={lsv.count('.makeTrack(')}")
-check("LyricsSearchView: selectLyrics isPlaying TRUE (Lee 02:04 correction)",
-      lsv.count("isPlaying: true") == 1, f"count={lsv.count('isPlaying: true')}")
-check("LyricsSearchView: importLocalFile isPlaying FALSE (Lee 02:04 correction)",
-      lsv.count("isPlaying: false") == 1, f"count={lsv.count('isPlaying: false')}")
-check("LyricsSearchView: never invent lyrics (no match -> error text)",
-      "没有找到相关歌曲" in lsv)
-check("LyricsSearchView: no credentials", all(b not in lsv for b in
-      ["password", "api_key", "secret", "Cookie:", "Authorization"]))
+
+print("\n== 6.6 1.0.2：Telegram 公开频道＋日志清除／复制 ==")
+about = read("App/AboutView.swift")
+check("AboutView: Telegram label is @Guhailon",
+      '"@Guhailon"' in about)
+check("AboutView: Telegram opens tg://resolve?domain=Guhailon, falls back to https://t.me/Guhailon",
+      '"tg://resolve?domain=Guhailon"' in about
+      and '"https://t.me/Guhailon"' in about)
+check("AboutView: no old invite link, no @seadragonjb",
+      "tg://join?invite=" not in about and "I-I8aw7HUAw1NGY9" not in about
+      and "@seadragonjb" not in about)
+logger = read("TrollLyricsDesk/LyricLogger.swift")
+check("LyricLogger: clear() deletes the log file",
+      "static func clear()" in logger and "removeItem" in logger)
+check("LyricLogger: read() still returns empty after clear (maxBytes/trim untouched)",
+      "maxBytes = 200 * 1024" in logger and "trimIfNeeded" in logger)
+lv = read("App/LogView.swift")
+check("LogView: copy button copies full log via UIPasteboard",
+      "UIPasteboard.general.string = LyricLogger.read()" in lv
+      and '"doc.on.doc"' in lv)
+check("LogView: copy feedback shows 已复制 then restores (~1.5s)",
+      '"已复制"' in lv and "asyncAfter" in lv)
+check("LogView: clear button asks for confirmation then clears",
+      '"确定要清除全部日志吗？"' in lv and "role: .destructive" in lv
+      and "LyricLogger.clear()" in lv and "entries = []" in lv)
+check("LogView: share button kept as-is",
+      '"分享"' in lv and "ShareLink(item: shareText)" in lv)
+check("LogView: copy/clear/share disabled when log is empty",
+      lv.count(".disabled(entries.isEmpty)") == 3,
+      f"count={lv.count('.disabled(entries.isEmpty)')}")
+
+print("\n== 6.7 1.0.2：背景图任意更换 ==")
 cv = read("App/ContentView.swift")
-check("ContentView: NavigationLink to LyricsSearchView (Lee's wiring)",
-      "LyricsSearchView()" in cv and "歌词搜索与导入" in cv)
-check("ContentView: NavigationLink to PlaybackDashboardView (Lee 02:19)",
-      "PlaybackDashboardView()" in cv and "统一音乐播放引擎" in cv)
-# currentElapsed formula (Lee 02:19)
+check("AppBackgroundView exists in ContentView.swift (no new file)",
+      "struct AppBackgroundView: View" in cv)
+check("AppBackgroundView reads all three background keys from the App Group",
+      '"animeBackgroundEnabled"' in cv and '"backgroundOpacity"' in cv
+      and '"selectedBackgroundData"' in cv
+      and cv.count('UserDefaults(suiteName: LyricStore.groupID)') >= 3)
+check("AppBackgroundView: switch off -> pure black, no image/gradient",
+      "Color.black" in cv and "if animeBackgroundEnabled" in cv)
+check("AppBackgroundView: custom image fullscreen, opacity = 1 - backgroundOpacity",
+      "UIImage(data: selectedBackgroundData)" in cv
+      and ".scaledToFill()" in cv
+      and ".opacity(1 - backgroundOpacity)" in cv)
+check("AppBackgroundView: no custom image -> original gradient, same opacity",
+      "Color.purple.opacity(0.8)" in cv and "Color.blue.opacity(0.5)" in cv)
+check("SettingsHubView / ContentView / AboutView / PlaybackDashboardView use AppBackgroundView",
+      cv.count("AppBackgroundView()") == 2
+      and "AppBackgroundView()" in read("App/AboutView.swift")
+      and "AppBackgroundView()" in read("App/PlaybackDashboardView.swift"))
+check("No hardcoded root gradient left outside AppBackgroundView",
+      cv.count("LinearGradient(") == 1
+      and "LinearGradient(" not in read("App/AboutView.swift")
+      and "LinearGradient(" not in read("App/PlaybackDashboardView.swift"))
+check("Version is 1.0.3 / build 16 (1.0.3 bumped version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.3</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>16</string>") == 1)
+
+print("\n== 6.8 1.0.2：悬浮窗固定位置开关 ==")
+pd = read("App/PlaybackDashboardView.swift")
+check("PlaybackDashboardView: positionLocked key (App Group, default false)",
+      '"floatingLyric.positionLocked"' in pd
+      and "private var positionLocked = false" in pd
+      and pd.count('UserDefaults(suiteName: LyricStore.groupID)') >= 3)
+check("PlaybackDashboardView: Toggle 固定悬浮窗位置 in the floating-lyric area",
+      '"固定悬浮窗位置"' in pd
+      and pd.index('"固定悬浮窗位置"') > pd.index('"显示悬浮歌词窗"')
+      and pd.index('"固定悬浮窗位置"') < pd.index('"悬浮窗歌词颜色"'))
+fl = read("Overlay/FloatingLyricViewController.swift")
+check("FloatingLyricViewController: positionLockedKey + Bool read (default false)",
+      '"floatingLyric.positionLocked"' in fl
+      and "private let positionLockedKey" in fl
+      and "prefs?.bool(forKey: positionLockedKey) ?? false" in fl)
+check("FloatingLyricViewController: handlePan returns early when locked",
+      "guard !positionLocked else { return }" in fl
+      and fl.index("guard !positionLocked else { return }")
+      < fl.index("let translation = gesture.translation"))
+check("FloatingLyricViewController: save/restore position untouched",
+      "private func savePosition(center: CGPoint)" in fl
+      and "private func restorePosition()" in fl
+      and '"floatingLyric.posX"' in fl and '"floatingLyric.posY"' in fl)
+check("PlaybackDashboardView: hint text follows the lock (moved from Overlay)",
+      '"悬浮窗口 · 已固定 · 双击隐藏"' in pd
+      and '"悬浮窗口 · 长按拖动 · 双击隐藏"' in pd)
+check("Version is 1.0.3 / build 16 (1.0.3 bumped version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.3</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>16</string>") == 1)
+
+print("\n== 6.9 1.0.2：提示文字移到界面＋标题居中 ==")
+fl = read("Overlay/FloatingLyricViewController.swift")
+check("FloatingLyricViewController: no hintLabel left",
+      "hintLabel" not in fl)
+check("FloatingLyricViewController: no hint strings left",
+      "长按拖动" not in fl and "已固定" not in fl)
+check("FloatingLyricViewController: lyric stack anchored to card (12pt top/bottom)",
+      "stack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 12)" in fl
+      and "stack.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -12)" in fl)
+check("FloatingLyricViewController: lock guard + save/restore untouched",
+      "guard !positionLocked else { return }" in fl
+      and "private func savePosition(center: CGPoint)" in fl
+      and "private func restorePosition()" in fl)
+pd = read("App/PlaybackDashboardView.swift")
+check("PlaybackDashboardView: hint line between song card and floating toggle",
+      '"悬浮窗口 · 长按拖动 · 双击隐藏"' in pd
+      and '"悬浮窗口 · 已固定 · 双击隐藏"' in pd
+      and pd.index('"悬浮窗口 · 长按拖动 · 双击隐藏"') > pd.index('进度：')
+      and pd.index('"悬浮窗口 · 长按拖动 · 双击隐藏"') < pd.index('"显示悬浮歌词窗"'))
+check("PlaybackDashboardView: title centered (ZStack, gear stays top-right)",
+      "ZStack(alignment: .topTrailing)" in pd
+      and '.frame(maxWidth: .infinity, alignment: .center)' in pd
+      and '"桌面歌词"' in pd
+      and ".padding(.top, 80)" in pd
+      and "gearshape.fill" in pd
+      and pd.index('ZStack(alignment: .topTrailing)') < pd.index('"桌面歌词"'))
+check("Version is 1.0.3 / build 16 (1.0.3 bumped version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.3</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>16</string>") == 1)
+
+print("\n== 6.10 1.0.3：授权激活（服务器验证） ==")
 ls = read("Lyrics/LyricStore.swift")
-check("LyricStore.currentElapsed: playing = elapsedWhenPaused + timeIntervalSince(startedAt)",
-      "snapshot.elapsedWhenPaused" in ls and "date.timeIntervalSince(" in ls
-      and "snapshot.startedAt" in ls)
-check("LyricStore.currentElapsed: paused = elapsedWhenPaused",
-      ls.count("return snapshot.elapsedWhenPaused") == 1)
-# coordinator: title+artist guard (Lee 02:20)
-pc = read("PlaybackEngine/PlaybackCoordinator.swift")
-check("PlaybackCoordinator.savePlayback: title AND artist guard (Lee 02:20)",
-      "snapshot.title == state.track.title" in pc and
-      "snapshot.artist == state.track.artist" in pc)
-check("PlaybackCoordinator.savePlayback: no title-only guard left",
-      "guard snapshot.title == state.track.title else" not in pc)
-# dashboard: button + onAppear both start directly, no permission gate
-# (Lee 02:26: onAppear 不用授权；Lee 02:30: MediaRemote needs no MediaLibrary grant)
-pdv = read("App/PlaybackDashboardView.swift")
-check("Dashboard button: direct coordinator.start(), no requestMusicPermission gate",
-      "requestMusicPermission" not in pdv and "coordinator.start()" in pdv)
-check("Dashboard onAppear: direct coordinator.start() (Lee 02:26: onAppear 不用授权）",
-      ".onAppear {\n            coordinator.start()\n        }" in pdv)
-check("Dashboard uses MediaRemoteAdapter (Lee 02:30: 改回 MediaRemote 跟随）",
-      "adapter: MediaRemoteAdapter()" in pdv and "adapter: AppleMusicAdapter()" not in pdv)
-# AppleMusicAdapter permission function (retained, unwired now)
-ama = read("MusicProviders/AppleMusicAdapter.swift")
-check("AppleMusicAdapter: requestMusicPermission present (Lee's function verbatim, retained but unwired)",
-      "func requestMusicPermission(" in ama and
-      "MPMediaLibrary.requestAuthorization" in ama)
-open_item("AppleMusicAdapter retained but unwired (Lee's file; dashboard uses MediaRemoteAdapter)",
-          "requestMusicPermission + NSAppleMusicUsageDescription stay, unused by the dashboard flow")
-# LyricSnapshot stays inside LyricStore.swift (Lee's tree lists no LyricSnapshot.swift)
-check("LyricSnapshot type stays in LyricStore.swift (no separate file)",
-      "struct LyricSnapshot: Codable" in ls and
-      not os.path.exists(os.path.join(ROOT, "Lyrics/LyricSnapshot.swift")))
-# old groups gone from Swift code paths (no stale path strings)
-check("no stale group paths in Swift code",
-      all(s not in all_swift for s in ["Shared/", "LocalLyrics/", "LyricsSearch/"]))
-# LyricLogger still present (kept per task; no callers after follower removal)
-check("LyricLogger.swift kept", os.path.exists(
-    os.path.join(ROOT, "TrollLyricsDesk/LyricLogger.swift")))
-open_item("LyricLogger has no callers after NowPlayingFollower removal (kept per task)",
-          "PlaybackCoordinator does not log yet")
-# MediaRemote no longer directly linked (Lee 10:44: dlopen via Core/MediaRemoteBridge)
-check("pbxproj: MediaRemote NOT directly linked (dlopen instead)",
-      "PrivateFrameworks" not in pbx and '"MediaRemote",' not in pbx)
+check("ActivationStore in LyricStore.swift (shared by App + Widget targets)",
+      "enum ActivationStore" in ls)
+check("ActivationStore: verify URL is /api/verify",
+      '"https://guhailong-repo.pages.dev/api/verify"' in ls
+      and "verifyURLString" in ls)
+check("ActivationStore: keys tld.activated / tld.activationType",
+      '"tld.activated"' in ls and '"tld.activationType"' in ls)
+check("ActivationStore: isActivated / activationType / markActivated(type:)",
+      "static var isActivated: Bool" in ls
+      and "static var activationType: String?" in ls
+      and "static func markActivated(type: String)" in ls)
+check("ActivationStore: no code values in LyricStore (keys + URL only)",
+      "TLD-" not in ls)
+av = read("App/ActivationView.swift")
+check("ActivationGateView: @AppStorage reads tld.activated from App Group",
+      "struct ActivationGateView" in av
+      and "@AppStorage(ActivationStore.activatedKey" in av
+      and "UserDefaults(suiteName: LyricStore.groupID)" in av)
+check("ActivationGateView: unactivated shows ActivationView, else content",
+      "if activated" in av and "ActivationView()" in av)
+check("ActivationVerifier: normalizes code (trim + uppercase)",
+      "trimmingCharacters(in: .whitespacesAndNewlines).uppercased()" in av)
+check("ActivationVerifier: POSTs to verifyURLString with JSON body",
+      'request.httpMethod = "POST"' in av
+      and "URLSession.shared.data(for: request)" in av
+      and '"application/json"' in av)
+check("ActivationVerifier: wrongCode vs needsNetwork distinguished",
+      "case wrongCode" in av and "case needsNetwork" in av
+      and "decoded.valid" in av and "http.statusCode == 200" in av)
+check("ActivationView: input + activate button, full screen",
+      "struct ActivationView: View" in av
+      and 'TextField("输入激活码"' in av
+      and '"激活"' in av and "AppBackgroundView()" in av)
+check("ActivationView: wrong-code message / needs-network message",
+      '"激活码不正确，请重新输入"' in av
+      and '"需要联网激活，请检查网络后重试"' in av)
+check("ActivationView: success writes App Group mark + reloads widget timelines",
+      "ActivationStore.markActivated(type: type)" in av
+      and "WidgetCenter.shared.reloadAllTimelines()" in av)
+check("ActivationView: log lines never interpolate the code value",
+      "\\(code)" not in av and "\\(type)" in av)
+check("ActivationView: no code values in source (no TLD- literal)",
+      "TLD-" not in av)
+runtime = read("App/TrollLyricsDeskApp.swift")
+check("makeRootViewController wraps PlaybackDashboardView in ActivationGateView",
+      "ActivationGateView {" in runtime
+      and "PlaybackDashboardView()" in runtime
+      and runtime.index("ActivationGateView") < runtime.index("PlaybackDashboardView()"))
+check("FloatingLyricViewController: hidden when not activated",
+      "view.isHidden = !floatingEnabled || !ActivationStore.isActivated" in fl)
+check("WidgetView: activation gate first, placeholder text",
+      "if !ActivationStore.isActivated" in wv
+      and '"请先在 App 内激活"' in wv
+      and "notActivatedView" in wv
+      and wv.index("if !ActivationStore.isActivated") < wv.index("family == .accessoryRectangular"))
+check("WidgetView: placeholder covers both families (gate is above the family branch)",
+      wv.index("if !ActivationStore.isActivated") < wv.index("lockScreenView"))
 
-print("\n== 9. LRC sample parse (Lee's sample) ==")
-# Replicate Lee's LyricParser regex in Python (same pattern, same semantics).
-pattern = re.compile(r"\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)")
-sample = open(os.path.join(ROOT, "sample.lrc"), encoding="utf-8").read()
-parsed = []
-for line in sample.splitlines():
-    for m in pattern.finditer(line):
-        minutes, seconds, frac, text = m.group(1), m.group(2), m.group(3), m.group(4)
-        t = int(minutes) * 60 + int(seconds) + (float("0." + frac) if frac else 0)
-        parsed.append((t, text.strip()))
-parsed.sort(key=lambda x: x[0])
-expect = [(12.0, "第一句歌词"), (16.5, "第二句歌词"), (20.0, "第三句歌词"), (62.5, "第四句歌词")]
-check("sample.lrc parses to 4 lines", len(parsed) == 4, str(parsed))
-check("sample.lrc times 12.0/16.5/20.0/62.5 sorted", parsed == expect, str(parsed))
-
-# Lee's 《晴天》 sample: [ti:]/[ar:]/[al:] metadata lines must be skipped.
-qt = open(os.path.join(ROOT, "qingtian.lrc"), encoding="utf-8").read()
-qparsed = []
-for line in qt.splitlines():
-    for m in pattern.finditer(line):
-        minutes, seconds, frac, text = m.group(1), m.group(2), m.group(3), m.group(4)
-        t = int(minutes) * 60 + int(seconds) + (float("0." + frac) if frac else 0)
-        qparsed.append((t, text.strip()))
-qparsed.sort(key=lambda x: x[0])
-qexpect = [(15.0, "故事的小黄花"), (19.5, "从出生那年就飘着"), (24.0, "童年的荡秋千")]
-check("qingtian.lrc parses to 3 lines ([ti:]/[ar:]/[al:] metadata skipped)",
-      len(qparsed) == 3, str(qparsed))
-check("qingtian.lrc times 15.0/19.5/24.0 sorted", qparsed == qexpect, str(qparsed))
-
-print("\n== 10. Assets.xcassets / icons ==")
-try:
-    from PIL import Image
-    icon_dir = os.path.join(ROOT, "TrollLyricsDesk/Assets.xcassets/AppIcon.appiconset")
-    contents = json.load(open(os.path.join(icon_dir, "Contents.json")))
-    want = {}
-    for img in contents["images"]:
-        size = img["size"].split("x")[0]
-        scale = int(img["scale"].replace("x", ""))
-        want[img["filename"]] = int(size) * scale
-    ok = True
-    for fn, px in sorted(want.items()):
-        p = os.path.join(icon_dir, fn)
-        if not os.path.exists(p):
-            ok = False
-            print(f"  missing {fn}")
+# 码值绝不进源码／仓库／日志：从 worker 的码表读码逐值比对，只比对、不打印。
+# 码表在 ~/workspace/trolllyricsdesk-worker/codes-tld.json（12 个码），不在仓库里。
+import json as _json
+codes_path = os.path.expanduser("~/workspace/trolllyricsdesk-worker/codes-tld.json")
+if os.path.exists(codes_path):
+    with open(codes_path, encoding="utf-8") as _f:
+        _codes_raw = _json.load(_f)
+    _code_values = []
+    def _collect(_o):
+        if isinstance(_o, str):
+            _code_values.append(_o)
+        elif isinstance(_o, list):
+            for _x in _o:
+                _collect(_x)
+        elif isinstance(_o, dict):
+            for _x in _o.values():
+                _collect(_x)
+    _collect(_codes_raw)
+    _code_values = [c for c in _code_values
+                    if isinstance(c, str) and c.startswith("TLD-")]
+    check("codes-tld.json loads (12 codes)", len(_code_values) == 12,
+          f"count={len(_code_values)}")
+    _tracked = subprocess.check_output(["git", "ls-files"], cwd=ROOT,
+                                       text=True).splitlines()
+    _hits = []
+    for _rel in _tracked:
+        _p = os.path.join(ROOT, _rel)
+        if not os.path.isfile(_p):
             continue
-        w, h = Image.open(p).size
-        if (w, h) != (px, px):
-            ok = False
-            print(f"  {fn}: {w}x{h} != {px}x{px}")
-    check("AppIcon set: all 9 sizes present + correct", ok, f"{len(want)} files")
-except ImportError:
-    open_item("PIL not available — icon sizes not checked")
-
-print("\n== 11. Toolchain (Linux limits) ==")
-import shutil
-if shutil.which("swiftc"):
-    check("swiftc available", True)
+        try:
+            _content = open(_p, encoding="utf-8", errors="ignore").read()
+        except OSError:
+            continue
+        for _c in _code_values:
+            if _c in _content:
+                _hits.append(f"{_rel} contains a code value")
+    check("no code value in any tracked file", not _hits, str(_hits[:5]))
+    _all_text = ""
+    for dirpath, _, filenames in os.walk(ROOT):
+        if ".git" in dirpath or "hidden_files" in dirpath:
+            continue
+        for fn in filenames:
+            if fn.endswith((".swift", ".m", ".h", ".plist", ".yml", ".md", ".py")):
+                _all_text += open(os.path.join(dirpath, fn),
+                                  encoding="utf-8", errors="ignore").read() + "\n"
+    check("no activation-code-shaped literal in source",
+          len(re.findall(r"TLD-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}",
+                         _all_text)) == 0)
 else:
-    open_item("swiftc NOT available on this Linux sandbox — Swift syntax cannot be compile-checked here",
-              "macOS build will be the first compile")
+    open_item("codes-tld.json not found — code-value scan skipped",
+              "码表不在本机时无法逐值比对；有码表再跑一次")
 
-print("\n== 12. Known gaps (recorded, not failures) ==")
-open_item("macOS compile not done (no Xcode here)", "first compile is the GitHub Actions run")
-open_item("MediaPlayer.framework link unproven (pbxproj link phase, SDK layout assumed)",
-          "the macOS link step is the first real test")
-open_item("NSAppleMusicUsageDescription stays in the plist (Lee's text; dashboard no longer asks)",
-          "AppleMusicAdapter + requestMusicPermission retained but unwired")
-open_item("MediaRemote follow reads any app's now-playing — sandboxed read on iOS 16.5 UNPROVEN",
-          "device test decides (same caveat as the LyricWall follow mode)")
-open_item("Widget refresh is system-throttled (per-line pre-scheduled timeline)",
-          "near-live, not per-second; App itself is the live view")
-open_item("LyricParser keeps empty lyric lines (Lee's parser verbatim)", "blank line shows blank in widget")
-open_item("NetEase/QQ adapters are data-model only (Lee's files)",
-          "they build a MusicTrack; lyric lookup is LRCLIB-only now — the previous build's NetEase/QQ network search is gone with LyricSearchService.swift, so the NetEase encryption question is moot")
+print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
+open_item("1.0.3 激活要真机验：首次打开全屏激活页",
+          "全新安装（或清掉 App Group 后）第一次打开：全屏激活页，不进主界面；"
+          "输对码后直接进主界面，不用重启；杀掉重开直接进主界面，不再要码")
+open_item("1.0.3 激活要真机验：码不对／没网",
+          "输错码提示「激活码不正确」，仍在激活页；断网（飞行模式）点激活提示"
+          "「需要联网激活」，仍在激活页；两种情况都不放行")
+open_item("1.0.3 激活要真机验：小组件占位",
+          "未激活时主屏幕小组件和锁屏小组件都显示「请先在 App 内激活」，不显示歌词；"
+          "激活后小组件恢复正常内容（时间轴已刷新）")
+open_item("1.0.3 激活要真机验：悬浮窗未激活隐藏",
+          "未激活时放音乐悬浮窗也不出歌词；激活后 0.25s 内自动出现，不用重启")
+open_item("1.0.3 激活要真机验：master／code 两类码",
+          "两类码都要有人在真机上试过：master 码与普通码各至少一次，激活后"
+          "类型记录正确")
+open_item("1.0.3：激活标记存在 App Group，卸载重装要重新激活",
+          "iOS 删 App 时 App Group 数据一般随之清除，重装后应重新要码；"
+          "真机上验证一次")
+open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
+          "1.0.1 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
+          "展开区、if #available 组合条件，都要 macOS 构建那一步才见分晓")
+open_item("1.0.2 新功能要真机验：Telegram 行点开进频道、日志复制／清除",
+          "Telegram 行改成 @Guhailon（tg://resolve?domain=Guhailon，退回 https://t.me/Guhailon）："
+          "点开要能直接进 SeaDragon 越狱源公开频道；没装 Telegram 时退回网页版；"
+          "日志页复制要能把整份日志贴到别处，清除要点确认后页面变空、文件删掉，"
+          "再写日志时文件要重建；"
+          "注：lastLiveState 编译错已在 1.0.1 修好（LiveLyricKey），run 45737671775 编过，"
+          "1.0.4 build 17 Archive 失败基本坐实是同根原因，不再单列")
+open_item("1.0.2 背景更换要真机验（新增第三件）",
+          "设置页「背景设置」选图后，主界面／设置页／关于页要立即换成这张图；"
+          "开关关掉变纯黑；透明度滑杆拖动图跟着变透（默认 0.25 即图 75% 显示）；"
+          "没选过图时是原来的紫／黑／蓝渐变；悬浮窗与小组件不受影响")
+open_item("1.0.2 悬浮窗固定位置要真机验（新增第四件）",
+          "主界面悬浮歌词区打开「固定悬浮窗位置」后，悬浮窗拖不动、主界面的提示行变成"
+          "“悬浮窗口 · 已固定 · 双击隐藏”，双击隐藏仍可用；关掉开关又能拖；"
+          "重启 App 后悬浮窗还在上次存好的位置（位置本来就会记住，开关只锁拖动）")
+open_item("1.0.2 提示文字移到界面＋标题居中要真机验（新增第五件）",
+          "悬浮窗里只剩歌词，没有任何提示小字；主界面歌曲卡片和开关之间有一行提示，"
+          "开锁时变“悬浮窗口 · 已固定 · 双击隐藏”，关锁时变“悬浮窗口 · 长按拖动 · 双击隐藏”；"
+          "「桌面歌词」标题横向居中，齿轮仍在右上角原位")
+open_item("otool 弱链接核实（编成后验包新增）",
+          "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
+          "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")
+open_item("Activity 更新会不会被系统节流（PLAN §8.1）",
+          "设计上变行才推（一行 4–5 秒一次）远低于上限，理论上不会被节流；"
+          "iOS 27 下的实际节流阈值没验过，真机连续听 10 首歌看横幅跟不跟")
+open_item("8 小时到期后要不要自动重开（PLAN §8.2，已按审查更正）",
+          "Live Activity 最长约 8 小时，系统结束后内容最多再留约 4 小时；"
+          "App 被划掉不等于 Activity 立即消失，ActivityKit 也不给检测引擎后台执行能力；"
+          "默认：到期横幅消失，用户回 App 再点开关；保活开着时可顺手重开，等真机验了再定")
+open_item("锁屏横幅取色器颜色会不会被系统压暗（PLAN §8.3）",
+          "先按取色值画，真机颜色不对就退回白色")
+open_item(".accessoryRectangular 在 iOS 15 上编不编得过（PLAN §8.4）",
+          "已用 if #available(iOS 16.0, *) 运行时判断包起来（比 PLAN 的写法更稳妥），"
+          "仍需 macOS 编译＋iOS 15 真机验证")
+open_item("ActivityKit 弱链接写法（PLAN §8.5）",
+          "用的是 OTHER_LDFLAGS 加 -weak_framework ActivityKit（App 两配置＋Widget 两配置，共 4 处）；"
+          "以编过且 iOS 15 真机不闪退为准，另加 otool 核实见上")
+open_item("LiveContainer 下 A/B 能不能用（PLAN §8.6）",
+          "公开接口理论上能用，但 LiveContainer 的进程模型＋后台行为没验过")
+open_item("锁屏小组件的刷新延迟到底多大（PLAN §8.7）",
+          "系统说了算；实测延迟要写进给皇上的回报，不要报没测过的数字")
+open_item("Live Activity 与 Overlay 同时开会两层歌词叠着（PLAN §8.8）",
+          "内容一致（同一份快照），不冲突；锁屏上横幅和悬浮窗同时出现，用户关一个就行")
+open_item("逐字同步没有（PLAN §8.9）",
+          "锁屏歌词是逐句；逐字要 LyricWord.swift／LyricSyncEngine.swift，两边都没有")
+open_item("iPhone 11 没有常亮显示（PLAN §8.10）",
+          "「关屏一直显示」在 iPhone 11 上做不到，任何路子都做不到；只有 15 Pro 的常亮显示能做到")
+open_item("真机必验 12 项（PLAN §7）都没验",
+          "横幅／灵动岛三态／常亮／限流／滑掉同步／暂停／LiveContainer／小组件添加与延迟／外观／iOS 15")
+open_item("同曲进度跳转同步（审查第 7 项，未做，独立修复）",
+          "同一首歌内拖动进度条、播放状态不变时，快照可能仍沿用旧时间基准；"
+          "这也影响原有桌面歌词，审查建议独立处理，等皇上定再做")
+open_item("默认白色在浅色锁屏上清不清晰（ChatGPT 问题 4，需真机）",
+          "第 51、110 行默认白色在浅色／深色锁屏背景下不一定清晰，真机测了再定要不要改默认色")
+open_item("横幅与展开态两套布局，未按设计共用三行歌词子视图（已知出入）",
+          "设计原文要求共用，实际代码是两套布局——不是编译错误，与设计原文不一致；"
+          "统一是重构项，1.0.1 先不动，等皇上定")
 
 print()
 print("FAILED:", fails if fails else "none")

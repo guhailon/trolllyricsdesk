@@ -137,7 +137,8 @@ final class FloatingLyricViewController: UIViewController {
     }
 
     private func applyVisibility() {
-        view.isHidden = !floatingEnabled
+        // 1.0.3：未激活不显示悬浮歌词（激活后 0.25s 刷新时自动恢复，不用重启）。
+        view.isHidden = !floatingEnabled || !ActivationStore.isActivated
     }
 
     @objc private func handleDoubleTap() {

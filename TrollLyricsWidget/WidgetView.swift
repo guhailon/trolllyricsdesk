@@ -10,13 +10,33 @@ struct TrollLyricsWidgetView: View {
 
     var body: some View {
         Group {
-            if #available(iOS 16.0, *),
-               family == .accessoryRectangular {
+            // 1.0.3：未激活时显示占位，不显示歌词；激活后恢复正常内容。
+            if !ActivationStore.isActivated {
+                notActivatedView
+            } else if #available(iOS 16.0, *),
+                      family == .accessoryRectangular {
                 lockScreenView
             } else {
                 mainScreenView
             }
         }
+    }
+
+    /// 未激活占位（1.0.3）：主屏幕／锁屏两种 family 都走这里。
+    private var notActivatedView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.black.opacity(0.5))
+
+            Text("请先在 App 内激活")
+                .font(.headline)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .padding(12)
+        }
+        .clipShape(
+            RoundedRectangle(cornerRadius: 18)
+        )
     }
 
     /// 主屏幕小组件（原有布局，一字未动，只是从 body 里抽出来）。

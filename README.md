@@ -194,3 +194,17 @@ python3 check_1.0.3.py
   「桌面歌词」标题横向居中（ZStack 居中标题＋齿轮仍固定右上角原位，顶部 80 的 padding 不动）。
 - 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；产物名桌面歌词-1.0.2.ipa）。
   其余内容与 1.0.1 一字未动。
+
+## 1.0.3 build 16：首次打开要激活码（服务器验证）
+
+- **授权激活页**：整个 App 第一次打开就要码。启动时读 App Group 的激活标记（`tld.activated`），
+  未激活就全屏显示激活页（输码框＋激活按钮），不进主界面；验过后把标记＋类型写进 App Group
+  （`tld.activated=true`、`tld.activationType=master/code`），以后直接进主界面，不用重启。
+- **服务器验证**：POST `https://guhailong-repo.pages.dev/api/verify`，body `{"code": "..."}`；
+  码先 trim 再大写（服务端同样不分大小写）。回 `{"valid": true, "type": "master"|"code"}` 才放行；
+  码不对提示「激活码不正确」；没网／服务端不通提示「需要联网激活」，绝不放行。
+  码表只在服务端，App 源码与仓库里没有任何码值。
+- **小组件**：未激活时显示「请先在 App 内激活」占位，不显示歌词；激活后刷新时间轴恢复正常。
+- **悬浮窗**：未激活不显示悬浮歌词（激活后 0.25s 刷新时自动恢复，不用重启）。
+- 锁屏代码（Live Activities＋锁屏小组件）一字未动。版本 1.0.3，build 15→16
+  （两 Info.plist＋pbxproj MARKETING_VERSION 四处；产物名桌面歌词-1.0.3.ipa）。
