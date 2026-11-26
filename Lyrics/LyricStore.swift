@@ -23,6 +23,20 @@ enum LyricStore {
 
     static let dataKey = "lyric.snapshot"
 
+    /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
+    /// Info.plist 键 TLDSLiveContainer 为 true，或包路径／可执行路径／argv[0]
+    /// 含 livecontainer 或 /lcapps/，或类 LCAppDelegate 存在，都算宿主。
+    /// 宿主模式下 defaults 走 .standard（不用 App Group），悬浮窗／锁屏／
+    /// 保活／小组件刷新一律不走，只做应用内歌词。
+    static var isLiveContainer: Bool {
+        if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true { return true }
+        let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? ""]
+        return paths.contains { path in
+            let lower = path.lowercased()
+            return lower.contains("livecontainer") || lower.contains("/lcapps/")
+        } || NSClassFromString("LCAppDelegate") != nil
+    }
+
     /// 当前是否检测不到任何播放器。由 poll() 写入，悬浮窗读取后决定
     /// 是显示歌词还是提示——避免无音乐时悬浮窗停留在上一次的歌词快照。
     static let noMusicKey = "lyric.noMusic"
@@ -41,7 +55,7 @@ enum LyricStore {
     private static let offsetKeyPrefix = "lyric.timeOffset|"
 
     static var defaults: UserDefaults? {
-        UserDefaults(suiteName: groupID)
+        isLiveContainer ? .standard : UserDefaults(suiteName: groupID)
     }
 
     /// 某首歌的时间偏移 key（用稳定歌曲标识，字段型播放器换字段也不变）。

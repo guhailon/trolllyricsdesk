@@ -3,6 +3,27 @@
 #import "Private/UIKitPrivate.h"
 #import "TrollLyricsDesk-Swift.h"
 #import <CoreFoundation/CoreFoundation.h>
+#import <objc/runtime.h>
+
+// Apply the native window fix only to our standalone process, not the host.
+// 与下面已有的 UIRootSceneWindow 分类（TLDSHook）同款：背景透明＋windowLevel 10000；
+// 分类在加载时就生效，宿主模式下这个 swizzle 不调用，只保留给巨魔模式。
+static void TLDSInstallNativeWindowFix(void) {
+    Class cls = NSClassFromString(@"UIRootSceneWindow");
+    if (!cls) return;
+    SEL layout = @selector(layoutSubviews);
+    Method method = class_getInstanceMethod(cls, layout);
+    if (method) {
+        IMP original = method_getImplementation(method);
+        IMP replacement = imp_implementationWithBlock(^(UIWindow *window) {
+            ((void (*)(id, SEL))original)(window, layout);
+            window.layer.backgroundColor = UIColor.clearColor.CGColor;
+        });
+        class_replaceMethod(cls, layout, replacement, method_getTypeEncoding(method));
+    }
+    Method level = class_getInstanceMethod(cls, @selector(windowLevel));
+    if (level) class_replaceMethod(cls, @selector(windowLevel), imp_implementationWithBlock(^CGFloat(UIWindow *window) { return 10000; }), method_getTypeEncoding(level));
+}
 
 // 锁屏 / 解锁的 Darwin 通知回调。
 // 关键：lockstate / lockcomplete 在锁定和解锁时都会触发，必须确认「已解锁」
@@ -72,7 +93,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [self log:@"App 启动：自动跟随已开启"];
 
     // 注册系统级 Shell + 创建全局悬浮歌词场景
-    [self startFloatingOverlay];
+    // LiveContainer 宿主不装 native window fix、不启动悬浮窗（只有应用内歌词）。
+    if (![[TLDSRuntime shared] isHosted]) {
+        TLDSInstallNativeWindowFix();
+        [self startFloatingOverlay];
+    }
 
     // 监听锁屏状态：解锁后重新激活悬浮窗（锁屏会隐藏 Shell 前台场景）
     // lockcomplete = 已锁定；lockstate = 锁定状态变化（含解锁）。两个都监听。

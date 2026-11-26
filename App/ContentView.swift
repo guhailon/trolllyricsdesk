@@ -288,7 +288,7 @@ struct ContentView: View {
 
         LyricStore.save(snapshot)
 
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 }
 

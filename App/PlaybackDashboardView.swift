@@ -135,6 +135,36 @@ struct PlaybackDashboardView: View {
                     .background(.ultraThinMaterial)
                     .cornerRadius(20)
 
+                    // LiveContainer 宿主：没有悬浮窗／锁屏／小组件，只在应用内显示歌词，
+                    // 0.25s 刷新一次，带暂停／开始与归零。
+                    if LyricStore.isLiveContainer {
+                        Text("LiveContainer · 应用内歌词模式")
+                            .foregroundColor(.white)
+                        TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                            if let snapshot = LyricStore.load() {
+                                VStack(spacing: 12) {
+                                    Text(snapshot.title).font(.headline)
+                                    Text(LyricStore.currentLyric(snapshot, at: context.date)?.text ?? "等待歌词 / 请到设置导入")
+                                        .font(.title2).multilineTextAlignment(.center)
+                                    Button(snapshot.isPlaying ? "暂停歌词" : "开始歌词") {
+                                        var updated = snapshot
+                                        updated.elapsedWhenPaused = LyricStore.currentElapsed(snapshot, at: Date())
+                                        updated.startedAt = Date()
+                                        updated.isPlaying.toggle()
+                                        LyricStore.save(updated)
+                                    }
+                                    Button("歌词归零") {
+                                        var updated = snapshot
+                                        updated.elapsedWhenPaused = 0
+                                        updated.startedAt = Date()
+                                        LyricStore.save(updated)
+                                    }
+                                }.foregroundColor(.white)
+                            } else {
+                                Text("请在设置中搜索或导入歌词").foregroundColor(.white)
+                            }
+                        }
+                    } else {
                     // 悬浮窗操作提示（原先在悬浮窗卡片底部，现移到主界面；文案跟固定开关走）
                     Text(positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏")
                         .font(.system(size: 20, weight: .semibold))
@@ -191,6 +221,7 @@ struct PlaybackDashboardView: View {
                     .padding()
                     .background(.ultraThinMaterial)
                     .cornerRadius(15)
+                    }
 
                     Spacer()
                 }

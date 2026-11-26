@@ -32,6 +32,12 @@ willConnectToSession:(UISceneSession *)session
         isMain = YES;   // 首个未知会话当主界面
     }
 
+    // LiveContainer 宿主：只有一个主界面场景，没有悬浮歌词场景。
+    if ([[TLDSRuntime shared] isHosted]) {
+        isMain = YES;
+        isFloating = NO;
+    }
+
     if (isMain) {
         appDelegate.mainSceneConnected = YES;
 

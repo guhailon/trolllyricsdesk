@@ -238,7 +238,7 @@ struct SettingsView: View {
                             LyricStore.setTimeOffset(
                                 newValue, title: song.title, artist: song.artist
                             )
-                            WidgetCenter.shared.reloadAllTimelines()
+                            if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
                         }
                         Text("只对当前歌曲生效：\(currentSong.title)")
                             .font(.caption)
@@ -334,7 +334,7 @@ struct SettingsView: View {
             selectedBackgroundData = data
         }
 
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     // MARK: - 读取图片

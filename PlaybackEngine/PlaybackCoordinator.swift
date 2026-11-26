@@ -340,7 +340,7 @@ final class PlaybackCoordinator: ObservableObject {
         snapshot.isPlaying = true
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     /// 检测到新歌时立即发布快照：进度基准对齐当前 position，
@@ -370,7 +370,7 @@ final class PlaybackCoordinator: ObservableObject {
         )
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
 
         if cached != nil {
             message = "歌词匹配成功（本地）"
@@ -409,7 +409,7 @@ final class PlaybackCoordinator: ObservableObject {
         snapshot.isPlaying = newState.status == .playing
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     /// 界面上真正显示的内容：歌名、歌手、状态、整秒进度。
@@ -546,7 +546,7 @@ final class PlaybackCoordinator: ObservableObject {
         }
 
         LyricStore.save(final)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     /// 换歌判定的 key。某些播放器会在 title / artist 之间来回交换

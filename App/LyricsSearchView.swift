@@ -340,7 +340,7 @@ struct LyricsSearchView: View {
 
         LyricStore.save(snapshot)
 
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
 
         errorMessage = "歌词已保存，可以添加或刷新桌面组件"
     }
@@ -368,7 +368,7 @@ struct LyricsSearchView: View {
 
             LyricStore.save(snapshot)
 
-            WidgetCenter.shared.reloadAllTimelines()
+            if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
 
             errorMessage = "本地歌词导入成功"
 

@@ -168,7 +168,7 @@ struct ActivationView: View {
         do {
             let type = try await ActivationVerifier.verify(code: code)
             ActivationStore.markActivated(type: type)
-            WidgetCenter.shared.reloadAllTimelines()
+            if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
             LyricLogger.log("激活成功（\(type)）")
         } catch ActivationError.wrongCode {
             message = "激活码不正确，请重新输入"

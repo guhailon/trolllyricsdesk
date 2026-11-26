@@ -93,11 +93,13 @@ final class TrollLyricsRuntime: NSObject {
     }
 
     /// App 启动即自动跟随所有播放器（ObjC AppDelegate 调用）。
+    @objc func isHosted() -> Bool { LyricStore.isLiveContainer }
+
     @objc func start() {
         guard !started else { return }
         started = true
 
-        BackgroundKeepAlive.shared.start()
+        if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }
 
         let coordinator = ensurePlayback()
         Task { @MainActor in
