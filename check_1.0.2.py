@@ -339,15 +339,17 @@ print("\n== 6. 红线 ==")
 # 1.0.2 前三件不动 Overlay/；第四件（固定位置开关）只动
 # Overlay/FloatingLyricViewController.swift 一处（锁判断＋提示文字），
 # 场景注册／入口／entitlements／.tbd 一律不动。
+# 红线锚点是 1.0.2 的起点 555c666（1.0.1 末提交）：1.0.2 四件里
+# 只有第四件动 Overlay/，且只动 FloatingLyricViewController.swift。
 diff_overlay_files = subprocess.check_output(
-    ["git", "diff", "--name-only", "HEAD", "--", "Overlay/"],
+    ["git", "diff", "--name-only", "555c666", "HEAD", "--", "Overlay/"],
     cwd=ROOT, text=True).strip().splitlines()
 diff_overlay_files = [f for f in diff_overlay_files if f.strip()]
 check("Overlay/: only FloatingLyricViewController.swift changed (position lock)",
       diff_overlay_files == ["Overlay/FloatingLyricViewController.swift"],
       str(diff_overlay_files))
 diff_fl = subprocess.check_output(
-    ["git", "diff", "HEAD", "--", "Overlay/FloatingLyricViewController.swift"],
+    ["git", "diff", "555c666", "HEAD", "--", "Overlay/FloatingLyricViewController.swift"],
     cwd=ROOT, text=True)
 check("Overlay diff: only the position-lock guard + hint (no scene/entry changes)",
       "positionLocked" in diff_fl
