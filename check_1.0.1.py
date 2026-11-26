@@ -224,7 +224,7 @@ check("coordinator: publishLiveLyrics called at end of poll() + track-change bra
 check("coordinator: full-state dedup (BUG-02/04) + Activity id (BUG-01 第二层）",
       "lastLiveState" in pc and "lastLiveActivityID" in pc
       and "lastLiveLyricIndex" not in pc and "lastLiveTrackKey" not in pc
-      and "state == lastLiveState" in pc
+      and "key == lastLiveState" in pc
       and "activityID != lastLiveActivityID" in pc)
 check("coordinator: isActive guard resets dedup when Live Activity off (BUG-01 第一层）",
       "guard LyricsLiveActivityController.shared.isActive else" in pc
@@ -236,8 +236,11 @@ check("coordinator: content length cap 120 (P2 超长歌词）",
       "clipped(" in pc and "text.count > 120" in pc)
 check("coordinator: ensureRunning() idempotent, no direct start() from lock screen",
       "func ensureRunning()" in pc and "var isRunning: Bool" in pc)
-check("coordinator: lastLiveState carries @available(iOS 16.1, *) (d461b62 原文没带，1.0.1 补上）",
-      "@available(iOS 16.1, *)\n    private var lastLiveState" in pc)
+check("coordinator: lastLiveState is a plain Equatable key struct, NOT a stored ContentState (run 45737184426 fix)",
+      "private struct LiveLyricKey: Equatable" in pc
+      and "private var lastLiveState: LiveLyricKey?" in pc
+      and "LyricsLiveAttributes.ContentState?" not in pc
+      and "@available(iOS 16.1, *)\n    private var lastLiveState" not in pc)
 check("coordinator: staleDate = next line + 5s",
       "addingTimeInterval(nextIn + 5)" in pc)
 check("coordinator: call sites guarded by if #available(iOS 16.1, *)",
@@ -395,11 +398,13 @@ print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "1.0.1 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
           "展开区、if #available 组合条件，都要 macOS 构建那一步才见分晓")
-open_item("lastLiveState 存属性的 @available 写法（1.0.1 相对 d461b62 的改动）",
+open_item("lastLiveState 存属性的写法（1.0.1 第一版编失败，run 45737184426 已证实）",
           "d461b62 原文里 lastLiveState: LyricsLiveAttributes.ContentState? 没带 @available；"
-          "MinOS 15.0 下存 16.1 才有的类型当属性，理论上编不过，1.0.1 补了 @available(iOS 16.1, *)；"
-          "这可能是 1.0.4 build 17 Archive 失败的原因之一（同款代码在 e7e97df 里，未取到日志无法证实）；"
-          "macOS 编译时若还报错，再按编译器的提示修")
+          "1.0.1 第一版补了 @available(iOS 16.1, *)，macOS 构建 Archive 报错："
+          "stored properties cannot be marked potentially unavailable with '@available'（job.log 第 913 行）；"
+          "两种写法都错——改存普通 Equatable 键结构 LiveLyricKey（7 字段与 ContentState 一一对应），去重语义不变；"
+          "这也基本坐实了 1.0.4 build 17 Archive 失败的原因（同款代码在 e7e97df 里）；"
+          "重编后看 Archive 还报不报这个错")
 open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")

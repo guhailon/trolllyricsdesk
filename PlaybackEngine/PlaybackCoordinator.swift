@@ -21,10 +21,21 @@ final class PlaybackCoordinator: ObservableObject {
     /// 状态没变不推（系统限流：歌词一行 4–5 秒才切一次，远低于每秒一次的上限）。
     /// 完整状态比较去重（BUG-02／BUG-04）：暂停/恢复、换词、同下标换词、
     /// Activity 换实例都会推；一行没变时不推。
-    /// 注意：ContentState 是 iOS 16.1 才有的类型，存成属性要带 @available，
-    /// 否则 MinOS 15.0 下编不过（d461b62 原文没带，这里补上；行为不变）。
-    @available(iOS 16.1, *)
-    private var lastLiveState: LyricsLiveAttributes.ContentState?
+    /// 注意：ContentState 是 iOS 16.1 才有的类型，不能存成协调器的存储属性——
+    /// 不带 @available 时 MinOS 15.0 下编不过，带了 @available Swift 也不允许
+    /// 给存储属性标 potentially unavailable（1.0.1 第一版编失败，run 45737184426：
+    /// stored properties cannot be marked potentially unavailable with '@available'）。
+    /// 所以只存一个普通 Equatable 键结构，去重语义不变。
+    private struct LiveLyricKey: Equatable {
+        var title: String
+        var artist: String
+        var previous: String
+        var current: String
+        var next: String
+        var isPlaying: Bool
+        var lyricColorHex: Int
+    }
+    private var lastLiveState: LiveLyricKey?
     private var lastLiveActivityID: String?
 
     init(adapter: any PlaybackAdapter) {
@@ -218,10 +229,20 @@ final class PlaybackCoordinator: ObservableObject {
 
             // BUG-02／BUG-04：完整状态比较去重——暂停/恢复、换词、同下标换词、
             // Activity 换实例都会推；一行没变时不推。
-            if state == lastLiveState && activityID == lastLiveActivityID {
+            // 去重用普通键结构比（ContentState 本身不能存成属性，见上面注释）。
+            let key = LiveLyricKey(
+                title: state.title,
+                artist: state.artist,
+                previous: state.previous,
+                current: state.current,
+                next: state.next,
+                isPlaying: state.isPlaying,
+                lyricColorHex: state.lyricColorHex
+            )
+            if key == lastLiveState && activityID == lastLiveActivityID {
                 return
             }
-            lastLiveState = state
+            lastLiveState = key
             lastLiveActivityID = activityID
 
             Task {
