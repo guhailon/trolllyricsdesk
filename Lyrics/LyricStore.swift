@@ -26,7 +26,7 @@ enum LyricStore {
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// Info.plist 键 TLDSLiveContainer 为 true，或包路径／可执行路径／argv[0]
     /// 含 livecontainer 或 /lcapps/，或类 LCAppDelegate 存在，都算宿主。
-    /// 宿主模式下 defaults 走 .standard（不用 App Group），悬浮窗／锁屏／
+    /// 宿主模式下 defaults 走 .standard（不用 App Group），悬浮窗／
     /// 保活／小组件刷新一律不走，只做应用内歌词。
     static var isLiveContainer: Bool {
         if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true { return true }

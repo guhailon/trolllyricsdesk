@@ -13,10 +13,28 @@
   （两份 entitlements 与 6857d3c 一字未动，自检 §11 已核）。
 - 保留新底子歌词同步修正与逐歌偏移（一字不动，自检红线锚已核）；
   单 IPA、包名 com.ycwl.Lyrics 不变、激活 POST /api/verify 不变；
-  不加独立客户端、不加 TCP 桥、不修 Telegram 行点、不修锁屏歌词不见；
+  不加独立客户端、不加 TCP 桥、不修 Telegram 行点；
+  **锁屏歌词已取消（见下节），不再是功能点。**
   PiP 只研究、不实现（皇上自己弄）。
 
 ---
+
+## 零、锁屏歌词已取消（皇上 2026-11-26 21:46 令）
+- 原因：锁屏歌词（Live Activity）从 1.0.1 起就没在真机上证实过能用——
+  皇上 2026-11-26 10:44 说「1.0.1 没用，试过了」，14:14 又问锁屏歌词为什么显示后不见；
+  皇上现在发话，没用就取消。
+- 拿掉的范围（单独一笔提交，可 revert）：删 `LiveActivity/LyricsLiveActivity.swift`、
+  `PlaybackEngine/LyricsLiveActivityController.swift`；PlaybackCoordinator 删
+  LiveLyricKey／lastLiveState／lastLiveActivityID／isRunning／ensureRunning／
+  publishLiveLyrics() 及两处调用点（同步修正一字未动）；ContentView 删锁屏区；
+  App Info.plist 删 NSSupportsLiveActivities；Widget 删 accessoryRectangular 锁屏分支＋
+  Bundle 注册；pbxproj 删两文件条目＋ActivityKit 弱链接 4 处
+  （.tbd 直链是悬浮窗的，没动）；新写的三档／渲染器／诊断代码里以锁屏为功能点的描述
+  一并拿掉（PiP「锁屏不保证」是 ChatGPT 设计的原句，保留原意；悬浮窗解锁后重建
+  `needsRebuildOnUnlock` 是浮窗逻辑，不动）。
+- 恢复路径：代码在 git 历史 newbase **e0c154a** 里，以后想加回来可从那恢复。
+  build 18 那个已发皇上的包不动（里面有锁屏，皇上正在测，不重编）。
+- 验包里锁屏项改成「不在位」验证（见第十一节）。
 
 ## 一、7 项各改了哪些文件
 
@@ -59,7 +77,7 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 
 判定结果写进 `LyricStore.defaults`（`tlds.runMode`／`tlds.runModeReason`），
 设置页「诊断（1.0.5）」区显示中文模式名，日志里每次写判定都记一行。
-巨魔模式行为一字不动：`BackgroundKeepAlive`、锁屏推送、Widget 刷新等宿主 guard
+巨魔模式行为一字不动：`BackgroundKeepAlive`、Widget 刷新等宿主 guard
 仍按 `isLiveContainer` 走（它们管的是 Live Activity／小组件，不是悬浮窗）。
 
 ### 日志样例（日志页里长这样，`[时间] ` 前缀是 LyricLogger 自带的）
@@ -147,20 +165,28 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 - `2c64cad` — 1.0.5 build 19：诊断实现（15 个文件，＋647／−35）。
 - `a5ae262` — 自检 check_1.0.5.py（锚点 6857d3c，146 PASS）＋RUN_1.0.5.md。
   头 run **45828687961 success**（11 步全过，见下节）——诊断版代码能编。
-- `（第三笔）` — PiP 实验引擎＋皇上树新结构（11 个新文件＋接线改动）。
-- `（第四笔）` — 自检升级（187 PASS）＋本 RUN 文件更新。
+- `c6821f1` — PiP 实验引擎＋皇上树新结构（11 个新文件＋接线改动）。
+- `29a26c6` — 自检升级（187 PASS）＋RUN 更新（三档→引擎／树出入／PiP 两段待验）。
+  头 run 45830330430 只排到队、没跑完就被锁屏移除的新提交取代（见下），结论作废。
+- `（第五笔）` — **1.0.5 移除锁屏（皇上 2026-11-26 21:46 令，真机从未证实可用；可从 newbase e0c154a 恢复）**。
+  注：皇上原令是「先做这笔，在功能提交之前」，但这条令到时四笔功能提交已经推上去了，
+  退不回去——移除仍是单独一笔、可 revert 的提交，只是顺序上落在功能提交之后。
 
 ## 六、编译日志
 - 诊断版头 run：**45828687961**，head a5ae262，workflow Build，job Build，
   status_field=completed，**conclusion=success**（排队约 6 分钟，跑约 1 分钟），
   11 个步骤全部 success，无池子取消、无重跑。
-- PiP 版头 run：（推第四笔后填：run 号／结论／产物大小／SHA256。）
+- PiP 版头 run 45830330430（head 29a26c6）：12 次轮询（12 分钟）仍在排队，
+  第二段接力时被锁屏移除的新提交取代，不再等它——最终 IPA 以移除锁屏后的新头 run 为准。
+- 移除锁屏后头 run：（推第五笔后填：run 号／结论／产物大小／SHA256。）
 
 ## 七、自检
-`python3 check_1.0.5.py`（锚点 6857d3c）：**187 PASS，FAILED: none，OPEN 11**。
+`python3 check_1.0.5.py`（锚点 6857d3c）：**182 PASS，FAILED: none，OPEN 11**。
 红线：LyricStore diff 零删行；9 个同步锚符号在位；两份 entitlements 与 6857d3c 一字未动；
 全树无 38473／DualProcessBridge／dynamic_lookup／OverlayEngine／LyricsSyncEngine；
-BackBoard 只在权限对照表里提一次名字（标签，不是实现）。
+BackBoard 只在权限对照表里提一次名字（标签，不是实现）；
+锁屏不在位：两锁屏文件不在、NSSupportsLiveActivities 不在、accessoryRectangular 不在、
+ActivityKit 弱链接 0 处。
 
 ## 八、新结构与 ChatGPT 树的出入（以皇上的树为准）
 | 位置 | ChatGPT 建议的树 | 皇上的树（实际建的） | 备注 |
@@ -225,9 +251,10 @@ BackBoard 只在权限对照表里提一次名字（标签，不是实现）。
    各项都应为 1；若有大于 1 的，抄回那几行。
 5. **后台**：App 切后台再回来，看日志里 `进入后台` 与 `回到前台` 的时间点，
    对照悬浮窗是什么时候消失的；若悬浮窗在「进入后台」那一刻没的，就是被挂起弄没的。
-6. **巨魔模式回归**：同一 IPA 装回越狱机 TrollStore，悬浮窗／锁屏／保活／激活一切照旧；
+6. **巨魔模式回归**：同一 IPA 装回越狱机 TrollStore，悬浮窗／保活／激活一切照旧；
    日志里应是「巨魔原生模式」，不应出现复核行（巨魔不复核）。
-7. **不验的**：Telegram 行点没反应、锁屏歌词不见——1.0.5 不修这两项，不要顺手报它们修没修好。
+7. **不验的**：Telegram 行点没反应——1.0.5 不修这一项，不要顺手报它修没修好。
+   锁屏歌词已取消（下节），不用验。
 8. **PiP 实验第一段（固定测试文字）**：在 LiveContainer 里打开 App → 设置页 → 诊断（1.0.5）
    → 点「开始 PiP 测试（固定文字，实验）」，然后按 Home 回桌面、再打开别的 App（如 Safari）：
    - 若桌面／别的 App 上方出现一个小窗，里面是「悬浮测试 · 桌面歌词 1.0.5」白字黑底

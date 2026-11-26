@@ -8,6 +8,8 @@ base = newbase HEAD 6857d3c (1.0.0/build 18 已合并版)
     不只看路径/类名/plist，不只看「注册成功」日志)
   + 版本 1.0.5, build 19, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥/
     独立客户端/双 IPA；不修 Telegram 行点、不修锁屏歌词不见。
+  + 锁屏已取消（皇上 2026-11-26 21:46 令，真机从未证实可用；可从 newbase
+    e0c154a 恢复；build 18 已发包不动）。
   + PiP 画中画歌词实验引擎（皇上 21:26 定：只研究作废，按皇上的树实现；
     先验固定测试文字，再接实时歌词；全程标「实验」，不得报成已实现）
   + 新结构（皇上的树为准）：Compatibility／Renderer／Diagnostics 三组；
@@ -138,10 +140,13 @@ def pbx_resolved_files(pbx_text):
 
 
 print("== 1. 新文件 ==")
-for rel in ["LiveActivity/LyricsLiveActivity.swift",
-            "PlaybackEngine/LyricsLiveActivityController.swift",
-            "App/ActivationView.swift"]:
+for rel in ["App/ActivationView.swift"]:
     check(f"exists: {rel}", os.path.exists(os.path.join(ROOT, rel)))
+# 1.0.5 锁屏已取消（皇上 2026-11-26 21:46 令）：两个锁屏文件必须不在
+for rel in ["LiveActivity/LyricsLiveActivity.swift",
+            "PlaybackEngine/LyricsLiveActivityController.swift"]:
+    check(f"removed: {rel} 不在（锁屏已取消）",
+          not os.path.exists(os.path.join(ROOT, rel)))
 
 print("\n== 2. 版本 / 包名 / MinOS ==")
 for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
@@ -158,8 +163,8 @@ check("app Info.plist: bundle id com.ycwl.Lyrics",
       app_pl.get("CFBundleIdentifier") == "com.ycwl.Lyrics")
 check("app Info.plist: display name 桌面歌词",
       app_pl.get("CFBundleDisplayName") == "桌面歌词")
-check("app Info.plist: NSSupportsLiveActivities = true",
-      app_pl.get("NSSupportsLiveActivities") is True)
+check("app Info.plist: NSSupportsLiveActivities 不在（锁屏已取消）",
+      "NSSupportsLiveActivities" not in app_pl)
 check("app Info.plist: no TLDSLiveActivities key / no TLDSLiveContainer=true",
       app_pl.get("TLDSLiveContainer") is not True)
 check("widget Info.plist: no TLDSLiveContainer=true",
@@ -273,40 +278,36 @@ check("FloatingLyricViewController: save/restore 位置未动",
       "private func savePosition(center: CGPoint)" in fl
       and "private func restorePosition()" in fl)
 
-print("\n== 6. 锁屏 ==")
-live = read("LiveActivity/LyricsLiveActivity.swift")
-ctrl = read("PlaybackEngine/LyricsLiveActivityController.swift")
-check("LyricsLiveActivity: ActivityAttributes + ContentState + DynamicIsland",
-      "struct LyricsLiveAttributes: ActivityAttributes" in live
-      and "struct ContentState: Codable, Hashable" in live
-      and "DynamicIsland" in live)
-check("controller: start/stop/update/refresh + pushType nil",
-      all(s in ctrl for s in ["func start()", "func stop()", "func update(",
-                              "func refresh()", "pushType: nil"]))
-check("coordinator: LiveLyricKey 普通 Equatable 键结构（存储属性绝无 @available）",
-      "private struct LiveLyricKey: Equatable" in pc
-      and "private var lastLiveState: LiveLyricKey?" in pc
-      and "LyricsLiveAttributes.ContentState?" not in pc
-      and "@available(iOS 16.1, *)\n    private var lastLiveState" not in pc)
-check("coordinator: isRunning / ensureRunning",
-      "var isRunning: Bool" in pc and "func ensureRunning()" in pc)
-check("coordinator: publishLiveLyrics 定义＋两处调用",
-      "private func publishLiveLyrics()" in pc
-      and pc.count("publishLiveLyrics()") == 3)
-check("coordinator: publishLiveLyrics 带宿主 guard",
-      "guard !LyricStore.isLiveContainer else { return }" in pc)
-check("ContentView: 锁屏歌词区＋开启／停止＋宿主文案",
-      '"锁屏歌词"' in cv and '"开启锁屏歌词"' in cv and '"停止锁屏歌词"' in cv
-      and "LiveContainer 模式不支持锁屏歌词和小组件" in cv
-      and "LiveActivitySectionView" in cv)
+print("\n== 6. 锁屏已取消（皇上 2026-11-26 21:46 令，真机从未证实可用） ==")
+check("锁屏文件不在：LiveActivity/LyricsLiveActivity.swift",
+      not os.path.exists(os.path.join(ROOT, "LiveActivity/LyricsLiveActivity.swift")))
+check("锁屏文件不在：PlaybackEngine/LyricsLiveActivityController.swift",
+      not os.path.exists(os.path.join(ROOT, "PlaybackEngine/LyricsLiveActivityController.swift")))
+check("coordinator: LiveLyricKey／lastLiveState／lastLiveActivityID 不在",
+      "LiveLyricKey" not in pc and "lastLiveState" not in pc
+      and "lastLiveActivityID" not in pc)
+check("coordinator: publishLiveLyrics／isRunning／ensureRunning 不在",
+      "publishLiveLyrics" not in pc and "isRunning" not in pc
+      and "ensureRunning" not in pc)
+check("coordinator: 同步修正还在（删锁屏没碰同步）",
+      "syncLiveLyricsAndProgress" in pc and "isDisplayEquivalent" in pc
+      and "noMusicKey" in pc)
+check("ContentView: 锁屏歌词区不在（标题／开关／宿主文案／小组件提示全删）",
+      '"锁屏歌词"' not in cv and '"开启锁屏歌词"' not in cv
+      and '"停止锁屏歌词"' not in cv
+      and "LiveContainer 模式不支持锁屏歌词和小组件" not in cv
+      and "LiveActivitySectionView" not in cv
+      and "锁屏小组件：长按锁屏" not in cv)
 wg = read("TrollLyricsWidget/TrollLyricsWidget.swift")
-check("widget: .accessoryRectangular（if #available iOS 16.0 包着）",
-      ".accessoryRectangular" in wg and "if #available(iOS 16.0, *)" in wg)
-check("WidgetView: 锁屏分支 family == .accessoryRectangular",
-      "family == .accessoryRectangular" in wv and "lockScreenView" in wv)
+check("widget: accessoryRectangular 不在（只留 systemSmall／systemMedium）",
+      ".accessoryRectangular" not in wg
+      and ".systemSmall" in wg and ".systemMedium" in wg)
+check("WidgetView: 锁屏分支／lockScreenView／nextLyricText 不在",
+      "family == .accessoryRectangular" not in wv
+      and "lockScreenView" not in wv and "nextLyricText" not in wv)
 wb = read("TrollLyricsWidget/TrollLyricsWidgetBundle.swift")
-check("WidgetBundle: LyricsLiveActivity 已注册",
-      "LyricsLiveActivity()" in wb and "if #available(iOS 16.1, *)" in wb)
+check("WidgetBundle: LyricsLiveActivity 不再注册",
+      "LyricsLiveActivity()" not in wb)
 
 print("\n== 7. Universal 兼容层 ==")
 check("LyricStore: isLiveContainer（三路：plist 键／路径／LCAppDelegate）",
@@ -354,19 +355,19 @@ check("无 TCP 桥 / 独立客户端 / 双 IPA 痕迹",
 
 print("\n== 8. pbxproj ==")
 pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
-check("pbxproj: LiveActivity 组在位",
-      'name = "LiveActivity"' in pbx and 'path = "LiveActivity"' in pbx)
+check("pbxproj: LiveActivity 组不在（锁屏已取消）",
+      'name = "LiveActivity"' not in pbx and "LyricsLiveActivity" not in pbx)
 app_sources = pbx_sources_files(pbx, "4821909E9BF9E73E471FEA84")
-check("pbxproj: 三新文件进 App Sources",
+check("pbxproj: 锁屏两文件不在 App Sources，只留 ActivationView.swift",
       "ActivationView.swift" in app_sources
-      and "LyricsLiveActivity.swift" in app_sources
-      and "LyricsLiveActivityController.swift" in app_sources,
+      and "LyricsLiveActivity.swift" not in app_sources
+      and "LyricsLiveActivityController.swift" not in app_sources,
       str(app_sources))
 widget_sources = pbx_sources_files(pbx, "37A859133C5B7A49CE597D35")
-check("pbxproj: LyricsLiveActivity.swift 另进 Widget Sources",
-      "LyricsLiveActivity.swift" in widget_sources, str(widget_sources))
-check("pbxproj: ActivityKit 弱链接 4 处（App 2 + Widget 2），无强链接",
-      pbx.count('"-weak_framework"') == 4 and pbx.count('"ActivityKit"') == 4
+check("pbxproj: LyricsLiveActivity.swift 不在 Widget Sources",
+      "LyricsLiveActivity.swift" not in widget_sources, str(widget_sources))
+check("pbxproj: ActivityKit 弱链接 0 处（锁屏已取消，无强链接）",
+      pbx.count('"-weak_framework"') == 0 and pbx.count('"ActivityKit"') == 0
       and "ActivityKit.framework" not in pbx,
       f"weak={pbx.count(chr(34) + '-weak_framework' + chr(34))}")
 check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行）",
@@ -381,9 +382,7 @@ check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
 _resolved = pbx_resolved_files(pbx)
-for f in ["LiveActivity/LyricsLiveActivity.swift",
-          "PlaybackEngine/LyricsLiveActivityController.swift",
-          "App/ActivationView.swift"]:
+for f in ["App/ActivationView.swift"]:
     check(f"pbxproj: resolves {f}", f in _resolved)
 missing = [r for r in _resolved if not os.path.exists(os.path.join(ROOT, r))]
 check("pbxproj: 所有引用文件都在磁盘上", not missing, str(missing))
@@ -435,6 +434,8 @@ allowed = {
     "Overlay/TLDSAppDelegate.h", "Overlay/TLDSAppDelegate.m",
     "Overlay/TLDSSceneDelegate.m",
     "PlaybackEngine/PlaybackCoordinator.swift",
+    "LiveActivity/LyricsLiveActivity.swift",
+    "PlaybackEngine/LyricsLiveActivityController.swift",
     "Renderer/InAppLyricsRenderer.swift",
     "Renderer/LyricsRenderer.swift",
     "Renderer/NativeHUDRenderer.swift",
@@ -461,8 +462,6 @@ for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
 for f in ["App/ActivationView.swift", "App/ContentView.swift",
           "App/PlaybackDashboardView.swift", "Lyrics/LyricStore.swift",
           "PlaybackEngine/PlaybackCoordinator.swift",
-          "LiveActivity/LyricsLiveActivity.swift",
-          "PlaybackEngine/LyricsLiveActivityController.swift",
           "TrollLyricsWidget/WidgetView.swift"]:
     t = read(f)
     check(f"{f}: 花括号平衡", t.count("{") == t.count("}"),
@@ -691,8 +690,9 @@ open_item("五件要真机验：Telegram 行／日志复制／背景图／固定
           "标题居中、齿轮仍右上")
 open_item("激活要真机验：首次打开弹激活页，码对放行、码错报“激活码不正确”、断网报“需要联网激活”",
           "激活后不用重启进主界面；悬浮窗与小组件在未激活时分别是隐藏与占位")
-open_item("锁屏要真机验：开启／停止、横幅跟随、灵动岛三态、滑掉同步、8 小时到期",
-          "iPhone 11 无常亮显示，关屏不显示是硬件限制；锁屏小组件需手动长按锁屏添加")
+open_item("锁屏已取消，不再验（皇上 2026-11-26 21:46 令）",
+          "1.0.1 起从未在真机上证实可用；代码在 git 历史 newbase e0c154a 里，"
+          "以后想加回来可从那恢复；build 18 已发包里的锁屏不动")
 open_item("LC 兼容要真机验：同 IPA 导入 LiveContainer 能启动、应用内歌词 0.25s 刷新、"
           "暂停／归零可用；巨魔模式悬浮窗／锁屏／保活一切照旧",
           "LiveContainer 的进程模型＋后台行为没验过；检测是启发式，不是权限证明")
@@ -703,9 +703,10 @@ open_item("二进制字面量扫描的限制（已查明，非缺陷；见 RUN �
           "（TLDSLiveContainer／lyric.timeOffset|／tld.activated）在位；"
           "方法名符号 Release 下被 strip，源码级核查为准；LC 宿主模式"
           "是否真生效只能真机验")
-open_item("otool 弱链接核实（编成后验包新增）",
-          "App 与 Widget 两个二进制各跑 macho_inspect.py 查 ActivityKit，"
-          "都要是 LC_LOAD_WEAK_DYLIB（0x80000018）；强链接则 iOS 15 有启动失败风险")
+open_item("验包时 ActivityKit 应为不在位（锁屏已取消，弱链接已删）",
+          "macho_inspect.py 查两二进制：ActivityKit 不应再出现；"
+          ".tbd 直链（FrontBoard／FrontBoardServices／RunningBoardServices／"
+          "AppleAccount）是悬浮窗的，仍应在位")
 
 
 open_item("1.0.5 诊断要真机验：日志页抄回诊断行（见 RUN_1.0.5.md 待验清单）",

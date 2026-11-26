@@ -20,27 +20,6 @@ final class PlaybackCoordinator: ObservableObject {
     /// 正在进行中的搜词任务，换歌时取消，避免旧歌结果覆盖新歌。
     private var searchTask: Task<Void, Never>?
 
-    /// 锁屏歌词（路子 A）：上一次推给 Live Activity 的完整状态＋Activity id；
-    /// 状态没变不推（系统限流：歌词一行 4–5 秒才切一次，远低于每秒一次的上限）。
-    /// 完整状态比较去重（BUG-02／BUG-04）：暂停/恢复、换词、同下标换词、
-    /// Activity 换实例都会推；一行没变时不推。
-    /// 注意：ContentState 是 iOS 16.1 才有的类型，不能存成协调器的存储属性——
-    /// 不带 @available 时 MinOS 15.0 下编不过，带了 @available Swift 也不允许
-    /// 给存储属性标 potentially unavailable（1.0.1 第一版编失败，run 45737184426：
-    /// stored properties cannot be marked potentially unavailable with '@available'）。
-    /// 所以只存一个普通 Equatable 键结构，去重语义不变。
-    private struct LiveLyricKey: Equatable {
-        var title: String
-        var artist: String
-        var previous: String
-        var current: String
-        var next: String
-        var isPlaying: Bool
-        var lyricColorHex: Int
-    }
-    private var lastLiveState: LiveLyricKey?
-    private var lastLiveActivityID: String?
-
     init(adapter: any PlaybackAdapter) {
         self.adapter = adapter
     }
@@ -77,16 +56,6 @@ final class PlaybackCoordinator: ObservableObject {
         timer = nil
         searchTask?.cancel()
         searchTask = nil
-    }
-
-    /// 检测引擎是否在跑（timer 在位）。锁屏开关用 ensureRunning() 幂等启动，
-    /// 不要直接调 start()（它会先 stop()，可能取消正在进行的搜词任务）。
-    var isRunning: Bool { timer != nil }
-
-    func ensureRunning() {
-        if !isRunning {
-            start()
-        }
     }
 
     private func poll() {
@@ -135,9 +104,6 @@ final class PlaybackCoordinator: ObservableObject {
                 await loadLyrics(for: newState.track)
             }
 
-            // 换歌立刻推一次新歌（标题／♪ 占位），不等下一轮 poll。
-            publishLiveLyrics()
-
             return
         }
 
@@ -175,117 +141,6 @@ final class PlaybackCoordinator: ObservableObject {
         if newState.status == .playing {
             syncLiveLyricsAndProgress(newState)
         }
-
-        // ---- 锁屏歌词（路子 A）：变行才推给 Live Activity ----
-        publishLiveLyrics()
-    }
-
-    /// 锁屏歌词（路子 A）：按 0.25 秒轮询算当前行，完整状态变了才推 Live Activity。
-    /// 算法与 Widget 的 currentLyric 同款（LyricStore.currentElapsed＋lastIndex）。
-    /// 没词时同一首歌只推一次「♪ {title}」占位；还没唱到第一句时推 ♪ 标题＋
-    /// 第一句当 next，不留上一首歌的词。读不到歌时 poll() 提前 return，不会走到这里。
-    private func publishLiveLyrics() {
-        // LiveContainer 宿主模式不推锁屏（宿主不支持 Live Activities）。
-        guard !LyricStore.isLiveContainer else { return }
-        if #available(iOS 16.1, *) {
-            // BUG-01 第一层：没开锁屏歌词时不记已推状态；重开后第一轮就推。
-            guard LyricsLiveActivityController.shared.isActive else {
-                lastLiveState = nil
-                lastLiveActivityID = nil
-                return
-            }
-
-            guard let snapshot = LyricStore.load() else {
-                return
-            }
-
-            let activityID = LyricsLiveActivityController.shared.activityID
-
-            // BUG-01 第二层：Activity 换实例（重开／8 小时到期重建）时，
-            // 去重状态清零，下一轮强制重推，不等切词。
-            if activityID != lastLiveActivityID {
-                lastLiveState = nil
-            }
-
-            let previous: String
-            let current: String
-            let next: String
-            var staleDate: Date?
-
-            if snapshot.lyrics.isEmpty {
-                // 没词：新歌还没搜到词，先推 ♪ 标题占位。
-                previous = ""
-                current = "♪ \(snapshot.title)"
-                next = ""
-                staleDate = nil
-            } else {
-                let elapsed = LyricStore.currentElapsed(snapshot, at: Date())
-                if let index = snapshot.lyrics.lastIndex(where: { $0.time <= elapsed }) {
-                    previous = index > 0 ? snapshot.lyrics[index - 1].text : ""
-                    current = snapshot.lyrics[index].text
-                    next = index + 1 < snapshot.lyrics.count
-                        ? snapshot.lyrics[index + 1].text
-                        : ""
-
-                    // BUG-05：下一行歌词的时间＋5 秒；没下一行／暂停时不设。
-                    // 暂停恢复时状态变了会重推重算；同一句内拖进度不改变
-                    // 下一行绝对时间，沿用旧 staleDate 即可。
-                    if snapshot.isPlaying, index + 1 < snapshot.lyrics.count {
-                        let nextIn = snapshot.lyrics[index + 1].time - elapsed
-                        staleDate = nextIn > 0 ? Date().addingTimeInterval(nextIn + 5) : nil
-                    } else {
-                        staleDate = nil
-                    }
-                } else {
-                    // BUG-03：还没唱到第一句（前奏），不留上一首歌的词：
-                    // 当前行放 ♪ 标题，第一句放 next。
-                    previous = ""
-                    current = "♪ \(snapshot.title)"
-                    next = snapshot.lyrics.first?.text ?? ""
-                    staleDate = nil
-                }
-            }
-
-            let state = LyricsLiveAttributes.ContentState(
-                title: clipped(snapshot.title),
-                artist: clipped(snapshot.artist),
-                previous: clipped(previous),
-                current: clipped(current),
-                next: clipped(next),
-                isPlaying: snapshot.isPlaying,
-                lyricColorHex: LyricsLiveActivityController.lyricColorHex()
-            )
-
-            // BUG-02／BUG-04：完整状态比较去重——暂停/恢复、换词、同下标换词、
-            // Activity 换实例都会推；一行没变时不推。
-            // 去重用普通键结构比（ContentState 本身不能存成属性，见上面注释）。
-            let key = LiveLyricKey(
-                title: state.title,
-                artist: state.artist,
-                previous: state.previous,
-                current: state.current,
-                next: state.next,
-                isPlaying: state.isPlaying,
-                lyricColorHex: state.lyricColorHex
-            )
-            if key == lastLiveState && activityID == lastLiveActivityID {
-                return
-            }
-            lastLiveState = key
-            lastLiveActivityID = activityID
-
-            Task {
-                await LyricsLiveActivityController.shared.update(
-                    state: state,
-                    staleDate: staleDate
-                )
-            }
-        }
-    }
-
-    /// 歌词超长限长：Activity 数据有系统大小限制，单字段最多 120 字。
-    private func clipped(_ text: String) -> String {
-        text.count > 120 ? String(text.prefix(120)) : text
     }
 
     /// 同一首歌持续播放时，把播放器实时上报的歌词字段与进度同步进快照。

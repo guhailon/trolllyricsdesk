@@ -7,10 +7,8 @@ struct TrollLyricsWidgetBundle: WidgetBundle {
     var body: some Widget {
         TrollLyricsWidget()
 
-        // 锁屏歌词必须注册到 WidgetBundle，系统才找得到它的渲染配置；
-        // 没注册，控制器开了 Activity 锁屏也显示不出来。
-        if #available(iOS 16.1, *) {
-            LyricsLiveActivity()
-        }
+        // 1.0.5：锁屏歌词（Live Activity）已取消（皇上 2026-11-26 21:46 令，
+        // 真机从未证实可用），Bundle 里不再注册 LyricsLiveActivity。
+        // 想加回来可从 newbase e0c154a 恢复。
     }
 }

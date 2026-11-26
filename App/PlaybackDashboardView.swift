@@ -135,7 +135,7 @@ struct PlaybackDashboardView: View {
                     .background(.ultraThinMaterial)
                     .cornerRadius(20)
 
-                    // LiveContainer 宿主：没有悬浮窗／锁屏／小组件，只在应用内显示歌词，
+                    // LiveContainer 宿主：没有悬浮窗／小组件，只在应用内显示歌词，
                     // 0.25s 刷新一次，带暂停／开始与归零。
                     if LyricStore.isLiveContainer {
                         Text("LiveContainer · 应用内歌词模式")

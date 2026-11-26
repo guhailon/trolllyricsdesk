@@ -130,16 +130,8 @@ struct TrollLyricsWidget: Widget {
         }
         .configurationDisplayName("Troll Lyrics")
         .description("透明动漫风格实时歌词组件")
-        .supportedFamilies(
-            {
-                // .accessoryRectangular 是 iOS 16.0+ 才有的 family；
-                // 用 if #available 包起来，MinOS 15.0 的机器上编得过、跑得起来。
-                var families: [WidgetFamily] = [.systemSmall, .systemMedium]
-                if #available(iOS 16.0, *) {
-                    families.append(.accessoryRectangular)
-                }
-                return families
-            }()
-        )
+        // 1.0.5：锁屏小组件已取消（皇上 2026-11-26 21:46 令），
+        // supportedFamilies 只留主屏幕两种，不再加 accessoryRectangular。
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

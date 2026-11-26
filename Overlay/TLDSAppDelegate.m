@@ -466,7 +466,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     NSString *reason = [NSString stringWithFormat:@"复核未过：%@", [reasons componentsJoinedByString:@"；"]];
     [[TLDSRuntime shared] setRunMode:@"compat" reason:reason];
     [self log:@"运行模式：普通签名兼容模式（LiveContainer 经第三方签名、权限受限，悬浮窗未确认可见，不建悬浮窗，走应用内歌词）"];
-    [self log:@"诊断1.0.5 显示引擎：应用内歌词（普通签名兼容模式唯一档，不支持跨 App、桌面与锁屏）"];
+    [self log:@"诊断1.0.5 显示引擎：应用内歌词（普通签名兼容模式唯一档，不支持跨 App、桌面）"];
 }
 
 /// 锁屏解锁 / 回到前台后重新激活悬浮窗。

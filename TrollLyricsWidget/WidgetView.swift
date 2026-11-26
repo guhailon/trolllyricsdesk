@@ -3,26 +3,22 @@ import WidgetKit
 
 struct TrollLyricsWidgetView: View {
 
-    @Environment(\.widgetFamily)
-    private var family
-
     let entry: TrollLyricsEntry
 
     var body: some View {
         Group {
             // 1.0.3：未激活时显示占位，不显示歌词；激活后恢复正常内容。
+            // 1.0.5：锁屏小组件已取消（皇上 2026-11-26 21:46 令，真机从未证实可用），
+            // 只留主屏幕小组件。
             if !ActivationStore.isActivated {
                 notActivatedView
-            } else if #available(iOS 16.0, *),
-                      family == .accessoryRectangular {
-                lockScreenView
             } else {
                 mainScreenView
             }
         }
     }
 
-    /// 未激活占位（1.0.3）：主屏幕／锁屏两种 family 都走这里。
+    /// 未激活占位（1.0.3）：主屏幕小组件走这里。
     private var notActivatedView: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 18)
@@ -112,48 +108,5 @@ struct TrollLyricsWidgetView: View {
         .clipShape(
             RoundedRectangle(cornerRadius: 18)
         )
-    }
-
-    /// 锁屏小组件（路子 B：accessoryRectangular，iOS 16.0+）。
-    /// 歌名小字＋当前句＋下一句；系统着色，不自定义颜色。
-    @available(iOS 16.0, *)
-    private var lockScreenView: some View {
-        Group {
-            if let snapshot = entry.snapshot {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("桌面歌词 · \(snapshot.title)")
-                        .font(.caption2)
-                        .lineLimit(1)
-
-                    Text(
-                        LyricStore.currentLyric(
-                            snapshot,
-                            at: entry.date
-                        )?.text ?? "等待歌词..."
-                    )
-                    .font(.headline)
-                    .lineLimit(1)
-
-                    Text(nextLyricText(snapshot: snapshot, at: entry.date))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            } else {
-                Text("Troll Lyrics")
-            }
-        }
-    }
-
-    /// 当前行的下一行（锁屏小组件用）；没下一行／还没唱到第一句时返回歌手名。
-    private func nextLyricText(snapshot: LyricSnapshot, at date: Date) -> String {
-        let elapsed = LyricStore.currentElapsed(snapshot, at: date)
-        guard let index = snapshot.lyrics.lastIndex(where: { $0.time <= elapsed }) else {
-            return snapshot.artist
-        }
-        if index + 1 < snapshot.lyrics.count {
-            return snapshot.lyrics[index + 1].text
-        }
-        return snapshot.artist
     }
 }
