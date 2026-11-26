@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.6 build 20 (LiveContainer 专项兼容修复版):
+"""Verify TrollLyricsDesk 1.0.6 build 21 (LiveContainer 专项兼容修复版):
 
 base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
+  + build 21（2026-11-27 02:18 令，只修最可疑一处——启动时重建竞态）：
+    1.0.6 build 20 在 LC 机（硬件 iPhone 13 Pro，iOS 27.0.1）上进主页面就闪退，
+    1.0.5 同台不闪；皇上 02:19 证实崩的时机是「主页面立刻闪」。
+    病根：DidBecomeActive（主页面出现时触发）或 2 秒看门狗在悬浮场景
+    「已创建、未连上」的窗口里调 rebuild，rebuild 对正在连接的会话
+    请求 requestSceneSessionDestruction，和 UIKit 连接流程撞车。
+    修法：新锚点 floatingSceneEverConnected（创建时清 NO，willConnectToSession
+    跑过才置 YES）；rebuild 只有旧场景曾经连上才销毁，否则跳过销毁、
+    只摘 binder＋藏窗口（走 1.0.5 的做法）；触发侧（DidBecomeActive／
+    2 秒看门狗）在连接窗口里跳过这次恢复。1.0.6 其余全部不动，
+    不修 isPlaying 探针（#2），不加新功能。
   + 皇上 10 项（2026-11-26 22:59 令）：
     1. RuntimeEnvironment 重写：禁止「非 LC 就当 TrollStore」；
        TrollStore 必须用正面证据判（EffectiveEntitlements 实测）。
@@ -32,7 +43,7 @@ base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
     诊断页诚实文案、版本 1.0.6／build 20。
     不在 ZIP 里的继续按 10 项做：14:59:44 第二个悬浮窗（重建先销毁旧窗）、
     LC 实际有效权限测量（第 5 项）、后台保活专项、PiP 渲染优化（第 8／9 项）。
-  + 版本 1.0.6, build 20, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
+  + 版本 1.0.6, build 21, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
     独立客户端／双 IPA；不恢复锁屏歌词；不修改现有 UI。
   + 1.0.5 的功能（五件／激活／三档／三渲染器／PiP 实验／Engine Fix／
     同步修正）全部保留，只做加法诊断与判定分离。
@@ -174,7 +185,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 20", pl.get("CFBundleVersion") == "20",
+    check(f"{rel}: build 21", pl.get("CFBundleVersion") == "21",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -405,9 +416,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 20（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 20;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 20;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 21（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 21;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 21;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -951,6 +962,39 @@ check("前缀统一：测试文字已是 1.0.6（LyricStore／PiP／SettingsView
       and "桌面歌词 1.0.5" not in ls and "桌面歌词 1.0.5" not in pip
       and "桌面歌词 1.0.5" not in read("App/SettingsView.swift"))
 
+print("\n== 16. build 21 重建竞态修（皇上 2026-11-27 02:18 令：先修最可疑那处） ==")
+td21 = read("Overlay/TLDSAppDelegate.m")
+sd21 = read("Overlay/TLDSSceneDelegate.m")
+hd21 = read("Overlay/TLDSAppDelegate.h")
+check("build 21：新锚点 floatingSceneEverConnected 在 header 声明（＋连接中跳过日志节流戳）",
+      "floatingSceneEverConnected" in hd21
+      and "lastConnectingSkipLogTime" in hd21)
+check("build 21：创建新场景时锚点清 NO（createFloatingScene 里 EverCreated 置位后即清）",
+      "self.floatingSceneEverConnected = NO" in td21)
+check("build 21：悬浮场景完成连接时锚点置 YES（SceneDelegate willConnectToSession，floating 分支）",
+      "appDelegate.floatingSceneEverConnected = YES" in sd21)
+check("build 21：rebuild 里销毁调用被锚点守卫——只有旧场景曾经连上才销毁",
+      "if (oldSession && self.floatingSceneEverConnected)" in td21
+      and "requestSceneSessionDestruction" in td21)
+check("build 21：旧场景未连上时跳过销毁分支在位（只摘 binder＋藏窗口，走 1.0.5 做法）",
+      "跳过销毁旧场景会话" in td21
+      and "只摘 binder＋藏窗口" in td21)
+check("build 21：触发侧守卫——DidBecomeActive／2 秒看门狗在连接窗口里跳过这次恢复（不调 rebuild）",
+      "正在连接中，跳过这次恢复" in td21
+      and "self.floatingScene && !self.floatingSceneCreated && !self.floatingSceneEverConnected" in td21)
+check("build 21：触发侧跳过日志有节流（20 秒，不让看门狗刷屏）",
+      "lastConnectingSkipLogTime > 20.0" in td21)
+check("build 21：不回归 14:59:44 第二窗修法——连上过、后来断开的旧场景照旧销毁（重建前后计数＋先销毁日志行仍在）",
+      "logLiveFloatingScenesWithTag" in td21
+      and "先销毁旧悬浮场景" in td21
+      and "已请求销毁旧场景会话" in td21)
+check("build 21：其余不动——isPlaying 探针、native-candidate、PiP 两段、激活、逐歌偏移、entitlements 均未碰",
+      "MRMediaRemoteGetNowPlayingApplicationIsPlayingFn" in read("MusicProviders/MediaRemoteAdapter.swift")
+      and "native-candidate" in td21
+      and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
+      and "https://guhailong-repo.pages.dev/api/verify" in ls)
+
+
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "ActivityKit 弱链接、DynamicIsland 展开区、if #available 组合、"
@@ -1048,6 +1092,10 @@ open_item("PiP 是实验引擎，真机只验到哪一步以实测为准（RUN_1
 open_item("三档模式的复核时序未验证",
           "复核在创建后 2 秒跑、场景未连上时 3 秒后再跑一次；真机上场景连接若慢于 5 秒，"
           "会误判兼容——日志里「复核推迟」出现几次、最终进了哪档，以真机为准")
+open_item("build 21 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
+          "只修重建竞态：主页面出现那一刻 DidBecomeActive／2 秒看门狗在连接窗口里跳过恢复，"
+          "rebuild 不销毁未连上的会话；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"
+          "解锁重建仍只建一个窗；PiP 两段、P0 仍按 build 20 的清单验")
 
 print()
 print("FAILED:", fails if fails else "none")

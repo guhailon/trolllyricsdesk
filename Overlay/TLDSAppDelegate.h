@@ -21,11 +21,20 @@
 /// 是否已经建过悬浮场景（防止首次启动时误触发重建）
 @property (nonatomic, assign) BOOL floatingSceneEverCreated;
 
+/// 1.0.6/build 21：当前悬浮场景是否曾经完成连接（willConnectToSession 已跑过）。
+/// floatingSceneCreated 只表示「当前连着」，断开后也会变 NO；
+/// 这个位只在创建新场景时清 NO、连上后置 YES——用来区分
+/// 「建了还没连上（连接窗口，绝不能销毁／重建）」和
+/// 「连上过、后来断开（可以销毁重建）」。
+@property (nonatomic, assign) BOOL floatingSceneEverConnected;
+
 /// 可见性自检定时器（锁屏/后台回来后兜底恢复悬浮窗）
 @property (nonatomic, strong) NSTimer *visibilityWatchdog;
 /// 重建 / 日志节流时间戳（CFAbsoluteTime）
 @property (nonatomic, assign) double lastRebuildTime;
 @property (nonatomic, assign) double lastRestoreLogTime;
+/// 1.0.6/build 21：「场景连接中，跳过恢复」日志的节流时间戳（CFAbsoluteTime）。
+@property (nonatomic, assign) double lastConnectingSkipLogTime;
 /// 重建时的场景序号（用新标识避免与残留旧场景冲突）
 @property (nonatomic, assign) NSInteger floatingSceneSeq;
 /// 经历过锁屏：解锁后必须完整重建（sceneDidDisconnect 未必触发，不能只靠状态位）

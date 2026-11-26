@@ -355,6 +355,10 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // 强引用场景本体：锁屏解锁后要靠它重新下发 foreground 设置
     self.floatingScene = scene;
     self.floatingSceneEverCreated = YES;
+    // 1.0.6/build 21：新场景对象刚创建、尚未连接——重建竞态守卫的锚点。
+    // willConnectToSession 跑过才置 YES；此前的窗口里，任何触发都不得
+    // rebuild／销毁它（对正在连接的会话请求销毁会和 UIKit 连接流程撞车而闪退）。
+    self.floatingSceneEverConnected = NO;
 
     // 1.0.5（第 3 项）：场景创建时的诊断——只打日志，不改行为。
     // Context ID 用 KVC 读（不同 iOS 版本键未必在，读不到就记「读不到」，不 crash）。
@@ -609,6 +613,21 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         return;
     }
 
+    // 1.0.6/build 21（重建竞态修）：场景正在连接（已创建、未连上）时跳过这次恢复。
+    // 主页面出现那一刻 DidBecomeActive 就会调到这里；这时若调 rebuild，
+    // rebuild 会对一个正在连接的会话请求销毁，和 UIKit 连接流程撞车而闪退
+    //（2026-11-27 02:19 皇上证实：主页面一出现就闪）。
+    // 等连接完成，下一次看门狗／回到前台再恢复。日志 20 秒节流，不让看门狗刷屏。
+    if (self.floatingScene && !self.floatingSceneCreated && !self.floatingSceneEverConnected) {
+        double now = CFAbsoluteTimeGetCurrent();
+        if (now - self.lastConnectingSkipLogTime > 20.0) {
+            self.lastConnectingSkipLogTime = now;
+            [self log:[NSString stringWithFormat:@"诊断1.0.6 悬浮窗恢复：场景正在连接中，跳过这次恢复（触发：%@，等连接完成后再说）",
+                       trigger ?: @"未知"]];
+        }
+        return;
+    }
+
     // 用户关掉了悬浮窗：不恢复
     NSUserDefaults *watchPrefs = [TLDSRuntime sharedDefaults];  // 1.0.5 bug 2：走 LyricStore.defaults
     BOOL watchEnabled = [watchPrefs objectForKey:@"floatingLyric.enabled"] == nil
@@ -746,7 +765,13 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
             break;
         }
     }
-    if (oldSession) {
+    // 1.0.6/build 21（重建竞态修）：只有旧场景曾经完成连接，才请求销毁旧会话。
+    // 旧场景建了还没连上（正在连接窗口）时跳过销毁——只摘 binder＋藏窗口
+    //（走 1.0.5 的做法），让正在连接的会话自然完成或被放弃，不要去销毁它。
+    // 注意不能用 floatingSceneCreated 判断：它只表示「当前连着」，
+    // 连上过、后来断开的场景也会是 NO——那一路（解锁重建、14:59:44 第二窗）
+    // 必须照旧销毁，否则旧窗残留。
+    if (oldSession && self.floatingSceneEverConnected) {
         __weak TLDSAppDelegate *weakSelf = self;
         [[UIApplication sharedApplication] requestSceneSessionDestruction:oldSession
                                                                   options:nil
@@ -755,6 +780,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
             [strongSelf log:[NSString stringWithFormat:@"锁屏恢复：旧场景会话销毁失败：%@", error.localizedDescription ?: @"?"]];
         }];
         [self log:[NSString stringWithFormat:@"锁屏恢复：已请求销毁旧场景会话（标识 %@）", oldIdentifier]];
+    } else if (oldSession) {
+        [self log:[NSString stringWithFormat:@"锁屏恢复：跳过销毁旧场景会话（标识 %@）：旧场景尚未完成连接（build 21 竞态修），只摘 binder＋藏窗口，让它自然完成或被放弃", oldIdentifier]];
     } else {
         [self log:[NSString stringWithFormat:@"锁屏恢复：未找到旧场景会话（标识 %@，可能已由系统回收）", oldIdentifier]];
     }

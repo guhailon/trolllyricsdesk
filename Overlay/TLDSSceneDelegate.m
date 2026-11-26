@@ -63,6 +63,8 @@ willConnectToSession:(UISceneSession *)session
     if (isFloating && !appDelegate.floatingSceneCreated) {
         TLDSFloatingSceneConnectCount += 1;
         appDelegate.floatingSceneCreated = YES;
+        // 1.0.6/build 21：场景完成连接——重建竞态守卫的锚点（见 TLDSAppDelegate）。
+        appDelegate.floatingSceneEverConnected = YES;
 
         // 宽度固定，高度只给一个紧凑初始值；实际高度由 FloatingLyricViewController
         // 按当前歌词实际换行行数动态计算（1 行 = 1 行高，2 行 = 2 行高，以此类推）。
