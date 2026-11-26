@@ -160,3 +160,62 @@ Textyl 是作者私有的，作者明说不要给别的项目用。我们只学�
 3. LyricParser 保留空歌词行（Lee 的解析器原样）。
 4. 网易云/QQ 适配器只是数据模型（Lee 的文件）：拼 MusicTrack 用；查词只走 LRCLIB，
    不调网易云/QQ 的网络接口。
+
+## 锁屏歌词（1.0.1 build 14，v1.0.1 分支，2026-11-26）
+
+设计见 `hidden_files/lockscreen-design/PLAN.md`；皇上 2026-11-26 01:47 改令做、
+01:55 点「两样都要」（A＋B），09:28 定「只要添加锁屏」——底子用皇上重发的 1.0.0
+（build 13，commit 5b68754），只加锁屏，1.0.6 的东西一律不用，1.0.6 之前的东西都忘掉。
+版本 1.0.1，build 13→14（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
+产物名 桌面歌词-1.0.1.ipa）。
+
+移植自 lockscreen 线的三笔（0c3318b build 15 初版＋cf0f29e WidgetView 错修＋
+d461b62 build 16 ChatGPT 审查修复），逐文件对照纯底子手工合，只取锁屏的 hunk：
+- 0c3318b 是做在 2288444 之上的（2288444 里有 1.0.6 的播放改进），与纯底子有出入，
+  所以不是 cherry-pick；锁屏区放在「音乐检测」区后面（底子 ContentView 里没有
+  PLAN 说的「歌词悬浮窗」区，悬浮窗开关在 PlaybackDashboardView 主界面）。
+
+新文件：
+- `LiveActivity/LyricsLiveActivity.swift`（ActivityAttributes＋ActivityConfiguration：
+  锁屏横幅＋灵动岛 expanded/compact/minimal，三行歌词子视图共用；整体 @available(iOS 16.1, *)）
+- `PlaybackEngine/LyricsLiveActivityController.swift`（单例，start/stop/update，
+  监听 Activity 结束同步开关状态；串行合并队列＋Activity id 校验；整体 @available(iOS 16.1, *)）
+
+改的文件：
+- `PlaybackEngine/PlaybackCoordinator.swift`：加 `lastLiveState`／`lastLiveActivityID`＋
+  `publishLiveLyrics()`（完整状态比较去重 BUG-02／04；没开锁屏时清去重状态 BUG-01；
+  前奏推 ♪ 标题＋第一句当 next BUG-03；staleDate＝下一行＋5 秒 BUG-05；
+  歌词限长 120 字 clipped()），poll() 末尾与换歌分支各调一次；
+  加 `isRunning`＋幂等 `ensureRunning()`（锁屏开关先 ensureRunning 再 start，
+  不直接调 start()，它会先 stop() 取消搜词任务）。
+  `state = newState` 在位（底子没有 1.0.6 的回归，1.0.7 的修法不用再并）。
+  **与 d461b62 的一处出入**：`lastLiveState` 存属性时补了 `@available(iOS 16.1, *)`
+  （d461b62 原文没带；MinOS 15.0 下存 16.1 才有的类型当属性，理论上编不过；
+  这可能是 1.0.4 build 17 Archive 失败的原因之一，未取到日志无法证实——见 check 的 OPEN）。
+- `App/ContentView.swift`：「锁屏歌词」区（开始／停止＋状态文字，绑 controller；
+  iOS 16.1 以下显示提示行）＋锁屏小组件添加提示；开启按钮先 `ensureRunning()`。
+- `TrollLyricsDesk/Info.plist`：加 `NSSupportsLiveActivities` = true。
+- `TrollLyricsWidget/TrollLyricsWidget.swift`：supportedFamilies 加 `.accessoryRectangular`
+  （用 `if #available(iOS 16.0, *)` 运行时判断包起来——PLAN 说 iOS 15 会忽略不认识的
+  family，但没编过不敢断言，稳妥写法是运行时判断；见 OPEN）。
+- `TrollLyricsWidget/WidgetView.swift`：加锁屏分支（歌名小字＋当前句＋下一句），
+  主屏幕布局原样抽进 `mainScreenView`，行内容一字未动；getTimeline 不动。
+  `context` 未定义错已修：锁屏分支用 `@Environment(\.widgetFamily)`（cf0f29e）。
+- `TrollLyricsWidget/TrollLyricsWidgetBundle.swift`：注册 `LyricsLiveActivity()`
+  （#available 16.1；没注册，控制器开了 Activity 锁屏也显示不出来——ChatGPT 问题 3）。
+- `TrollLyricsDesk.xcodeproj/project.pbxproj`：两新文件进 App target Sources，
+  `LyricsLiveActivity.swift` 另进 Widget Extension Sources（双 Target 编同一文件，
+  Attributes 不拆文件）；LiveActivity 组进主组；ActivityKit 弱链接
+  （App 两配置＋Widget 两配置的 OTHER_LDFLAGS 各加 `-weak_framework ActivityKit`，
+  共 4 处；底子的 .tbd 直链不动，不加 dynamic_lookup）。
+  MARKETING_VERSION 四处 1.0.0→1.0.1。
+
+没动的：`Overlay/` 全部、两边 entitlements（零新增）、MinOS 15.0、
+逐字同步（LyricWord.swift／LyricSyncEngine.swift 不存在，不许现编假实现）。
+**明确未并的**：Engine V2（e7e97df 的全部内容：MediaRemoteAdapter／LyricMatcher／
+LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放改进
+（2288444：空闲节能 poll 分档、保活开关＋stop()、build 14）——底子自带的
+0.25 秒轮询、换歌取消搜词、缓存即播即显是底子原有的，留着。
+
+检查：`python3 check_1.0.1.py`（106 PASS，FAILED: none，OPEN 17；
+含三项否定检查：无 Engine V2、无 1.0.6 播放改进、无 BackBoard/-hud/dynamic_lookup）。
