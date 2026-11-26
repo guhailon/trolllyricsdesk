@@ -279,3 +279,8 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
   检测引擎照常在启动时自动跟随（激活前也在跑，但主界面／悬浮窗／小组件三处都不显示歌词，激活后即时恢复，不用重启）。
 - 版本 1.0.3，build 15→16（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
   产物名桌面歌词-1.0.3.ipa）。
+
+检查：`python3 check_1.0.3.py`（174 PASS，FAILED: none，OPEN 26；
+新增 §6.10 二十二项：激活；§6 红线锚点改固定基点 7e39edf，
+`git diff 7e39edf HEAD -- <路径>`，提交后再重跑才算数；§6.5 的
+LyricStore.swift 从「一字未动」名单里拿掉，改查「只加 ActivationStore 的纯新增」）。
