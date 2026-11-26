@@ -3,30 +3,22 @@ import Darwin
 
 /// 1.0.5 诊断（第 1 项）：dlopen／dlsym 只记一次结论，不在每次轮询里刷屏。
 /// 失败时把 dlerror() 的原因也记下来——真机日志要能看出是框架打不开、
-/// 还是某个符号找不到。只记日志，不改任何行为。
+/// 还是某个符号找不到。记录集中在 MediaRemoteDiagnostics（诊断页也能读到），
+/// 这里只负责调 dlopen／dlsym 并上报结果，不改任何行为。
 final class MediaRemoteBridge {
 
     private let handle: UnsafeMutableRawPointer?
-    private var loggedSymbols = Set<String>()
-    private(set) var dlopenOK = false
 
     init() {
         handle = dlopen(
             MediaRemoteSymbols.frameworkPath,
             RTLD_NOW
         )
-        dlopenOK = handle != nil
-        if let handle {
-            _ = handle
-            LyricLogger.log(
-                "诊断1.0.5 MediaRemote：dlopen 成功（\(MediaRemoteSymbols.frameworkPath)）"
-            )
-        } else {
-            let reason = MediaRemoteBridge.lastDLError()
-            LyricLogger.log(
-                "诊断1.0.5 MediaRemote：dlopen 失败：\(reason)"
-            )
-        }
+        MediaRemoteDiagnostics.recordDlopen(
+            success: handle != nil,
+            path: MediaRemoteSymbols.frameworkPath,
+            reason: handle == nil ? Self.lastDLError() : nil
+        )
     }
 
     deinit {
@@ -37,25 +29,16 @@ final class MediaRemoteBridge {
 
     func symbol(_ name: String) -> UnsafeMutableRawPointer? {
         guard let handle else {
-            if !loggedSymbols.contains(name) {
-                loggedSymbols.insert(name)
-                LyricLogger.log(
-                    "诊断1.0.5 MediaRemote：dlsym \(name) 失败：框架未打开（dlopen 已失败）"
-                )
-            }
+            MediaRemoteDiagnostics.recordDlsym(
+                name: name, success: false, noHandle: true, reason: nil
+            )
             return nil
         }
         let sym = dlsym(handle, name)
-        if !loggedSymbols.contains(name) {
-            loggedSymbols.insert(name)
-            if sym != nil {
-                LyricLogger.log("诊断1.0.5 MediaRemote：dlsym \(name) 成功")
-            } else {
-                LyricLogger.log(
-                    "诊断1.0.5 MediaRemote：dlsym \(name) 失败：\(MediaRemoteBridge.lastDLError())"
-                )
-            }
-        }
+        MediaRemoteDiagnostics.recordDlsym(
+            name: name, success: sym != nil, noHandle: false,
+            reason: sym == nil ? Self.lastDLError() : nil
+        )
         return sym
     }
 

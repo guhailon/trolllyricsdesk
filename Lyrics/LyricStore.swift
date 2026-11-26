@@ -400,7 +400,7 @@ extension LyricStore {
         case "trollstore":
             return "巨魔原生模式"
         case "enhanced-host":
-            return "增强宿主模式（悬浮窗已确认可见）"
+            return "增强宿主模式（复核通过，首选 PiP 实验）"
         case "compat":
             return "普通签名兼容模式（悬浮窗未确认可见，应用内歌词）"
         default:

@@ -36,11 +36,8 @@ private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
 private var fetching = false
 
-/// 1.0.5 诊断计数（只为日志节流，不影响逻辑）。
+/// 1.0.5 诊断计数（只为日志节流，不影响逻辑；记录集中在 MediaRemoteDiagnostics）。
 private var notificationRegistered = false
-private var notificationFireCount = 0
-private var nowPlayingCallbackCount = 0
-private var lastInfoWasNil: Bool?
 
 init() {
     registerForNowPlayingNotifications()
@@ -52,20 +49,16 @@ private func registerForNowPlayingNotifications() {
     guard !notificationRegistered else { return }
     notificationRegistered = true
     guard let sym = bridge.symbol(MediaRemoteSymbols.registerForNowPlayingNotifications) else {
-        LyricLogger.log("诊断1.0.5 MediaRemote：回调注册失败：MRMediaRemoteRegisterForNowPlayingNotifications 符号缺失")
+        MediaRemoteDiagnostics.recordRegistration(success: false)
         return
     }
     let register = unsafeBitCast(sym, to: MRMediaRemoteRegisterForNowPlayingNotificationsFn.self)
-    register(DispatchQueue.main) { [weak self] _, _, name, _, _ in
+    register(DispatchQueue.main) { _, _, name, _, _ in
         Task { @MainActor in
-            guard let self else { return }
-            self.notificationFireCount += 1
-            if self.notificationFireCount == 1 || self.notificationFireCount % 50 == 0 {
-                LyricLogger.log("诊断1.0.5 MediaRemote：NowPlaying 通知回调已触发（第 \(self.notificationFireCount) 次，name=\(name as String? ?? "?")）")
-            }
+            MediaRemoteDiagnostics.recordNotificationFire(name: name as String?)
         }
     }
-    LyricLogger.log("诊断1.0.5 MediaRemote：回调注册已调用（等回调触发才算通道通）")
+    MediaRemoteDiagnostics.recordRegistration(success: true)
 }
 
 /// 缓存保鲜 0.3 秒：换歌/开始播放要「即播即显」，2 秒缓存会让歌词慢半拍。
@@ -163,17 +156,8 @@ DispatchQueue.global(qos: .background)
 Task { @MainActor in
 guard let self else { return}
 
-self.nowPlayingCallbackCount += 1
-let isNil = info == nil
-if self.nowPlayingCallbackCount == 1 || self.lastInfoWasNil != isNil {
-    if isNil {
-        LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 回调已触发（第 \(self.nowPlayingCallbackCount) 次），info=nil（无播放器／读不到）")
-    } else {
-        let title = (info as? [String: Any])?["kMRMediaRemoteNowPlayingInfoTitle"] as? String ?? "?"
-        LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 回调已触发（第 \(self.nowPlayingCallbackCount) 次），info 有内容（歌名=\(title)）")
-    }
-}
-self.lastInfoWasNil = isNil
+let title = (info as? [String: Any])?["kMRMediaRemoteNowPlayingInfoTitle"] as? String
+MediaRemoteDiagnostics.recordInfoCallback(isNil: info == nil, title: title)
 
 self.cachedInfo = info as? [String: Any]
 self.cachedAt = Date()

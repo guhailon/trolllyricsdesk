@@ -285,6 +285,28 @@ struct SettingsView: View {
                     .onAppear {
                         runModeText = LyricStore.runModeDescription
                     }
+
+                    NavigationLink {
+                        DiagnosticsView()
+                    } label: {
+                        Text("查看诊断详情（模式／MediaRemote／PiP／权限对照）")
+                    }
+
+                    Text("PiP 画中画歌词（实验）：先验固定测试文字，再接实时歌词")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Button("开始 PiP 测试（固定文字，实验）") {
+                        PiPLyricsRenderer.shared.startTestText()
+                    }
+
+                    Button("接入实时歌词到 PiP（实验）") {
+                        PiPLyricsRenderer.shared.startLiveLyrics()
+                    }
+
+                    Button("停止 PiP") {
+                        PiPLyricsRenderer.shared.stop()
+                    }
                 }
 
                 // 背景设置

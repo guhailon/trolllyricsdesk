@@ -122,6 +122,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         [[TLDSRuntime shared] setRunMode:@"trollstore"
                                   reason:@"非 LiveContainer（路径／类名／plist 均无宿主信号）"];
         [self log:@"运行模式：巨魔原生模式（TrollStore，私有接口全可用，悬浮窗照常）"];
+        [self log:@"诊断1.0.5 显示引擎：原生 HUD 悬浮歌词（巨魔原生模式，唯一档）"];
         TLDSInstallNativeWindowFix();
         [self startFloatingOverlay];
     } else {
@@ -427,7 +428,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         self.compatMode = NO;
         NSString *reason = [NSString stringWithFormat:@"复核全过：场景／binder／窗口／windowScene／视图挂载均通过，Context ID=%@", contextIDText];
         [[TLDSRuntime shared] setRunMode:@"enhanced-host" reason:reason];
-        [self log:@"运行模式：增强宿主模式（LiveContainer，悬浮窗已确认可见，走悬浮窗）"];
+        [self log:@"运行模式：增强宿主模式（LiveContainer，悬浮窗复核通过，首选 PiP 实验，应用内备选）"];
+        [self log:@"诊断1.0.5 显示引擎：PiP 画中画歌词（实验）（增强宿主模式首选），应用内歌词备选；透明全域悬浮在此模式为权限受限，不信任原生 HUD"];
         [self log:@"诊断1.0.5 托管复核结论：已确认可见"];
     } else {
         [self log:[NSString stringWithFormat:@"诊断1.0.5 托管复核结论：未确认可见（原因：%@）", [failReasons componentsJoinedByString:@"；"]]];
@@ -464,6 +466,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     NSString *reason = [NSString stringWithFormat:@"复核未过：%@", [reasons componentsJoinedByString:@"；"]];
     [[TLDSRuntime shared] setRunMode:@"compat" reason:reason];
     [self log:@"运行模式：普通签名兼容模式（LiveContainer 经第三方签名、权限受限，悬浮窗未确认可见，不建悬浮窗，走应用内歌词）"];
+    [self log:@"诊断1.0.5 显示引擎：应用内歌词（普通签名兼容模式唯一档，不支持跨 App、桌面与锁屏）"];
 }
 
 /// 锁屏解锁 / 回到前台后重新激活悬浮窗。

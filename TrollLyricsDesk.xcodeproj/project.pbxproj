@@ -5,6 +5,162 @@
 	};
 	objectVersion = 56;
 	objects = {
+		D3D5ADB0EB472C5BC9155CE1 /* RuntimeCapabilities.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "RuntimeCapabilities.swift";
+			path = "RuntimeCapabilities.swift";
+			sourceTree = "<group>";
+		};
+		9262D71D160F536E6923587B /* RuntimeCapabilities.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = D3D5ADB0EB472C5BC9155CE1 /* RuntimeCapabilities.swift */;
+		};
+		A2CE06C9164E6BDEAC4F1292 /* RuntimeEnvironment.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "RuntimeEnvironment.swift";
+			path = "RuntimeEnvironment.swift";
+			sourceTree = "<group>";
+		};
+		3C1347E2B3939D3E3795F77C /* RuntimeEnvironment.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = A2CE06C9164E6BDEAC4F1292 /* RuntimeEnvironment.swift */;
+		};
+		2BDBC559945C52692F2390FE /* EntitlementDiagnostics.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "EntitlementDiagnostics.swift";
+			path = "EntitlementDiagnostics.swift";
+			sourceTree = "<group>";
+		};
+		7409AC9E0339D7EE97101E80 /* EntitlementDiagnostics.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 2BDBC559945C52692F2390FE /* EntitlementDiagnostics.swift */;
+		};
+		5C3CDE6E920DD7C43B4E8992 /* LyricsRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "LyricsRenderer.swift";
+			path = "LyricsRenderer.swift";
+			sourceTree = "<group>";
+		};
+		6D3D521E11AF040264106E6B /* LyricsRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 5C3CDE6E920DD7C43B4E8992 /* LyricsRenderer.swift */;
+		};
+		F881E62D87D4BB8A172FFD5A /* NativeHUDRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "NativeHUDRenderer.swift";
+			path = "NativeHUDRenderer.swift";
+			sourceTree = "<group>";
+		};
+		3CAFDA47ED1783829CA9975B /* NativeHUDRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F881E62D87D4BB8A172FFD5A /* NativeHUDRenderer.swift */;
+		};
+		B35D88B201B46610C9BE1BDA /* PiPLyricsRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "PiPLyricsRenderer.swift";
+			path = "PiPLyricsRenderer.swift";
+			sourceTree = "<group>";
+		};
+		74F30B9D51CF8F2539ED6E3E /* PiPLyricsRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = B35D88B201B46610C9BE1BDA /* PiPLyricsRenderer.swift */;
+		};
+		0FD038D5E9B7A05B7CABD42E /* PiPFrameRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "PiPFrameRenderer.swift";
+			path = "PiPFrameRenderer.swift";
+			sourceTree = "<group>";
+		};
+		120A68BC10708EFBE5BA2414 /* PiPFrameRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 0FD038D5E9B7A05B7CABD42E /* PiPFrameRenderer.swift */;
+		};
+		6A9AE9A3C6E11F3DB4AB547E /* InAppLyricsRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "InAppLyricsRenderer.swift";
+			path = "InAppLyricsRenderer.swift";
+			sourceTree = "<group>";
+		};
+		95AB7473D9026BBF26F4BC27 /* InAppLyricsRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 6A9AE9A3C6E11F3DB4AB547E /* InAppLyricsRenderer.swift */;
+		};
+		92F2DA23FE32D648768B6A89 /* MediaRemoteDiagnostics.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "MediaRemoteDiagnostics.swift";
+			path = "MediaRemoteDiagnostics.swift";
+			sourceTree = "<group>";
+		};
+		D77C7CCE0E54161D7CD33843 /* MediaRemoteDiagnostics.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 92F2DA23FE32D648768B6A89 /* MediaRemoteDiagnostics.swift */;
+		};
+		0F73FB396DE99F09DC42243B /* OverlayDiagnostics.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "OverlayDiagnostics.swift";
+			path = "OverlayDiagnostics.swift";
+			sourceTree = "<group>";
+		};
+		B23A5512378E5CA3C274146B /* OverlayDiagnostics.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 0F73FB396DE99F09DC42243B /* OverlayDiagnostics.swift */;
+		};
+		D45EA67549A4D9C6A688F8F9 /* DiagnosticsView.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DiagnosticsView.swift";
+			path = "DiagnosticsView.swift";
+			sourceTree = "<group>";
+		};
+		EA9DD372B71F2540C91A1F6A /* DiagnosticsView.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = D45EA67549A4D9C6A688F8F9 /* DiagnosticsView.swift */;
+		};
+		48F133681CA17893A020CF75 /* Compatibility */ = {
+			isa = PBXGroup;
+			children = (
+				D3D5ADB0EB472C5BC9155CE1 /* RuntimeCapabilities.swift */,
+				A2CE06C9164E6BDEAC4F1292 /* RuntimeEnvironment.swift */,
+				2BDBC559945C52692F2390FE /* EntitlementDiagnostics.swift */,
+			);
+			name = Compatibility;
+			path = Compatibility;
+			sourceTree = "<group>";
+		};
+		8FD69D4DC5413CB7C8CA8FB2 /* Renderer */ = {
+			isa = PBXGroup;
+			children = (
+				5C3CDE6E920DD7C43B4E8992 /* LyricsRenderer.swift */,
+				F881E62D87D4BB8A172FFD5A /* NativeHUDRenderer.swift */,
+				B35D88B201B46610C9BE1BDA /* PiPLyricsRenderer.swift */,
+				0FD038D5E9B7A05B7CABD42E /* PiPFrameRenderer.swift */,
+				6A9AE9A3C6E11F3DB4AB547E /* InAppLyricsRenderer.swift */,
+			);
+			name = Renderer;
+			path = Renderer;
+			sourceTree = "<group>";
+		};
+		AFC60D8EF7359F7261BFA1C2 /* Diagnostics */ = {
+			isa = PBXGroup;
+			children = (
+				92F2DA23FE32D648768B6A89 /* MediaRemoteDiagnostics.swift */,
+				0F73FB396DE99F09DC42243B /* OverlayDiagnostics.swift */,
+				D45EA67549A4D9C6A688F8F9 /* DiagnosticsView.swift */,
+			);
+			name = Diagnostics;
+			path = Diagnostics;
+			sourceTree = "<group>";
+		};
 		25D301F865621713AF6708AD /* LyricsLiveActivity.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -293,7 +449,18 @@
 				39A05E393F3B239F0E2EF1BF /* ActivationView.swift in Sources */,
 				35D65410F29A39E4B692C74A /* LyricsLiveActivity.swift in Sources */,
 				7A47B92B50AF42F414337343 /* LyricsLiveActivityController.swift in Sources */,
-			);
+					9262D71D160F536E6923587B /* RuntimeCapabilities.swift in Sources */,
+				3C1347E2B3939D3E3795F77C /* RuntimeEnvironment.swift in Sources */,
+				7409AC9E0339D7EE97101E80 /* EntitlementDiagnostics.swift in Sources */,
+				6D3D521E11AF040264106E6B /* LyricsRenderer.swift in Sources */,
+				3CAFDA47ED1783829CA9975B /* NativeHUDRenderer.swift in Sources */,
+				74F30B9D51CF8F2539ED6E3E /* PiPLyricsRenderer.swift in Sources */,
+				120A68BC10708EFBE5BA2414 /* PiPFrameRenderer.swift in Sources */,
+				95AB7473D9026BBF26F4BC27 /* InAppLyricsRenderer.swift in Sources */,
+				D77C7CCE0E54161D7CD33843 /* MediaRemoteDiagnostics.swift in Sources */,
+				B23A5512378E5CA3C274146B /* OverlayDiagnostics.swift in Sources */,
+				EA9DD372B71F2540C91A1F6A /* DiagnosticsView.swift in Sources */,
+		);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		496AF46EC2762DDF91F78F13 /* PBXCopyFilesBuildPhase */ = {
@@ -378,7 +545,10 @@
 				547D009064F7C3F13BEF3460,
 				389F15E87F1A2EC0C3E735AE /* Core */,
 				D747C751B8C10C4C673B27A9 /* LiveActivity */,
-			);
+					48F133681CA17893A020CF75 /* Compatibility */,
+				8FD69D4DC5413CB7C8CA8FB2 /* Renderer */,
+				AFC60D8EF7359F7261BFA1C2 /* Diagnostics */,
+		);
 			sourceTree = "<group>";
 		};
 		547D009064F7C3F13BEF3460 /* PBXGroup */ = {
