@@ -13,6 +13,12 @@ final class PlaybackCoordinator: ObservableObject {
     private var timer: Timer?
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
+    /// Engine Fix（皇上 22:03 令并入）：最新原始状态（与 @Published 的 state 分离——
+    /// state 只在「界面可见内容」变化时才更新，latestState 每轮都记，供搜词／同步用最新值）。
+    private var latestState: PlaybackState?
+    /// Engine Fix：搜词代次（UUID）。换歌／停检／无音乐时轮换，旧任务的回调凭它丢弃，
+    /// 光靠 Task.cancel 不够（已在跑的 await 不一定立刻停）。
+    private var searchGeneration = UUID()
 
     /// 1.0.5 诊断（第 5 项）：检测引擎启动计数。
     private var startCount = 0
@@ -56,6 +62,11 @@ final class PlaybackCoordinator: ObservableObject {
         timer = nil
         searchTask?.cancel()
         searchTask = nil
+        // Engine Fix：停检即失效全部状态与搜词代次，旧任务回来也写不进。
+        searchGeneration = UUID()
+        lastTrackKey = nil
+        lastStatus = nil
+        latestState = nil
     }
 
     private func poll() {
@@ -66,6 +77,14 @@ final class PlaybackCoordinator: ObservableObject {
             setMessage("没有检测到可读取的音乐")
             // state 也要清空：主界面卡片与悬浮窗看同一个结论
             if state != nil { state = nil }
+            // Engine Fix：没音乐时重置全部状态＋取消搜词＋轮换代次，
+            // 旧任务回来写不进，也不会拿着上一首歌的状态继续跑。
+            latestState = nil
+            lastTrackKey = nil
+            lastStatus = nil
+            searchTask?.cancel()
+            searchTask = nil
+            searchGeneration = UUID()
             return
         }
 
@@ -74,15 +93,21 @@ final class PlaybackCoordinator: ObservableObject {
             LyricStore.defaults?.set(false, forKey: LyricStore.noMusicKey)
         }
 
-        let previous = state
+        // Engine Fix：实时状态与发布状态分离——previous 取上一轮的最新原始状态，
+        // state 仍只在「界面可见内容」变化时才更新（不然每 0.25s 重建整页）。
+        let previous = latestState
+        latestState = newState
         // 只在「界面可见内容」变化时才更新 state。
         // position 是浮点、observedAt 每次都不同，直接赋值会每 0.25s 触发
         // @Published → SwiftUI 整页重建，弹出菜单会跟着一闪一闪。
-        if !isDisplayEquivalent(previous, newState) {
+        if !isDisplayEquivalent(state, newState) {
             state = newState
         }
 
-        let key = newState.trackKey
+        // Engine Fix：换歌键改成稳定标识 trackKey(track)——
+        // 字段型播放器把歌词塞进 title/artist、两句之间互换字段时，
+        // 原拼接键会误判成不停换歌；稳定标识只用固定部分，字段变化不再走换歌分支。
+        let key = trackKey(newState.track)
 
         // ---- 换歌：立刻写入新快照（含已有缓存歌词），再决定是否联网搜 ----
         if key != lastTrackKey {
@@ -95,14 +120,20 @@ final class PlaybackCoordinator: ObservableObject {
 
             // 取消上一首歌的搜词
             searchTask?.cancel()
+            // Engine Fix：换歌轮换搜词代次，旧任务凭代次丢弃；
+            // 本地已有缓存歌词就不联网搜（缓存优先），直接用快照里的词。
+            searchGeneration = UUID()
+            let generation = searchGeneration
 
             // 关键：同步写一份新歌快照，进度基准 = 当前播放进度。
             // 命中本地缓存则直接带歌词 -> 桌面歌词与播放同时出现。
             publishImmediately(newState)
 
-            searchTask = Task {
-                await loadLyrics(for: newState.track)
-            }
+            if LyricStore.cachedLyrics(title: newState.track.title, artist: newState.track.artist) == nil {
+                searchTask = Task {
+                    await loadLyrics(for: newState.track, generation: generation)
+                }
+            } else { searchTask = nil }
 
             return
         }
@@ -140,6 +171,10 @@ final class PlaybackCoordinator: ObservableObject {
         // 换歌分支上面已 return，走到这里一定是同一首歌。
         if newState.status == .playing {
             syncLiveLyricsAndProgress(newState)
+        } else if let previous, abs(previous.position - newState.position) > 0.1 {
+            // Engine Fix：暂停时拖动进度——状态没变但位置变了（用户拖进度条），
+            // 也要同步进度基准，不然恢复播放会从旧位置跳变。
+            syncPlaybackState(newState, previous: previous)
         }
     }
 
@@ -249,9 +284,11 @@ final class PlaybackCoordinator: ObservableObject {
             return
         }
 
+        // Engine Fix：快照归属改用稳定歌曲标识比对——
+        // 字段型播放器互换 title/artist 字段时，原标题相等判断会误判成别首歌。
         guard
-            snapshot.title == newState.track.title,
-            snapshot.artist == newState.track.artist
+            LyricStore.stableSongIdentity(title: snapshot.title, artist: snapshot.artist) ==
+            LyricStore.stableSongIdentity(title: newState.track.title, artist: newState.track.artist)
         else {
             return
         }
@@ -299,8 +336,11 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     private func loadLyrics(
-        for track: MusicTrack
+        for track: MusicTrack, generation: UUID
     ) async {
+        // Engine Fix：代次守卫——任务启动时、取回结果后、出错时都核对代次，
+        // 换歌后旧任务即使没被 cancel 停住，回来也写不进。
+        guard !Task.isCancelled, generation == searchGeneration else { return }
 
         message = "正在搜索歌词：\(track.title)"
 
@@ -311,6 +351,7 @@ final class PlaybackCoordinator: ObservableObject {
             )
 
             try Task.checkCancellation()
+            guard generation == searchGeneration, lastTrackKey == trackKey(track) else { return }
 
             guard
                 let result = LyricMatcher.bestMatch(
@@ -336,8 +377,8 @@ final class PlaybackCoordinator: ObservableObject {
                 return
             }
 
-            // 防止搜索期间歌曲已经切换
-            guard state?.trackKey == trackKey(track) else {
+            // 防止搜索期间歌曲已经切换（用最新原始状态比，不用可能滞后的 state）
+            guard let current = latestState, trackKey(current.track) == trackKey(track) else {
                 return
             }
 
@@ -349,9 +390,7 @@ final class PlaybackCoordinator: ObservableObject {
             )
 
             // 用「此刻」最新进度做基准，歌词从当前进度开始显示
-            if let current = state {
-                syncLyrics(lines, at: current)
-            }
+            syncLyrics(lines, at: current)
 
             message = "歌词匹配成功"
             LyricLogger.log("歌词匹配成功：\(track.title)")
@@ -361,6 +400,7 @@ final class PlaybackCoordinator: ObservableObject {
             return
 
         } catch {
+            guard !Task.isCancelled, generation == searchGeneration else { return }
 
             message = "歌词搜索失败：\(error.localizedDescription)"
             LyricLogger.log(message)
@@ -394,9 +434,11 @@ final class PlaybackCoordinator: ObservableObject {
         // 进度基准取「此刻」最新上报值，而不是可能滞后最多 1 秒的 state：
         // 搜词完成时才把歌词写进去，若用旧 state 的 position，歌词一开始就慢半拍，
         // 表现为唱了几个字才显示当前句。
-        let live = adapter.currentState()
-        let basePosition = live?.position ?? current.position
-        let baseStatus = live?.status ?? current.status
+        // Engine Fix：不再回头调 adapter.currentState() 重读一次——
+        // 用传进来的 current（最新原始状态）＋自 observedAt 起的流逝推算；
+        // 暂停时不推算，位置冻结在 current.position。
+        let baseStatus = current.status
+        let basePosition = current.position + (baseStatus == .playing ? max(0, Date().timeIntervalSince(current.observedAt)) : 0)
 
         snapshot?.lyrics = lines
         snapshot?.startedAt = Date()

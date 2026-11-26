@@ -79,11 +79,13 @@ final class MediaRemoteDiagnostics {
     /// 请求超时自动复位（ChatGPT 审查 bug 1）：上一次请求超过 2 秒没回回调，
     /// fetching 放开、下一次 poll 重发。第一次记一行，之后每 10 次记一行，
     /// 接口彻底不通时不至于每 2 秒刷一条日志。
+    /// （Engine Fix 包里超时是 Task.sleep 看门狗，不记日志；1.0.5 诊断层在这里补记。
+    /// 包的 requestID 是 UUID，日志里不印编号，只记次数。）
     static private(set) var fetchTimeoutCount = 0
-    static func recordFetchTimeout(requestID: Int) {
+    static func recordFetchTimeout() {
         fetchTimeoutCount += 1
         if fetchTimeoutCount == 1 || fetchTimeoutCount % 10 == 0 {
-            LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 请求超时（编号 \(requestID)，2 秒无回调，第 \(fetchTimeoutCount) 次），fetching 已复位，下次 poll 重发")
+            LyricLogger.log("诊断1.0.5 MediaRemote：GetNowPlayingInfo 请求超时（2 秒无回调，第 \(fetchTimeoutCount) 次），fetching 已复位，下次 poll 重发")
         }
     }
 
