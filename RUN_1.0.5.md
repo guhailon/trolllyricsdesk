@@ -159,7 +159,8 @@ lastLiveState／publishLiveLyrics 定义）——并的时候只取上面第 2 �
 | 6 | 后台挂起及恢复日志 | `Overlay/TLDSAppDelegate.m`（进入后台／失去前台／回到前台／终止四回调）、`Overlay/TLDSSceneDelegate.m`（场景前台／后台四回调） |
 | 7 | 保留同步修正与逐歌偏移 | 未碰：`Lyrics/LyricStore.swift` 的 timeOffset／noMusic／isDisplayEquivalent／syncLiveLyricsAndProgress 等只增新段、零删行（自检 §11：`git diff 6857d3c..HEAD -- Lyrics/LyricStore.swift` 无删行；红线锚 9 个符号仍在位） |
 
-版本：`MARKETING_VERSION` 4 处 1.0.0→**1.0.5**、两 Info.plist 版本 **1.0.5**／build **19**、
+版本：`MARKETING_VERSION` 4 处 1.0.0→**1.0.5**、两 Info.plist 版本 **1.0.5**／build **20**
+（build 19→20 见 §十二，模式翻转修复版）、
 workflow 产物 `桌面歌词-1.0.5.ipa`。
 
 ## 二、三档运行模式（新增范围）
@@ -393,6 +394,7 @@ parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入
    对照悬浮窗是什么时候消失的；若悬浮窗在「进入后台」那一刻没的，就是被挂起弄没的。
 6. **巨魔模式回归**：同一 IPA 装回越狱机 TrollStore，悬浮窗／保活／激活一切照旧；
    日志里应是「巨魔原生模式」，不应出现复核行（巨魔不复核）。
+   **build 19 真机已证实这条不成立（见 §十二）——build 20 修了，重测以 build 20 为准。**
 7. **不验的**：Telegram 行点没反应——1.0.5 不修这一项，不要顺手报它修没修好。
    锁屏歌词已取消（见零节），不用验。
 8. **暂停进度修正**：在 30 秒处暂停，5 秒后看进度——应停在 30 秒附近，不涨到 35 秒；
@@ -453,3 +455,60 @@ parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入
   是意译，源码原文是格式串「windowScene %@，rootView 已挂到 window %@」，
   两段都在位。
 - 验包记录：`hidden_files/ipa_verify_1.0.5.log`（本机留存，不进 git）。
+
+## 十二、build 20 修复：模式翻转＋检测引擎重复启动（皇上 2026-11-26 22:50 令，修＋重编）
+
+### 病根（皇上真机日志，`hidden_files/device-log-1.0.5-20261126-2247.txt`）
+越狱 iPhone 11，TrollStore 装的 build 19，两次启动同一模式：
+启动写 `trollstore`／「巨魔原生模式」，2 秒后托管复核跑了，逐项全过，
+把模式改成 `enhanced-host`／「增强宿主模式」，首选变 PiP 实验，
+原生悬浮窗反被标「权限受限、不信任」。§十第 6 项的标准是巨魔机日志应是
+「巨魔原生模式」、不应出现复核行——build 19 两条都不成立。
+
+代码核实（`Overlay/TLDSAppDelegate.m`）：
+- 巨魔分支（约 122 行）只调 `setRunMode:@"trollstore"`，**从不置 `modeDecided = YES`**；
+  `modeDecided` 全文件只在两处被置 YES——复核通过处（约 427 行）和降级处（约 446 行）。
+- `createFloatingScene`（约 318–325 行）建完场景后**无条件** 2 秒 dispatch_after
+  排 `verifyFloatingVisibility`，只看 `!self.modeDecided`。
+- 所以巨魔机上复核必跑、必过、必改模式。注释写「巨魔模式不走这里」，代码没拦住。
+
+### 修法（三道守卫，提交 `8aa0bdc`）
+1. 巨魔分支定档时就把 `modeDecided = YES` 置上——2 秒复核的 `!modeDecided` 守卫直接拦住。
+2. `createFloatingScene` 里 2 秒复核的排期改成只在宿主分支排
+   （`if ([[TLDSRuntime shared] isHosted])` 包住 dispatch_after）——
+   巨魔机上连排期都没有，日志里不应出现复核行。
+3. `verifyFloatingVisibility` 入口再加一道模式守卫：模式已是 `trollstore`
+   就直接返回，不写日志、不改模式（读 `[[TLDSRuntime shared] runModeString]`）。
+   6 秒兜底复核在宿主分支里，同样只看 `!modeDecided`，巨魔机不受影响。
+修完巨魔机日志应是：启动「巨魔原生模式」后**无任何复核行**，模式不再翻。
+
+### 检测引擎一次启动跑了 5 次（同份日志，第二次启动 14:46:36–42）
+`PlaybackCoordinator.start()` 计数到第 5 次，其余计数全是 1。
+调用点：`App/ContentView.swift:198`（「开始检测音乐」按钮）、
+`App/TrollLyricsDeskApp.swift:134`（TLDSRuntime.start 里自动跟随，
+本身已有 `started` 守卫，只调一次）、`Overlay/TLDSAppDelegate.m:112`
+（runtime start）。皇上没回是不是他连点了按钮——**不等他回**：
+`start()` 已做成幂等：`timer != nil`（已在跑）就直接返回，记一行
+「检测引擎已在运行，跳过（不重复记数）」，不重复记数、不重复建检测任务；
+停过（timer 已清）再调才算一次新启动。按钮连点、前台回来自动重调都拦在这一处。
+
+### 不动的
+锁屏继续拿掉（没带回来）；三档模式、三渲染器、诊断、强制测试文字、
+PiP 实验、Engine Fix、激活、包名 com.ycwl.Lyrics 全不动；零新增 entitlements。
+版本只动 build：两 Info.plist build 19→20，MARKETING_VERSION 仍 1.0.5，
+workflow 产物名仍是 `桌面歌词-1.0.5.ipa`。自检升级到 **211 PASS，FAILED: none，
+OPEN 16**（§15 四项新检查全过）。
+
+### 头 run 与验包（待填）
+- 头 run：（待云端构建后填）
+- 验包：（待真 IPA 验包后填）
+
+### 新待验项（build 20，巨魔机重测）
+1. **模式恒巨魔原生**：越狱机装 build 20，打开 App，等 5 秒，进关于页 → 日志——
+   应只有启动那一行「运行模式：巨魔原生模式」，**全文不应出现任何「托管复核」
+   「复核」行**；「运行模式：写入」应只有 trollstore 那一行，不应出现 enhanced-host。
+2. **检测引擎计数恒 1**：同一次启动内「检测引擎启动第 N 次」应恒为 1——
+   连点几次「开始检测音乐」也只记 1 次有效启动（多点只记跳过行，不建新任务）；
+   切后台再回来也不应再涨。
+3. LC 那边等皇上另测：LC 里应仍是「待探测」→ 复核定档（增强宿主／普通签名兼容），
+   巨魔修复不改宿主分支行为。

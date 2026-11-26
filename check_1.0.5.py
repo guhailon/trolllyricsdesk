@@ -153,7 +153,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.5", pl.get("CFBundleShortVersionString") == "1.0.5",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 19", pl.get("CFBundleVersion") == "19",
+    check(f"{rel}: build 20", pl.get("CFBundleVersion") == "20",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -776,6 +776,26 @@ check("EngineTests/main.swift 已带入（LRC 回归测试，不进编译目标�
       and "EngineTests" not in pbx)
 check("pbxproj: EngineTests 不在任何 Sources 里（只留文件不加 target）",
       "EngineTests" not in pbx)
+
+print("\n== 15. build 20 修复：模式翻转＋检测引擎重复启动（皇上 2026-11-26 22:50 令） ==")
+# 病根（真机日志已证实）：巨魔分支只调 setRunMode:@"trollstore"，从不置 modeDecided=YES；
+# createFloatingScene 里 2 秒后排的复核只看 !modeDecided，巨魔机上复核必跑、必过、
+# 必把模式改成 enhanced-host。修法三道守卫，缺一不可。
+check("AppDelegate: 巨魔分支定档即置 modeDecided=YES（复核不再跑）",
+      'setRunMode:@"trollstore"' in td
+      and td.count("self.modeDecided = YES") == 3  # 巨魔分支＋复核通过＋降级
+      and td.index('setRunMode:@"trollstore"') < td.index("self.modeDecided = YES"))
+check("AppDelegate: createFloatingScene 的 2 秒复核只在宿主分支排",
+      "if ([[TLDSRuntime shared] isHosted]) {" in td
+      and td.index("if ([[TLDSRuntime shared] isHosted]) {",
+                   td.index("创建后 2 秒延迟复核")) < td.index("dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC))"))
+check("AppDelegate: verifyFloatingVisibility 入口有 trollstore 守卫（直接返回，不写日志、不改模式）",
+      '[[[TLDSRuntime shared] runModeString] isEqualToString:@"trollstore"' in td)
+check("coordinator: start() 幂等——timer 在位就跳过，不重复记数、不重复建检测任务",
+      "if timer != nil {" in read("PlaybackEngine/PlaybackCoordinator.swift")
+      and read("PlaybackEngine/PlaybackCoordinator.swift").index("if timer != nil {")
+      < read("PlaybackEngine/PlaybackCoordinator.swift").index("startCount += 1")
+      and "检测引擎已在运行，跳过（不重复记数）" in read("PlaybackEngine/PlaybackCoordinator.swift"))
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
