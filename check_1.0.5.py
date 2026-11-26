@@ -419,6 +419,7 @@ check("Core/ 与 MusicProviders/ 只动两处诊断文件（Bridge＋Adapter）�
       str(core_mr_changed))
 changed = git_out(["diff", "--name-only", BASE, "HEAD"]).splitlines()
 allowed = {
+    "App/ContentView.swift",
     "App/PlaybackDashboardView.swift",
     "App/SettingsView.swift", "App/TrollLyricsDeskApp.swift",
     "Compatibility/EntitlementDiagnostics.swift",
@@ -443,6 +444,9 @@ allowed = {
     "Renderer/PiPLyricsRenderer.swift",
     "TrollLyricsDesk.xcodeproj/project.pbxproj",
     "TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist",
+    "TrollLyricsWidget/TrollLyricsWidget.swift",
+    "TrollLyricsWidget/TrollLyricsWidgetBundle.swift",
+    "TrollLyricsWidget/WidgetView.swift",
     ".github/workflows/build.yml",
     "check_1.0.5.py", "RUN_1.0.5.md",
 }
