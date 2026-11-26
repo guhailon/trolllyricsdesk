@@ -16,6 +16,11 @@ struct PlaybackDashboardView: View {
     @AppStorage("floatingLyric.enabled", store: UserDefaults(suiteName: LyricStore.groupID))
     private var floatingEnabled = true
 
+    /// 悬浮窗固定位置开关（与悬浮控制器共享 App Group 的 floatingLyric.positionLocked）。
+    /// 默认 false（可拖）；打开后悬浮窗拖不动，位置保持上次存好的地方。
+    @AppStorage("floatingLyric.positionLocked", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var positionLocked = false
+
     /// 悬浮歌词文字颜色（0xRRGGBB，写进 App Group，悬浮窗每次刷新时读取）。
     @AppStorage("floatingLyric.textColorHex", store: UserDefaults(suiteName: LyricStore.groupID))
     private var lyricTextColorHex: Int = 0xFFFFFF
@@ -49,31 +54,19 @@ struct PlaybackDashboardView: View {
 
             ZStack {
 
-                // 与原主界面（设置页）一致的渐变背景
-                LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.8),
-                        Color.black,
-                        Color.blue.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // 共用背景：跟设置页／关于页同一份，随「背景设置」换
+                AppBackgroundView()
 
                 VStack(spacing: 22) {
 
-                    // 左上角标题，右上角设置入口
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("桌面歌词")
-                                .font(.system(size: 36, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        // 标题和下方内容再整体下移一行；齿轮按钮仍固定在右上角原位
-                        .padding(.top, 80)
-
-                        Spacer()
+                    // 标题居中，齿轮仍固定在右上角原位
+                    ZStack(alignment: .topTrailing) {
+                        Text("桌面歌词")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            // 标题和下方内容再整体下移一行
+                            .padding(.top, 80)
 
                         // 独立的菜单子视图：不依赖 coordinator.state，
                         // 播放状态每 0.25s 刷新时菜单不会被重建，避免弹出层闪烁。
@@ -142,10 +135,12 @@ struct PlaybackDashboardView: View {
                     .background(.ultraThinMaterial)
                     .cornerRadius(20)
 
-                    // 操作提示：放在「显示悬浮歌词窗」开关上方
-                    Text("悬浮窗口・长按拖动・双击隐藏")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                    // 悬浮窗操作提示（原先在悬浮窗卡片底部，现移到主界面；文案跟固定开关走）
+                    Text(positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
 
                     // 悬浮歌词窗开关（放在「开始检测音乐」按钮上方）
                     Toggle(
@@ -170,6 +165,17 @@ struct PlaybackDashboardView: View {
                         syncFloatingEnabled()
                     }
                     .onAppear(perform: syncFloatingEnabled)
+
+                    // 固定悬浮窗位置（放在显示开关下方；打开后拖不动，位置保持上次存好的地方）
+                    Toggle(
+                        "固定悬浮窗位置",
+                        isOn: $positionLocked
+                    )
+                    .foregroundColor(.white)
+                    .tint(.purple)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
 
                     // 悬浮歌词颜色取色器（放在开关下方、「开始检测音乐」按钮上方）
                     HStack {

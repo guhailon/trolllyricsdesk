@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import UIKit
 
 /// 设置中心：从主界面右上角齿轮进入，提供「设置 / 关于」两个入口。
 /// 背景与原主界面保持一致。
@@ -10,16 +11,7 @@ struct SettingsHubView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color.purple.opacity(0.8),
-                    Color.black,
-                    Color.blue.opacity(0.5)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppBackgroundView()
 
             VStack(spacing: 24) {
 
@@ -63,6 +55,54 @@ struct SettingsHubView: View {
     }
 }
 
+/// 共用 App 背景：读「背景设置」三个键（App Group），随选图实时换。
+/// 之前全工程只有 SettingsView 写这三个键、没有任何界面读它们，选了图也换不了背景。
+/// - 开关关 → 纯黑（无图无渐变）。
+/// - 开且用户选过自定义图 → 全屏显示这张图，不透明度 = 1 − backgroundOpacity
+///   （默认 0.25 即图 75% 显示，底下是黑色）。
+/// - 开但没选过图 → 原来的紫／黑／蓝渐变（同样套这个不透明度）。
+/// 选图后立即生效：loadSelectedPhoto 本来就即时写 selectedBackgroundData，
+/// @AppStorage 会实时刷新。MinOS 15.0 兼容（UIImage(data:) 等老 API）。
+struct AppBackgroundView: View {
+
+    @AppStorage("animeBackgroundEnabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var animeBackgroundEnabled = true
+
+    @AppStorage("backgroundOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var backgroundOpacity = 0.25
+
+    @AppStorage("selectedBackgroundData", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var selectedBackgroundData = Data()
+
+    var body: some View {
+        ZStack {
+            Color.black
+
+            if animeBackgroundEnabled {
+                if !selectedBackgroundData.isEmpty,
+                   let image = UIImage(data: selectedBackgroundData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(1 - backgroundOpacity)
+                } else {
+                    LinearGradient(
+                        colors: [
+                            Color.purple.opacity(0.8),
+                            Color.black,
+                            Color.blue.opacity(0.5)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .opacity(1 - backgroundOpacity)
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
 struct ContentView: View {
 
     /// 音乐检测控制从主界面移到这里，复用 App 级检测引擎。
@@ -80,16 +120,7 @@ struct ContentView: View {
 
         ZStack {
 
-            LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.8),
-                        Color.black,
-                        Color.blue.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+            AppBackgroundView()
 
                 ScrollView {
 

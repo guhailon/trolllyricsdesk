@@ -25,6 +25,13 @@ final class FloatingLyricViewController: UIViewController {
     private let posXKey = "floatingLyric.posX"
     private let posYKey = "floatingLyric.posY"
 
+    // 固定位置开关：打开后 handlePan 直接 return，拖不动；位置保持上次存好的地方
+    private let positionLockedKey = "floatingLyric.positionLocked"
+    private var positionLocked: Bool {
+        // Bool 未设置时 UserDefaults.bool 返回 false，与开关默认值 false 一致
+        prefs?.bool(forKey: positionLockedKey) ?? false
+    }
+
     // 悬浮窗背景透明度：0 = 背景完全透明，只显示歌词
     private let cardOpacityKey = "floatingLyric.cardOpacity"
     private var cardBackgroundOpacity: CGFloat {
@@ -309,6 +316,8 @@ final class FloatingLyricViewController: UIViewController {
 
     // MARK: - 交互
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        // 固定位置开关打开时拖动不生效（位置保持上次存好的地方）
+        guard !positionLocked else { return }
         guard let window = view.window else { return }
         let translation = gesture.translation(in: window)
         var center = window.center

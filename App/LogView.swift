@@ -32,6 +32,7 @@ struct LogView: View, Equatable {
     static func == (lhs: LogView, rhs: LogView) -> Bool { true }
 
     @State private var entries: [LogEntry] = []
+    @State private var copiedFeedback = false
     @State private var showShare = false
     @State private var showClearConfirm = false
     /// 自绘菜单开关：不用 SwiftUI Menu（UIContextMenuInteraction 的模糊层
@@ -161,6 +162,22 @@ struct LogView: View, Equatable {
 
                         Button {
                             showActionMenu = false
+                            copyLog()
+                        } label: {
+                            Label(copiedFeedback ? "已复制" : "复制日志", systemImage: copiedFeedback ? "checkmark" : "doc.on.doc")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .contentShape(Rectangle())
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                        }
+                        .disabled(entries.isEmpty)
+                        .foregroundColor(entries.isEmpty ? .gray : .white)
+
+                        Divider()
+                            .background(Color.white.opacity(0.16))
+
+                        Button {
+                            showActionMenu = false
                             showClearConfirm = true
                         } label: {
                             Label("清理日志", systemImage: "trash")
@@ -202,6 +219,15 @@ struct LogView: View, Equatable {
 
     private func reload() {
         entries = LogEntry.parse(LyricLogger.read())
+    }
+
+    // 复制：整份日志原文写进剪贴板，按钮短暂变“已复制”后恢复。
+    private func copyLog() {
+        UIPasteboard.general.string = LyricLogger.read()
+        copiedFeedback = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            copiedFeedback = false
+        }
     }
 
     private func clearLogs() {

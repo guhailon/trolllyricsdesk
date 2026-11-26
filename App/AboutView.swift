@@ -14,16 +14,7 @@ struct AboutView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color.purple.opacity(0.8),
-                    Color.black,
-                    Color.blue.opacity(0.5)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppBackgroundView()
 
             ScrollView {
                 VStack(spacing: 20) {
@@ -83,7 +74,7 @@ struct AboutView: View {
                             HStack {
                                 Label("Telegram 频道", systemImage: "paperplane")
                                 Spacer()
-                                Text("@seadragonjb")
+                                Text("@Guhailon")
                                     .foregroundColor(.white.opacity(0.65))
                             }
                             .padding(.horizontal, 16)
@@ -121,11 +112,11 @@ struct AboutView: View {
         }
     }
 
-    // 频道是私密频道，没有公开用户名，@seadragonjb 打不开频道；
-    // 改走频道邀请链接：先跳 Telegram App（tg://join），没装就退回网页版。
+    // 频道已公开，用户名 @Guhailon：先跳 Telegram App（tg://resolve），
+    // 没装就退回网页版。
     private func openTelegram() {
-        let appURL = URL(string: "tg://join?invite=I-I8aw7HUAw1NGY9")!
-        let webURL = URL(string: "https://t.me/+I-I8aw7HUAw1NGY9")!
+        let appURL = URL(string: "tg://resolve?domain=Guhailon")!
+        let webURL = URL(string: "https://t.me/Guhailon")!
         UIApplication.shared.open(appURL, options: [:]) { success in
             if !success {
                 UIApplication.shared.open(webURL)
