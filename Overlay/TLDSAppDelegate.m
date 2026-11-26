@@ -121,6 +121,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     if (![[TLDSRuntime shared] isHosted]) {
         [[TLDSRuntime shared] setRunMode:@"trollstore"
                                   reason:@"非 LiveContainer（路径／类名／plist 均无宿主信号）"];
+        // 1.0.5 build 20 修复（模式翻转，真机日志已证实）：
+        // 巨魔定档即置 modeDecided=YES——createFloatingScene 里 2 秒后排的复核
+        // 只看 !modeDecided，不置这里的话巨魔机上复核必跑、必过、必把模式
+        // 改成 enhanced-host。巨魔不复核：复核只在宿主分支跑。
+        self.modeDecided = YES;
         [self log:@"运行模式：巨魔原生模式（TrollStore，私有接口全可用，悬浮窗照常）"];
         [self log:@"诊断1.0.5 显示引擎：原生 HUD 悬浮歌词（巨魔原生模式，唯一档）"];
         TLDSInstallNativeWindowFix();
@@ -313,14 +318,18 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 
     // 1.0.5（第 4 项）：创建后 2 秒延迟复核——窗口是不是真在层级里、
     // Context ID 是否有效、binder 是不是真收录了场景。复核结果定三档模式。
-    __weak TLDSAppDelegate *weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-        __strong TLDSAppDelegate *strongSelf = weakSelf;
-        if (strongSelf && !strongSelf.modeDecided) {
-            [strongSelf verifyFloatingVisibility];
-        }
-    });
+    // build 20 修复（模式翻转）：复核只在宿主分支排——巨魔已在启动时定档
+    // （modeDecided=YES），这里不排复核，巨魔机日志里不应出现复核行。
+    if ([[TLDSRuntime shared] isHosted]) {
+        __weak TLDSAppDelegate *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (strongSelf && !strongSelf.modeDecided) {
+                [strongSelf verifyFloatingVisibility];
+            }
+        });
+    }
     return binder;
 }
 
@@ -331,6 +340,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 未通过时走 downgradeToCompatModeWithReasons 摘掉场景、只走应用内歌词。
 - (void)verifyFloatingVisibility {
     if (self.modeDecided) {
+        return;
+    }
+    // build 20 修复（模式翻转）：第二道守卫——模式已是 trollstore 就直接返回，
+    // 不写日志、不改模式。巨魔定档在启动时已完成，复核只在宿主分支跑。
+    if ([[[TLDSRuntime shared] runModeString] isEqualToString:@"trollstore"]) {
         return;
     }
     self.verifyAttempts += 1;

@@ -32,6 +32,14 @@ final class PlaybackCoordinator: ObservableObject {
 
     func start() {
 
+        // 1.0.5 build 20 修复（检测引擎重复启动，真机日志已证实一次启动跑了 5 次）：
+        // 幂等——已在跑（timer 在位）就直接返回，不重复记数、不重复建检测任务。
+        // 按钮连点、前台回来自动重调都会走到这里；停过（timer 已清）再调才算一次新启动。
+        if timer != nil {
+            LyricLogger.log("诊断1.0.5 启动：检测引擎已在运行，跳过（不重复记数）")
+            return
+        }
+
         stop()
 
         // 1.0.5（第 5 项）：标清第几次启动检测引擎。
