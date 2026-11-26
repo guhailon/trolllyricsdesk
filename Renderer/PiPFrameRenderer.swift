@@ -45,7 +45,7 @@ enum PiPFrameRenderer {
                 try render(mainText: mainText, subText: subText, to: url)
                 DispatchQueue.main.async { completion(nil) }
             } catch {
-                LyricLogger.log("诊断1.0.5 PiP：视频生成失败：\(error.localizedDescription)")
+                LyricLogger.log("诊断1.0.6 PiP：视频生成失败：\(error.localizedDescription)")
                 DispatchQueue.main.async { completion(error) }
             }
         }

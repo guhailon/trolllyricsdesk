@@ -84,7 +84,7 @@ willConnectToSession:(UISceneSession *)session
         [window setHidden:NO];   // 悬浮窗不抢 keyWindow
         // 1.0.5（第 3 项）：创建时的窗口诊断——层级／透明度／隐藏状态的实际值。
         // 只打日志，不改行为；「已显示」这里只代表窗口建出来了，可见与否等复核。
-        [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 场景：悬浮窗口已创建（第 %ld 次，标识 %@）：windowLevel=%.0f，alpha=%.2f，backgroundColor=%@，isHidden=%@，windowScene=%@，frame=%@（创建成功≠可见，等复核）",
+        [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 场景：悬浮窗口已创建（第 %ld 次，标识 %@）：windowLevel=%.0f，alpha=%.2f，backgroundColor=%@，isHidden=%@，windowScene=%@，frame=%@（创建成功≠可见，等复核）",
                           (long)TLDSFloatingSceneConnectCount, identifier,
                           window.windowLevel, window.alpha,
                           window.backgroundColor ? @"已设置" : @"nil",
@@ -113,28 +113,28 @@ willConnectToSession:(UISceneSession *)session
 - (void)sceneDidBecomeActive:(UIScene *)scene {
     TLDSAppDelegate *appDelegate =
         (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
-    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景回到前台（DidBecomeActive）：%@",
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 后台：场景回到前台（DidBecomeActive）：%@",
                       scene.session.persistentIdentifier ?: @"?"]];
 }
 
 - (void)sceneWillResignActive:(UIScene *)scene {
     TLDSAppDelegate *appDelegate =
         (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
-    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景即将失去前台（WillResignActive）：%@",
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 后台：场景即将失去前台（WillResignActive）：%@",
                       scene.session.persistentIdentifier ?: @"?"]];
 }
 
 - (void)sceneDidEnterBackground:(UIScene *)scene {
     TLDSAppDelegate *appDelegate =
         (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
-    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景进入后台（DidEnterBackground）：%@",
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 后台：场景进入后台（DidEnterBackground）：%@",
                       scene.session.persistentIdentifier ?: @"?"]];
 }
 
 - (void)sceneWillEnterForeground:(UIScene *)scene {
     TLDSAppDelegate *appDelegate =
         (TLDSAppDelegate *)[UIApplication sharedApplication].delegate;
-    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.5 后台：场景即将进入前台（WillEnterForeground）：%@",
+    [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 后台：场景即将进入前台（WillEnterForeground）：%@",
                       scene.session.persistentIdentifier ?: @"?"]];
 }
 

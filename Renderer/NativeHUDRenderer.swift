@@ -12,12 +12,12 @@ final class NativeHUDRenderer: LyricsRenderer {
 
     func showTestText() {
         LyricStore.isTestTextEnabled = true
-        LyricLogger.log("诊断1.0.5 强制测试：原生 HUD 显示测试文字")
+        LyricLogger.log("诊断1.0.6 强制测试：原生 HUD 显示测试文字")
     }
 
     func showLiveLyrics() {
         LyricStore.isTestTextEnabled = false
-        LyricLogger.log("诊断1.0.5 强制测试：原生 HUD 恢复实时歌词")
+        LyricLogger.log("诊断1.0.6 强制测试：原生 HUD 恢复实时歌词")
     }
 
     func stop() {

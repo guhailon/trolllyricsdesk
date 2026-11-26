@@ -13,12 +13,12 @@ final class InAppLyricsRenderer: LyricsRenderer {
 
     func showTestText() {
         LyricStore.isTestTextEnabled = true
-        LyricLogger.log("诊断1.0.5 强制测试：应用内歌词区显示测试文字（非悬浮窗）")
+        LyricLogger.log("诊断1.0.6 强制测试：应用内歌词区显示测试文字（非悬浮窗）")
     }
 
     func showLiveLyrics() {
         LyricStore.isTestTextEnabled = false
-        LyricLogger.log("诊断1.0.5 强制测试：应用内歌词区恢复实时歌词")
+        LyricLogger.log("诊断1.0.6 强制测试：应用内歌词区恢复实时歌词")
     }
 
     func stop() {

@@ -46,6 +46,6 @@ final class LyricsRendererHub {
     /// （PiP 启动要用户在前台点按钮，后台回调里调不可靠，见 PiPLyricsRenderer）。
     func refreshEngine() {
         RuntimeEnvironment.logEngineSelection()
-        LyricLogger.log("诊断1.0.5 显示引擎：当前渲染器=\(currentRenderer.engineName)（实验=\(currentRenderer.isExperimental ? "是" : "否")）")
+        LyricLogger.log("诊断1.0.6 显示引擎：当前渲染器=\(currentRenderer.engineName)（实验=\(currentRenderer.isExperimental ? "是" : "否")）")
     }
 }

@@ -13,7 +13,7 @@ import Foundation
 /// 跟读不到一样返回 nil，不崩。
 private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (
     DispatchQueue,
-    @escaping (CFDictionary?) -> Void
+    @convention(block) (CFDictionary?) -> Void
 ) -> Void
 
 /// 1.0.5 诊断（第 1 项）：MRMediaRemoteRegisterForNowPlayingNotifications
@@ -22,8 +22,18 @@ private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (
 /// info 有无内容只在 nil／非 nil 切换时记，不刷屏。
 /// （Engine Fix 包基于底子，没有这段诊断；并入时从 1.0.5 诊断版补回。）
 private typealias MRMediaRemoteRegisterForNowPlayingNotificationsFn = @convention(c) (
+    DispatchQueue
+) -> Void
+
+/// 1.0.6 第 4 项 P0 判别器：MRMediaRemoteGetNowPlayingApplicationIsPlaying——
+/// info==nil 时问系统「到底有没有 App 在放歌」，把「没放歌」和「放着歌还读不到」分开。
+/// 假定签名 (dispatch_queue_t, completion(Boolean))：completion 亦为 block
+/// （与 GetNowPlayingInfo 同族；1.0.5 的假回调教训——回调签名必须按 block 声明，
+/// 否则系统根本不调它）。符号缺失／调用失败时回退，不伪造；真机验签名。
+/// Boolean 用 UInt8 接（!= 0 为播放中）。
+private typealias MRMediaRemoteGetNowPlayingApplicationIsPlayingFn = @convention(c) (
     DispatchQueue,
-    @escaping (CFNotificationCenter?, UnsafeRawPointer?, CFString?, UnsafeRawPointer?, CFDictionary?) -> Void
+    @convention(block) (UInt8) -> Void
 ) -> Void
 
 @MainActor
@@ -42,6 +52,9 @@ private let maxCacheAge: TimeInterval = 3
 /// 1.0.5 诊断计数（只为日志节流，不影响逻辑；记录集中在 MediaRemoteDiagnostics）。
 private var notificationRegistered = false
 
+/// 1.0.6 第 4 项：isPlaying 查询节流（上次查询时间；info==nil 时 5 秒内不重复问）。
+private var lastIsPlayingQueryAt: Date?
+
 init() {
     registerForNowPlayingNotifications()
 }
@@ -57,12 +70,29 @@ private func registerForNowPlayingNotifications() {
         return
     }
     let register = unsafeBitCast(sym, to: MRMediaRemoteRegisterForNowPlayingNotificationsFn.self)
-    register(DispatchQueue.main) { _, _, name, _, _ in
+    register(DispatchQueue.main)
+    // 注册接口仅接收队列；轮询仍为主数据源，不伪造通知回调。
+    MediaRemoteDiagnostics.recordRegistration(success: true)
+}
+
+/// 1.0.6 第 4 项 P0 判别器：info==nil 时问系统有没有 App 在放歌（5 秒节流）。
+/// 结果记 MediaRemoteDiagnostics.recordIsPlaying(_:)；readStatus 由此区分
+/// 「可能没放歌（isPlaying=NO）」和「P0：放着歌还读不到（isPlaying=YES＋info=nil）」。
+/// 符号缺失时记一次「isPlaying 查询不可用」，不伪造、不崩。
+private func queryIsPlayingIfNeeded() {
+    if let last = lastIsPlayingQueryAt, Date().timeIntervalSince(last) < 5 { return }
+    lastIsPlayingQueryAt = Date()
+    guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying) else {
+        MediaRemoteDiagnostics.recordIsPlaying(nil)
+        return
+    }
+    MediaRemoteDiagnostics.recordIsPlayingQuery()
+    let query = unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingFn.self)
+    query(DispatchQueue.main) { playing in
         Task { @MainActor in
-            MediaRemoteDiagnostics.recordNotificationFire(name: name as String?)
+            MediaRemoteDiagnostics.recordIsPlaying(playing != 0)
         }
     }
-    MediaRemoteDiagnostics.recordRegistration(success: true)
 }
 
 /// 缓存保鲜 0.3 秒：换歌/开始播放要「即播即显」，2 秒缓存会让歌词慢半拍。
@@ -159,8 +189,10 @@ Task { @MainActor [weak self] in
     self.requestID = UUID()
 }
 let getNowPlayingInfo = unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingInfoFn.self)
+// 1.0.6 第 4 项：发出调用即记一次（调用次数／回调次数／info 内容三者分开记）。
+MediaRemoteDiagnostics.recordRequest()
 getNowPlayingInfo(
-DispatchQueue.global(qos: .background)
+DispatchQueue.main
 ) { [weak self] info in
 
 Task { @MainActor in
@@ -168,6 +200,18 @@ guard let self, self.requestID == id, self.fetching else { return }
 
 let title = (info as? [String: Any])?["kMRMediaRemoteNowPlayingInfoTitle"] as? String
 MediaRemoteDiagnostics.recordInfoCallback(isNil: info == nil, title: title)
+if info == nil {
+    // 1.0.6 第 4 项 P0：回调回来了但没数据——问系统到底有没有 App 在放歌。
+    // （23:24 坐实：LC 机上 QQ 音乐在播，info 仍 nil。）
+    queryIsPlayingIfNeeded()
+}
+if info != nil && title?.isEmpty != false {
+    // 1.0.6 第 4 项：字典非空缺标题——「解析失败」的证据（计数进 diagnostics）。
+    MediaRemoteDiagnostics.recordMissingTitle()
+    if MediaRemoteDiagnostics.infoCallbackCount == 1 || MediaRemoteDiagnostics.infoCallbackCount % 50 == 0 {
+        LyricLogger.log("MediaRemote：字典非空但缺少有效标题，检查字段解析")
+    }
+}
 
 self.cachedInfo = info as? [String: Any]
 self.cachedAt = Date()

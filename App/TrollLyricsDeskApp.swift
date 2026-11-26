@@ -112,7 +112,41 @@ final class TrollLyricsRuntime: NSObject {
     @objc func setRunMode(_ mode: String, reason: String) {
         LyricStore.runMode = mode
         LyricStore.runModeReason = reason
-        LyricLogger.log("诊断1.0.5 运行模式：写入 \(mode)（\(reason)）")
+        LyricLogger.log("诊断1.0.6 运行模式：写入 \(mode)（\(reason)）")
+    }
+
+    /// 1.0.6 第 1／2 项：安装环境写入口——启动时定一次，之后永不改写。
+    /// 托管复核禁止调这个方法（复核只调 setDisplayCapability／setRunMode）。
+    @objc func setInstallEnvironment(_ env: String, reason: String) {
+        LyricStore.installEnvironment = env
+        LyricStore.installEnvironmentReason = reason
+        LyricLogger.log("诊断1.0.6 安装环境：\(InstallEnvironment(rawValue: env)?.displayName ?? env)（\(reason)）")
+    }
+
+    /// 1.0.6 第 2 项：显示能力写入口——复核结论或安装环境定档时调。
+    @objc func setDisplayCapability(_ capability: String, reason: String) {
+        LyricStore.displayCapability = capability
+        LyricStore.displayCapabilityReason = reason
+        LyricLogger.log("诊断1.0.6 显示能力：\(DisplayCapability(rawValue: capability)?.displayName ?? capability)（\(reason)）")
+    }
+
+    /// 1.0.6 第 1 项：安装环境判定（启动时 ObjC 侧调一次）。
+    /// 先记实测权限表，再按正面证据定档并写库、记日志，返回安装环境原值。
+    @objc func detectInstallEnvironment() -> String {
+        EffectiveEntitlements.logReport()
+        let result = RuntimeEnvironment.detectInstallEnvironment()
+        setInstallEnvironment(result.env.rawValue, reason: result.reason)
+        return result.env.rawValue
+    }
+
+    /// 1.0.6：读当前安装环境（诊断页／ObjC 侧复核分支用）。
+    @objc func installEnvironmentString() -> String { LyricStore.installEnvironment }
+
+    /// 1.0.6 第 4 项：诊断行的环境标签——安装环境＋iOS 版本，
+    /// 每个 MediaRemote／托管复核结论都带上，两台机的日志不再混在一起判。
+    @objc func environmentTag() -> String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "安装环境=\(LyricStore.installEnvironmentDescription)，iOS \(version.majorVersion).\(version.minorVersion)"
     }
 
     /// 1.0.5：读当前模式（设置页显示用；没写过时默认 probing）。
@@ -122,7 +156,7 @@ final class TrollLyricsRuntime: NSObject {
         // 1.0.5（第 5 项）：重复调用记「已启动，跳过」，不建第二个检测引擎。
         startCallCount += 1
         if started {
-            LyricLogger.log("诊断1.0.5 重复初始化：TLDSRuntime.start 第 \(startCallCount) 次调用，已启动，跳过")
+            LyricLogger.log("诊断1.0.6 重复初始化：TLDSRuntime.start 第 \(startCallCount) 次调用，已启动，跳过")
             return
         }
         started = true

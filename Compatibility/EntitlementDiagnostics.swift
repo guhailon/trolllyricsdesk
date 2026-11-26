@@ -30,13 +30,19 @@ enum EntitlementDiagnostics {
         switch LyricStore.runMode {
         case "trollstore":
             frontBoardObserved = "巨魔模式：悬浮窗照常（不复核）"
+        case "native-candidate":
+            frontBoardObserved = "原生候选：实际可见性未确认"
         case "enhanced-host":
-            frontBoardObserved = "复核通过，但增强宿主仍不信任原生 HUD（创建成功≠可见）"
+            frontBoardObserved = "托管检查通过，实际可见性待确认（增强宿主仍不信任原生 HUD，创建成功≠可见）"
         case "compat":
-            frontBoardObserved = "复核未过：\(LyricStore.runModeReason)"
+            frontBoardObserved = "托管检查未通过：\(LyricStore.runModeReason)"
         default:
             frontBoardObserved = "待探测"
         }
+        // 1.0.6 第 5 项：平台应用／解除沙盒的实测列改读进程实测
+        // （SecTask 任务权限＋沙盒外写探测），不再写静态的「LC 宿主不继承」。
+        let platformObserved = "任务权限=\(EffectiveEntitlements.describe(EffectiveEntitlements.taskValue(for: "platform-application")) )（SecTask 实测；声明≠可用）"
+        let noSandboxObserved = "任务权限=\(EffectiveEntitlements.describe(EffectiveEntitlements.taskValue(for: "com.apple.private.security.no-sandbox")) )；沙盒外写探测：\(EffectiveEntitlements.writeProbeDetail)"
         return [
             CapabilityCheck(
                 name: "MediaRemote 读取（com.apple.mediaremote.*-read-access）",
@@ -61,12 +67,12 @@ enum EntitlementDiagnostics {
             CapabilityCheck(
                 name: "平台应用（platform-application）",
                 declared: true,
-                observed: "LC 宿主是普通开发者签名，不继承；只看 IPA 声明没用"
+                observed: platformObserved
             ),
             CapabilityCheck(
                 name: "解除沙盒（com.apple.private.security.no-sandbox）",
                 declared: true,
-                observed: "LC 宿主是普通开发者签名，不继承；只看 IPA 声明没用"
+                observed: noSandboxObserved
             ),
             CapabilityCheck(
                 name: "PiP（公开 API，无需私有权限）",
@@ -80,9 +86,9 @@ enum EntitlementDiagnostics {
 
     /// 对照表打进日志（诊断页刷新时记一次）。
     static func logReport() {
-        LyricLogger.log("诊断1.0.5 权限对照：声明≠可用，实测以调用为准")
+        LyricLogger.log("诊断1.0.6 权限对照：声明≠可用，实测以调用为准")
         for check in checks() {
-            LyricLogger.log("诊断1.0.5 权限对照：\(check.name)：声明=\(check.declared ? "有" : "无")，实测=\(check.observed)")
+            LyricLogger.log("诊断1.0.6 权限对照：\(check.name)：声明=\(check.declared ? "有" : "无")，实测=\(check.observed)")
         }
     }
 }

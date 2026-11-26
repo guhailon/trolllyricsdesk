@@ -24,13 +24,14 @@ enum LyricStore {
     static let dataKey = "lyric.snapshot"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
-    /// Info.plist 键 TLDSLiveContainer 为 true，或包路径／可执行路径／argv[0]
-    /// 含 livecontainer 或 /lcapps/，或类 LCAppDelegate 存在，都算宿主。
+    /// Info.plist 键 TLDSLiveContainer 为 true，或包路径／可执行路径／argv[0]／
+    /// 进程名／Home 目录含 livecontainer 或 /lcapps/，或类 LCAppDelegate 存在，
+    /// 都算宿主。进程名与 Home 目录是并入 ChatGPT 1.0.6 加的信号（皇上 23:18 批并）。
     /// 宿主模式下 defaults 走 .standard（不用 App Group），悬浮窗／锁屏／
     /// 保活／小组件刷新一律不走，只做应用内歌词。
     static var isLiveContainer: Bool {
         if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true { return true }
-        let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? ""]
+        let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? "", ProcessInfo.processInfo.processName, NSHomeDirectory()]
         return paths.contains { path in
             let lower = path.lowercased()
             return lower.contains("livecontainer") || lower.contains("/lcapps/")
@@ -369,20 +370,95 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 1.0.5 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 1.0.6 · \(fmt.string(from: Date()))"
     }
 }
 
-// MARK: - 1.0.5 诊断：运行模式三档（新增范围）
-// 判定分两步：isLiveContainer（路径／类名／plist）只是第一步信号，
-// 第二步是能力探测（悬浮窗真被托管显示＋窗口真进层级＋Context ID 有效）。
-// 判定结果由 ObjC 侧（TLDSAppDelegate 托管复核）写进这里，设置页与日志页都能看到。
+// MARK: - 1.0.6 诊断：三项判定分离（安装环境／实际权限／显示能力）
+// 安装环境由启动时一次判定写进这里，托管复核禁止改它（第 1／2 项）；
+// 显示能力由复核或安装环境写进这里；实际权限的实测表见
+// EffectiveEntitlements（启动判定＋诊断页刷新各记一次）。
 // 模式值：trollstore（巨魔原生）／enhanced-host（增强宿主）／compat（普通签名兼容）／
-// probing（待探测，LiveContainer 信号已出、复核还没结论）。
+// probing（待探测，复核还没结论）。
 extension LyricStore {
 
     static let runModeKey = "tlds.runMode"
     static let runModeReasonKey = "tlds.runModeReason"
+
+    /// 安装环境（第 1 项）：trollstore／livecontainer／signature／unknown。
+    /// 启动时凭正面证据定一次，之后永不改写；复核只定显示能力。
+    static let installEnvironmentKey = "tlds.installEnvironment"
+    static let installEnvironmentReasonKey = "tlds.installEnvironmentReason"
+
+    static var installEnvironment: String {
+        get { defaults?.string(forKey: installEnvironmentKey) ?? "unknown" }
+        set { defaults?.set(newValue, forKey: installEnvironmentKey) }
+    }
+
+    static var installEnvironmentReason: String {
+        get { defaults?.string(forKey: installEnvironmentReasonKey) ?? "" }
+        set { defaults?.set(newValue, forKey: installEnvironmentReasonKey) }
+    }
+
+    static var installEnvironmentDescription: String {
+        InstallEnvironment(rawValue: installEnvironment)?.displayName ?? "未确认"
+    }
+
+    /// 显示能力（第 2 项）：nativeHUD／pip／inApp。
+    /// 巨魔原生直接定 nativeHUD；宿主／未确认由托管复核定；普通签名直接定 inApp。
+    static let displayCapabilityKey = "tlds.displayCapability"
+    static let displayCapabilityReasonKey = "tlds.displayCapabilityReason"
+
+    static var displayCapability: String {
+        get { defaults?.string(forKey: displayCapabilityKey) ?? "" }
+        set { defaults?.set(newValue, forKey: displayCapabilityKey) }
+    }
+
+    static var displayCapabilityReason: String {
+        get { defaults?.string(forKey: displayCapabilityReasonKey) ?? "" }
+        set { defaults?.set(newValue, forKey: displayCapabilityReasonKey) }
+    }
+
+    static var displayCapabilityDescription: String {
+        DisplayCapability(rawValue: displayCapability)?.displayName ?? "未定"
+    }
+
+    /// 激活前后悬浮窗状态快照的通知名（第 7 项）：Swift 侧发，ObjC 侧
+    /// TLDSAppDelegate 接住后记窗口状态（窗口在不在、isHidden、windowScene、frame）。
+    /// userInfo 带 tag：激活前／激活成功后。
+    static let logFloatingWindowStateNotification = Notification.Name("TLDSLogFloatingWindowState")
+
+    /// 发「记一次悬浮窗状态快照」通知（第 7 项）：tag 为「激活前」或「激活成功后」；
+    /// ObjC 侧记窗口状态，「激活前」每进程只记一次（由接住方去重）。
+    static func logFloatingWindowState(tag: String) {
+        NotificationCenter.default.post(
+            name: logFloatingWindowStateNotification,
+            object: nil,
+            userInfo: ["tag": tag]
+        )
+    }
+
+    /// 哪一个 LiveContainer 信号命中了（第 1 项的证据行；没命中返回「均无」）。
+    /// 注意：Info.plist 键 TLDSLiveContainer 在本工程里从来没设过值，
+    /// 所以 plist 这一路信号在单 IPA 里永远不命中（不是 bug，是设计：
+    /// 单 IPA 不能把这个键写死 true，否则巨魔机也会被判成宿主）。
+    static var liveContainerSignalDetail: String {
+        var hit: [String] = []
+        if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true {
+            hit.append("plist 键 TLDSLiveContainer=true")
+        }
+        let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? "", ProcessInfo.processInfo.processName, NSHomeDirectory()]
+        if paths.contains(where: { $0.lowercased().contains("livecontainer") }) {
+            hit.append("路径／进程名／Home 目录含 livecontainer")
+        }
+        if paths.contains(where: { $0.lowercased().contains("/lcapps/") }) {
+            hit.append("路径含 /lcapps/")
+        }
+        if NSClassFromString("LCAppDelegate") != nil {
+            hit.append("类 LCAppDelegate 存在")
+        }
+        return hit.isEmpty ? "均无（plist 键未设、路径无信号、类不存在）" : hit.joined(separator: "、")
+    }
 
     static var runMode: String {
         get { defaults?.string(forKey: runModeKey) ?? "probing" }
@@ -395,14 +471,18 @@ extension LyricStore {
     }
 
     /// 设置页显示用：模式中文名＋判定依据（没判定出时显示「待探测」）。
+    /// trollstore（正面证据已出）与 native-candidate（安装来源未知）是两档，
+    /// 不要并成一行（并入 ChatGPT 1.0.6 时它们并成了一行，这里拆开）。
     static var runModeDescription: String {
         switch runMode {
         case "trollstore":
             return "巨魔原生模式"
+        case "native-candidate":
+            return "原生候选（安装来源未知，实际屏幕可见性未确认）"
         case "enhanced-host":
-            return "增强宿主模式（复核通过，首选 PiP 实验）"
+            return "增强宿主模式（托管检查通过，首选 PiP 实验）"
         case "compat":
-            return "普通签名兼容模式（悬浮窗未确认可见，应用内歌词）"
+            return "普通签名兼容模式（托管检查未通过，应用内歌词）"
         default:
             return "待探测（启动后复核中）"
         }

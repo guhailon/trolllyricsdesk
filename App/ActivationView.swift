@@ -158,6 +158,9 @@ struct ActivationView: View {
                 .padding()
             }
         }
+        // 1.0.6 第 7 项：激活页出现即记一次「激活前」悬浮窗快照（每进程只记一次，
+        // 由 AppDelegate 侧去重；激活成功不应丢窗）。
+        .onAppear { LyricStore.logFloatingWindowState(tag: "激活前") }
     }
 
     private func activate() async {
@@ -170,6 +173,8 @@ struct ActivationView: View {
             ActivationStore.markActivated(type: type)
             if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
             LyricLogger.log("激活成功（\(type)）")
+            // 1.0.6 第 7 项：激活成功后记一次快照，与「激活前」对照（窗在不在）。
+            LyricStore.logFloatingWindowState(tag: "激活成功后")
         } catch ActivationError.wrongCode {
             message = "激活码不正确，请重新输入"
             messageIsError = true

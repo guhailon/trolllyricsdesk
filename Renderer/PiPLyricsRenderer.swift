@@ -35,6 +35,34 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
         }
     }
 
+    /// 1.0.6 第 9 项：PiP 两段独立状态（固定文字段／实时歌词段各记各的）：
+    /// 未开始／进行中／已显示／失败（原因）。写进 LyricStore.defaults，
+    /// 诊断页分行显示；原有 combined status 不动。
+    private var testStage: String {
+        get { LyricStore.defaults?.string(forKey: "tlds.pipTestStage") ?? "未开始" }
+        set {
+            LyricStore.defaults?.set(newValue, forKey: "tlds.pipTestStage")
+            LyricLogger.log("诊断1.0.6 PiP 固定文字段：\(newValue)")
+        }
+    }
+
+    private var liveStage: String {
+        get { LyricStore.defaults?.string(forKey: "tlds.pipLiveStage") ?? "未开始" }
+        set {
+            LyricStore.defaults?.set(newValue, forKey: "tlds.pipLiveStage")
+            LyricLogger.log("诊断1.0.6 PiP 实时歌词段：\(newValue)")
+        }
+    }
+
+    /// 供 DiagnosticsView 读的两段状态（只加行，不改 UI 布局）。
+    static var testStageText: String {
+        LyricStore.defaults?.string(forKey: "tlds.pipTestStage") ?? "未开始"
+    }
+
+    static var liveStageText: String {
+        LyricStore.defaults?.string(forKey: "tlds.pipLiveStage") ?? "未开始"
+    }
+
     private var player: AVQueuePlayer?
     private var playerLayer: AVPlayerLayer?
     private var pipController: AVPictureInPictureController?
@@ -66,22 +94,24 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
     func startTestText() {
         guard RuntimeCapabilities.pipSupported else {
             setStatus("此设备不支持 PiP（isPictureInPictureSupported=false）")
-            LyricLogger.log("诊断1.0.5 PiP：启动失败：此设备不支持 PiP")
+            LyricLogger.log("诊断1.0.6 PiP：启动失败：此设备不支持 PiP")
             return
         }
         testLooping = true
         lastLiveLine = nil
         liveTimer?.invalidate()
         liveTimer = nil
+        testStage = "进行中"
         setStatus("测试视频生成中…")
         let url = PiPFrameRenderer.testVideoURL()
         PiPFrameRenderer.renderVideo(
-            mainText: "悬浮测试 · 桌面歌词 1.0.5",
+            mainText: "悬浮测试 · 桌面歌词 1.0.6",
             subText: "PiP 实验 · 固定文字",
             to: url
         ) { [weak self] error in
             guard let self else { return }
             if let error {
+                self.testStage = "失败：\(error.localizedDescription)"
                 self.setStatus("测试视频生成失败：\(error.localizedDescription)")
                 return
             }
@@ -98,11 +128,12 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
     func startLiveLyrics() {
         guard RuntimeCapabilities.pipSupported else {
             setStatus("此设备不支持 PiP（isPictureInPictureSupported=false）")
-            LyricLogger.log("诊断1.0.5 PiP：启动失败：此设备不支持 PiP")
+            LyricLogger.log("诊断1.0.6 PiP：启动失败：此设备不支持 PiP")
             return
         }
         testLooping = false
         lastLiveLine = nil
+        liveStage = "进行中"
         setStatus("实时歌词 PiP（实验）：等当前歌词行…")
         ensurePlayer()
         if pipController == nil {
@@ -129,7 +160,7 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
             guard let self else { return }
             self.generating = false
             if let error {
-                LyricLogger.log("诊断1.0.5 PiP：实时歌词段生成失败：\(error.localizedDescription)")
+                LyricLogger.log("诊断1.0.6 PiP：实时歌词段生成失败：\(error.localizedDescription)")
                 return
             }
             self.enqueue(url: url)
@@ -196,7 +227,7 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
         }
         guard let controller = pipController else {
             setStatus("PiP 控制器创建失败")
-            LyricLogger.log("诊断1.0.5 PiP：AVPictureInPictureController 初始化返回空")
+            LyricLogger.log("诊断1.0.6 PiP：AVPictureInPictureController 初始化返回空")
             return
         }
         if controller.isPictureInPictureActive {
@@ -205,10 +236,10 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
         }
         if controller.isPictureInPicturePossible {
             controller.startPictureInPicture()
-            LyricLogger.log("诊断1.0.5 PiP：已调用 startPictureInPicture（等 delegate 回调才算成功）")
+            LyricLogger.log("诊断1.0.6 PiP：已调用 startPictureInPicture（等 delegate 回调才算成功）")
         } else {
             setStatus("PiP 暂不能启动（isPictureInPicturePossible=false，可能播放器未在播）")
-            LyricLogger.log("诊断1.0.5 PiP：启动失败：isPictureInPicturePossible=false")
+            LyricLogger.log("诊断1.0.6 PiP：启动失败：isPictureInPicturePossible=false")
         }
     }
 
@@ -220,12 +251,12 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
         player?.pause()
         player?.removeAllItems()
         setStatus("已停止")
-        LyricLogger.log("诊断1.0.5 PiP：已停止")
+        LyricLogger.log("诊断1.0.6 PiP：已停止")
     }
 
     private func setStatus(_ text: String) {
         status = text
-        LyricLogger.log("诊断1.0.5 PiP：\(text)")
+        LyricLogger.log("诊断1.0.6 PiP：\(text)")
     }
 
     @objc private func itemDidPlayToEnd(_ note: Notification) {
@@ -261,13 +292,19 @@ extension PiPLyricsRenderer: AVPictureInPictureControllerDelegate {
     func pictureInPictureControllerWillStartPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
-        LyricLogger.log("诊断1.0.5 PiP：将开始 PiP（delegate 回调）")
+        LyricLogger.log("诊断1.0.6 PiP：将开始 PiP（delegate 回调）")
     }
 
     func pictureInPictureControllerDidStartPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
-        // 唯一算数的成功证据：PiP 真显示出来了。
+        // 唯一算数的成功证据：PiP 真显示出来了。按当前段写（第 9 项）：
+        // 固定文字循环中 → 固定文字段已显示；实时歌词中 → 实时歌词段已显示。
+        if testLooping {
+            testStage = "已显示"
+        } else {
+            liveStage = "已显示"
+        }
         setStatus("PiP 已显示（实验）——桌面／其他 App 上方应能看到测试文字或歌词")
     }
 
@@ -275,13 +312,18 @@ extension PiPLyricsRenderer: AVPictureInPictureControllerDelegate {
         _ pictureInPictureController: AVPictureInPictureController,
         failedToStartPictureInPictureWithError error: Error
     ) {
+        if testLooping {
+            testStage = "失败：\(error.localizedDescription)"
+        } else {
+            liveStage = "失败：\(error.localizedDescription)"
+        }
         setStatus("PiP 启动失败：\(error.localizedDescription)")
     }
 
     func pictureInPictureControllerWillStopPictureInPicture(
         _ pictureInPictureController: AVPictureInPictureController
     ) {
-        LyricLogger.log("诊断1.0.5 PiP：将停止 PiP（delegate 回调）")
+        LyricLogger.log("诊断1.0.6 PiP：将停止 PiP（delegate 回调）")
     }
 
     func pictureInPictureControllerDidStopPictureInPicture(

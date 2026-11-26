@@ -32,11 +32,14 @@ final class PlaybackCoordinator: ObservableObject {
 
     func start() {
 
-        stop()
+        guard timer == nil else {
+            LyricLogger.log("检测引擎已运行，跳过重复启动")
+            return
+        }
 
         // 1.0.5（第 5 项）：标清第几次启动检测引擎。
         startCount += 1
-        LyricLogger.log("诊断1.0.5 启动：检测引擎启动第 \(startCount) 次")
+        LyricLogger.log("诊断1.0.6 启动：检测引擎启动第 \(startCount) 次")
 
         message = "正在检测音乐..."
         LyricLogger.log("开始检测音乐")
@@ -51,7 +54,8 @@ final class PlaybackCoordinator: ObservableObject {
         ) { [weak self] _ in
 
             Task { @MainActor in
-                self?.poll()
+                guard let self, self.timer != nil else { return }
+                self.poll()
             }
         }
     }

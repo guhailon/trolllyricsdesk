@@ -29,17 +29,23 @@ enum RuntimeCapabilities {
     /// MediaRemote 实测一句话结论。
     static var mediaRemoteSummary: String { MediaRemoteDiagnostics.summaryLine }
 
-    /// 原生悬浮窗复核是否通过（只有复核判了增强宿主才算通过；
-    /// 巨魔模式不复核，这里返回 false，不代表巨魔的悬浮窗不行）。
-    static var nativeHUDProbePassed: Bool { LyricStore.runMode == "enhanced-host" }
+    /// 1.0.6 第 4 项：诊断行的环境标签（安装环境＋iOS 版本），
+    /// MediaRemote／托管复核结论都带上，两台机的日志不再混在一起判。
+    static var environmentTag: String {
+        "安装环境=\(LyricStore.installEnvironmentDescription)，iOS \(iOSVersion.majorVersion).\(iOSVersion.minorVersion)"
+    }
+
+    /// 原生悬浮窗是否被定为显示能力（1.0.6：第 2 项的 displayCapability；
+    /// 巨魔原生直接定 nativeHUD，宿主／未确认由复核定，普通签名定 inApp）。
+    static var nativeHUDProbePassed: Bool { LyricStore.displayCapability == "nativeHUD" }
 
     /// 能力快照，打进日志（启动后／诊断页刷新时各记一次）。
     static func logSnapshot() {
         LyricLogger.log(
-            "诊断1.0.5 能力快照：iOS \(iOSVersion.majorVersion).\(iOSVersion.minorVersion)，" +
+            "诊断1.0.6 能力快照：\(environmentTag)，" +
             "LiveContainer 信号=\(liveContainerSignal ? "有" : "无")，" +
             "PiP 系统支持=\(pipSupported ? "是" : "否")，" +
-            "原生悬浮复核通过=\(nativeHUDProbePassed ? "是" : "否")；\(mediaRemoteSummary)"
+            "原生悬浮显示能力=\(nativeHUDProbePassed ? "是" : "否")；\(mediaRemoteSummary)"
         )
     }
 }

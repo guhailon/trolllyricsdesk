@@ -78,9 +78,9 @@ final class FloatingLyricViewController: UIViewController {
         super.viewDidLoad()
         // 1.0.5（第 5 项）：标清第几次初始化，查是不是建了两个窗。
         Self.initCount += 1
-        LyricLogger.log("诊断1.0.5 启动：悬浮窗控制器初始化第 \(Self.initCount) 次")
+        LyricLogger.log("诊断1.0.6 启动：悬浮窗控制器初始化第 \(Self.initCount) 次")
         if Self.initCount > 1 {
-            LyricLogger.log("诊断1.0.5 启动：注意——悬浮窗控制器初始化了多次（可能建了两个窗）")
+            LyricLogger.log("诊断1.0.6 启动：注意——悬浮窗控制器初始化了多次（可能建了两个窗）")
         }
         view.backgroundColor = .clear
         buildUI()
@@ -203,10 +203,10 @@ final class FloatingLyricViewController: UIViewController {
         if LyricStore.isTestTextEnabled {
             if view.isHidden && lastTestHiddenState != true {
                 lastTestHiddenState = true
-                LyricLogger.log("诊断1.0.5 强制测试：开关已开，但悬浮窗被隐藏（浮窗开关关／未激活，先开「显示悬浮歌词窗」并确认已激活）")
+                LyricLogger.log("诊断1.0.6 强制测试：开关已开，但悬浮窗被隐藏（浮窗开关关／未激活，先开「显示悬浮歌词窗」并确认已激活）")
             } else if !view.isHidden && lastTestHiddenState != false {
                 lastTestHiddenState = false
-                LyricLogger.log("诊断1.0.5 强制测试：开关已开，悬浮窗正在显示测试文字")
+                LyricLogger.log("诊断1.0.6 强制测试：开关已开，悬浮窗正在显示测试文字")
             }
             apply(text: LyricStore.testText(), fontSize: 23, opacity: 1.0)
             return

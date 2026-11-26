@@ -255,8 +255,8 @@ struct SettingsView: View {
                     }
                 }
 
-                // 诊断（1.0.5，测试用）
-                Section(header: Text("诊断（1.0.5）")) {
+                // 诊断（1.0.6，测试用）
+                Section(header: Text("诊断（1.0.6）")) {
 
                     Toggle(
                         "强制悬浮测试文字（测试用）",
@@ -265,14 +265,14 @@ struct SettingsView: View {
                     .onChange(of: testTextEnabled) { newValue in
                         LyricStore.isTestTextEnabled = newValue
                         LyricLogger.log(newValue
-                            ? "诊断1.0.5 强制测试：开关已打开（悬浮窗显示固定测试文字）"
-                            : "诊断1.0.5 强制测试：开关已关闭（恢复正常歌词）")
+                            ? "诊断1.0.6 强制测试：开关已打开（悬浮窗显示固定测试文字）"
+                            : "诊断1.0.6 强制测试：开关已关闭（恢复正常歌词）")
                     }
                     .onAppear {
                         testTextEnabled = LyricStore.isTestTextEnabled
                     }
 
-                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 1.0.5」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 1.0.6」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
