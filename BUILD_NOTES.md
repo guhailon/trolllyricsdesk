@@ -220,7 +220,7 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
 检查：`python3 check_1.0.1.py`（106 PASS，FAILED: none，OPEN 17；
 含三项否定检查：无 Engine V2、无 1.0.6 播放改进、无 BackBoard/-hud/dynamic_lookup）。
 
-## 1.0.2 build 15（v1.0.1 分支，2026-11-26，1.0.1 只加三件小改）
+## 1.0.2 build 15（v1.0.1 分支，2026-11-26，1.0.1 只加四件小改）
 
 - `App/AboutView.swift`：Telegram 行标签 `@seadragonjb`→`@Guhailon`；
   `openTelegram()` 改 `tg://resolve?domain=Guhailon`，退回 `https://t.me/Guhailon`；
@@ -236,8 +236,16 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
   开关关→纯黑；开且选过图→`UIImage(data:)` 全屏 scaledToFill，不透明度 = 1 − backgroundOpacity；
   开但没选图→原来的紫／黑／蓝渐变（同样套这个不透明度）。用到四处：PlaybackDashboardView（根视图，主界面）、
   SettingsHubView、ContentView、AboutView（各替掉写死渐变）；选图后立即生效。悬浮窗与小组件不动。
+- `App/PlaybackDashboardView.swift`：悬浮歌词区「显示悬浮歌词窗」开关下方加
+  「固定悬浮窗位置」开关（`@AppStorage("floatingLyric.positionLocked", App Group)`，默认 false，
+  与 enabled／textColorHex 同一组声明）。
+- `Overlay/FloatingLyricViewController.swift`：新键 `floatingLyric.positionLocked`（Bool，未设置时
+  `UserDefaults.bool` 返回 false，与默认一致）；`handlePan` 开头 `guard !positionLocked else { return }`，
+  锁住时拖动不生效；`refresh()` 里提示文字跟着变（锁住→“已固定 · 双击隐藏”，不锁→“长按拖动 · 双击隐藏”）。
+  位置保存（`savePosition`）与启动恢复（`restorePosition`）一字未动——位置本来就会记住，开关只锁拖动。
 - 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
   产物名桌面歌词-1.0.2.ipa）。其余与 1.0.1 一字未动。
 
-检查：`python3 check_1.0.2.py`（124 PASS，FAILED: none，OPEN 18；
-新增 §6.6 十项：Telegram 三项、LyricLogger 两项、LogView 五项；新增 §6.7 八项：背景图任意更换）。
+检查：`python3 check_1.0.2.py`（132 PASS，FAILED: none，OPEN 19；
+新增 §6.6 十项：Telegram 三项、LyricLogger 两项、LogView 五项；新增 §6.7 八项：背景图任意更换；
+新增 §6.8 六项：悬浮窗固定位置开关；§6 红线收窄：Overlay/ 只许 FloatingLyricViewController.swift 一处改动）。

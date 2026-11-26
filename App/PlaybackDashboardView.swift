@@ -16,6 +16,11 @@ struct PlaybackDashboardView: View {
     @AppStorage("floatingLyric.enabled", store: UserDefaults(suiteName: LyricStore.groupID))
     private var floatingEnabled = true
 
+    /// 悬浮窗固定位置开关（与悬浮控制器共享 App Group 的 floatingLyric.positionLocked）。
+    /// 默认 false（可拖）；打开后悬浮窗拖不动，位置保持上次存好的地方。
+    @AppStorage("floatingLyric.positionLocked", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var positionLocked = false
+
     /// 悬浮歌词文字颜色（0xRRGGBB，写进 App Group，悬浮窗每次刷新时读取）。
     @AppStorage("floatingLyric.textColorHex", store: UserDefaults(suiteName: LyricStore.groupID))
     private var lyricTextColorHex: Int = 0xFFFFFF
@@ -110,6 +115,17 @@ struct PlaybackDashboardView: View {
                     Toggle(
                         "显示悬浮歌词窗",
                         isOn: $floatingEnabled
+                    )
+                    .foregroundColor(.white)
+                    .tint(.purple)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
+
+                    // 固定悬浮窗位置（放在显示开关下方；打开后拖不动，位置保持上次存好的地方）
+                    Toggle(
+                        "固定悬浮窗位置",
+                        isOn: $positionLocked
                     )
                     .foregroundColor(.white)
                     .tint(.purple)

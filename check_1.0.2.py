@@ -2,9 +2,11 @@
 """Verify TrollLyricsDesk 1.0.2 (1.0.1 + Telegram @Guhailon + LogView clear/copy):
 1.0.1 = 底子（1.0.0 build 13）只加锁屏（A Live Activities + B 锁屏小组件），
 Engine V2 与 1.0.6 播放改进一律未并；BackBoard/v0.5/1.0.6 悬浮窗一律不要。
-1.0.2 = 1.0.1 只加两件小改：Telegram 行改成公开频道 @Guhailon
+1.0.2 = 1.0.1 只加四件小改：Telegram 行改成公开频道 @Guhailon
 （tg://resolve?domain=Guhailon，退回 https://t.me/Guhailon），
-日志页加复制（UIPasteboard）与清除（确认框＋LyricLogger.clear()）。
+日志页加复制（UIPasteboard）与清除（确认框＋LyricLogger.clear()），
+背景图任意更换（AppBackgroundView），悬浮窗固定位置开关
+（floatingLyric.positionLocked，锁住 handlePan）。
 1.0.1 的 lastLiveState 编译错已修（LiveLyricKey），run 45737671775 编过。
 
 FAILED: none is the goal. OPEN items are recorded, not failures:
@@ -334,11 +336,24 @@ check("pbxproj: braces/parens balanced",
       pbx.count("{") == pbx.count("}") and pbx.count("(") == pbx.count(")"))
 
 print("\n== 6. 红线 ==")
-diff_overlay = subprocess.check_output(
-    ["git", "diff", "--stat", "HEAD", "--", "Overlay/"],
+# 1.0.2 前三件不动 Overlay/；第四件（固定位置开关）只动
+# Overlay/FloatingLyricViewController.swift 一处（锁判断＋提示文字），
+# 场景注册／入口／entitlements／.tbd 一律不动。
+diff_overlay_files = subprocess.check_output(
+    ["git", "diff", "--name-only", "HEAD", "--", "Overlay/"],
+    cwd=ROOT, text=True).strip().splitlines()
+diff_overlay_files = [f for f in diff_overlay_files if f.strip()]
+check("Overlay/: only FloatingLyricViewController.swift changed (position lock)",
+      diff_overlay_files == ["Overlay/FloatingLyricViewController.swift"],
+      str(diff_overlay_files))
+diff_fl = subprocess.check_output(
+    ["git", "diff", "HEAD", "--", "Overlay/FloatingLyricViewController.swift"],
     cwd=ROOT, text=True)
-check("Overlay/ untouched (git diff vs HEAD empty)", diff_overlay.strip() == "",
-      diff_overlay.strip())
+check("Overlay diff: only the position-lock guard + hint (no scene/entry changes)",
+      "positionLocked" in diff_fl
+      and "handlePan" in diff_fl
+      and "registerWindowWithContextID" not in diff_fl
+      and "FBSystemShellInitialize" not in diff_fl)
 for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
             "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
     head = git_head(rel)
@@ -456,6 +471,35 @@ check("Version still 1.0.2 / build 15 (background change does not bump version)"
       read("TrollLyricsDesk/Info.plist").count("<string>1.0.2</string>") == 1
       and read("TrollLyricsDesk/Info.plist").count("<string>15</string>") == 1)
 
+print("\n== 6.8 1.0.2：悬浮窗固定位置开关 ==")
+pd = read("App/PlaybackDashboardView.swift")
+check("PlaybackDashboardView: positionLocked key (App Group, default false)",
+      '"floatingLyric.positionLocked"' in pd
+      and "private var positionLocked = false" in pd
+      and pd.count('UserDefaults(suiteName: LyricStore.groupID)') >= 3)
+check("PlaybackDashboardView: Toggle 固定悬浮窗位置 in the floating-lyric area",
+      '"固定悬浮窗位置"' in pd
+      and pd.index('"固定悬浮窗位置"') > pd.index('"显示悬浮歌词窗"')
+      and pd.index('"固定悬浮窗位置"') < pd.index('"悬浮窗歌词颜色"'))
+fl = read("Overlay/FloatingLyricViewController.swift")
+check("FloatingLyricViewController: positionLockedKey + Bool read (default false)",
+      '"floatingLyric.positionLocked"' in fl
+      and "private let positionLockedKey" in fl
+      and "prefs?.bool(forKey: positionLockedKey) ?? false" in fl)
+check("FloatingLyricViewController: handlePan returns early when locked",
+      "guard !positionLocked else { return }" in fl
+      and fl.index("guard !positionLocked else { return }")
+      < fl.index("let translation = gesture.translation"))
+check("FloatingLyricViewController: save/restore position untouched",
+      "private func savePosition(center: CGPoint)" in fl
+      and "private func restorePosition()" in fl
+      and '"floatingLyric.posX"' in fl and '"floatingLyric.posY"' in fl)
+check("FloatingLyricViewController: hint text follows the lock",
+      '"已固定 · 双击隐藏"' in fl and '"长按拖动 · 双击隐藏"' in fl)
+check("Version still 1.0.2 / build 15 (position lock does not bump version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.2</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>15</string>") == 1)
+
 print("\n== 7. OPEN（PLAN 第 8 节，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "1.0.1 的 ActivityKit 弱链接写法（App＋Widget 各两配置）、DynamicIsland "
@@ -471,6 +515,9 @@ open_item("1.0.2 背景更换要真机验（新增第三件）",
           "设置页「背景设置」选图后，主界面／设置页／关于页要立即换成这张图；"
           "开关关掉变纯黑；透明度滑杆拖动图跟着变透（默认 0.25 即图 75% 显示）；"
           "没选过图时是原来的紫／黑／蓝渐变；悬浮窗与小组件不受影响")
+open_item("1.0.2 悬浮窗固定位置要真机验（新增第四件）",
+          "主界面悬浮歌词区打开「固定悬浮窗位置」后，悬浮窗拖不动、提示文字变成“已固定 · 双击隐藏”，"
+          "双击隐藏仍可用；关掉开关又能拖；重启 App 后悬浮窗还在上次存好的位置（位置本来就会记住，开关只锁拖动）")
 open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")

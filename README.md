@@ -166,7 +166,7 @@ python3 check_1.0.3.py
 - 底子是皇上重发的 1.0.0（build 13）纯底子，只加锁屏：Engine V2 与 1.0.6 的播放改进一律未并；
   Overlay 悬浮窗一个字没动；v0.5 BackBoard 代码一个字没动。
 
-## 1.0.2 build 15：Telegram 行改公开频道＋日志页加清除／复制
+## 1.0.2 build 15：Telegram 行改公开频道＋日志页加清除／复制＋背景图任意更换＋悬浮窗固定位置
 
 - **Telegram 频道行**：SeaDragon 越狱源已公开，用户名 @Guhailon（2026-11-26 皇上改的，t.me/Guhailon 已核实能打开）。
   关于页 Telegram 行标签 `@seadragonjb` 改成 `@Guhailon`；点开改走 `tg://resolve?domain=Guhailon`
@@ -184,5 +184,9 @@ python3 check_1.0.3.py
   开且选过图→全屏显示这张图，不透明度 = 1 − backgroundOpacity（默认 0.25 即图 75% 显示，底下黑色）；
   开但没选图→原来的紫／黑／蓝渐变（同样套这个不透明度）。用到主界面（PlaybackDashboardView，根视图）、
   设置中心、设置页、关于页四处；选图后立即生效（@AppStorage 实时刷新）；悬浮窗与小组件不动。
+- **悬浮窗固定位置**：主界面悬浮歌词区「显示悬浮歌词窗」开关下方加「固定悬浮窗位置」开关
+  （App Group 键 `floatingLyric.positionLocked`，默认关）。打开后悬浮窗拖不动，
+  提示文字变成“已固定 · 双击隐藏”（双击隐藏仍可用）；关掉又能拖。
+  位置本来就会记住（拖完存相对坐标、启动时恢复），开关只锁拖动，保存／恢复代码一字未动。
 - 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；产物名桌面歌词-1.0.2.ipa）。
   其余内容与 1.0.1 一字未动。
