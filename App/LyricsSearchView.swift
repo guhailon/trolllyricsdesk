@@ -2,6 +2,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 import WidgetKit
 
+/// 传递「音乐平台」行在锚定坐标空间中的实际位置，用于把自绘菜单贴到该行下方。
+private struct PlatformRowFrameKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
+}
+
 struct LyricsSearchView: View {
 
     @State private var title = ""
@@ -17,6 +25,12 @@ struct LyricsSearchView: View {
 
     @State private var showingImporter = false
 
+    /// 音乐平台自绘菜单开关。系统 Picker（Menu 样式）弹出时用模糊层截取底层，
+    /// 底层列表一刷新就重新采样，文字会「一闪一闪」；改用普通视图绘制，不闪烁。
+    @State private var showPlatformMenu = false
+    /// 「音乐平台」行的实际位置，用于把自绘菜单锚定到该行下方（贴近原 Picker 弹出位置）。
+    @State private var platformRowFrame: CGRect = .zero
+
     @State private var opacity = 0.65
     @State private var fontSize = 22.0
 
@@ -25,16 +39,13 @@ struct LyricsSearchView: View {
 
     var body: some View {
 
+        ZStack {
+
         Form {
 
             Section("歌曲信息") {
 
-                Picker("音乐平台", selection: $platform) {
-                    ForEach(MusicPlatform.allCases) { item in
-                        Text(item.rawValue)
-                            .tag(item)
-                    }
-                }
+                platformRow
 
                 TextField("歌曲名称", text: $title)
 
@@ -133,29 +144,6 @@ struct LyricsSearchView: View {
                 }
             }
 
-            Section("桌面外观") {
-
-                VStack(alignment: .leading) {
-
-                    Text("透明度：\(Int(opacity * 100))%")
-
-                    Slider(
-                        value: $opacity,
-                        in: 0.1...1
-                    )
-
-                    Text("字体：\(Int(fontSize)) pt")
-
-                    Slider(
-                        value: $fontSize,
-                        in: 14...36
-                    )
-                }
-
-                Button("保存桌面外观") {
-                    saveAppearance()
-                }
-            }
         }
         .navigationTitle("歌词管理")
         .fileImporter(
@@ -182,6 +170,87 @@ struct LyricsSearchView: View {
                 errorMessage = error.localizedDescription
             }
         }
+
+        // 音乐平台自绘菜单：普通视图绘制，不依赖系统菜单的模糊层，
+        // 底层表单刷新时不会重新采样，文字不再闪烁。
+        // 位置按目标效果：紧贴「音乐平台」行下方、靠右展开，宽约屏宽 63%。
+        if showPlatformMenu {
+            ZStack {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                    .onTapGesture { showPlatformMenu = false }
+
+                GeometryReader { geo in
+                    let w = geo.size.width * 0.63
+                    let h = menuHeight
+                    // 上移 2 行：顶部从 170pt → 82pt（每行约 44pt），靠右展开。
+                    // 中心 x≈屏宽 0.63（左边缘≈屏宽 0.32、右边缘≈屏宽 0.95）。
+                    let cx = geo.size.width * 0.635
+                    let cy: CGFloat = 82 + h / 2
+                    menuContent
+                        .frame(width: w)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .cornerRadius(12)
+                        .shadow(color: .black.opacity(0.4), radius: 12, x: 0, y: 6)
+                        .position(x: cx, y: cy)
+                }
+            }
+            .zIndex(10)
+        }
+
+        }
+    }
+
+    /// 平台菜单高度：4 项 × (12+约20+12) ≈ 176pt。
+    private var menuHeight: CGFloat { 176 }
+
+    /// 平台选择菜单内容（普通视图绘制，不闪烁）。
+    private var menuContent: some View {
+        VStack(spacing: 0) {
+            ForEach(MusicPlatform.allCases) { item in
+                Button {
+                    platform = item
+                    showPlatformMenu = false
+                } label: {
+                    HStack {
+                        Text(item.rawValue)
+                        Spacer()
+                        if item == platform {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .foregroundColor(.primary)
+
+                if item != MusicPlatform.allCases.last {
+                    Divider()
+                        .padding(.leading, 16)
+                }
+            }
+        }
+    }
+
+    /// 音乐平台行：显示当前选择，点击弹出自绘菜单。
+    private var platformRow: some View {
+        Button {
+            showPlatformMenu = true
+        } label: {
+            HStack {
+                Text("音乐平台")
+                Spacer()
+                Text(platform.rawValue)
+                    .foregroundColor(.secondary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .foregroundColor(.primary)
     }
 
     private func makeTrack() -> MusicTrack {
@@ -309,20 +378,4 @@ struct LyricsSearchView: View {
         }
     }
 
-    private func saveAppearance() {
-
-        guard var snapshot = LyricStore.load() else {
-            errorMessage = "请先导入歌词"
-            return
-        }
-
-        snapshot.opacity = opacity
-        snapshot.fontSize = fontSize
-
-        LyricStore.save(snapshot)
-
-        WidgetCenter.shared.reloadAllTimelines()
-
-        errorMessage = "外观设置已保存"
-    }
 }

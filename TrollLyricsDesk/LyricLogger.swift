@@ -52,4 +52,13 @@ enum LyricLogger {
         }
         return text
     }
+
+    /// 清空所有日志：删除日志文件，下次写入时会重新创建。
+    static func clear() {
+        guard let url = logURL,
+              FileManager.default.fileExists(atPath: url.path) else {
+            return
+        }
+        try? FileManager.default.removeItem(at: url)
+    }
 }

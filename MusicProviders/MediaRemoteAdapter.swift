@@ -27,8 +27,9 @@ private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
 private var fetching = false
 
-/// 缓存最长保鲜 2 秒；协调器每秒问一次，最多 2 秒就能跟上换歌。
-private let cacheLifetime: TimeInterval = 2.0
+/// 缓存保鲜 0.3 秒：换歌/开始播放要「即播即显」，2 秒缓存会让歌词慢半拍。
+/// MediaRemote 是本机 XPC，读取很快，0.3 秒足够去重且不会拖慢检测。
+private let cacheLifetime: TimeInterval = 0.3
 
 func currentState() -> PlaybackState? {
 

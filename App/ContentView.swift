@@ -1,27 +1,86 @@
 import SwiftUI
 import WidgetKit
 
+/// 设置中心：从主界面右上角齿轮进入，提供「设置 / 关于」两个入口。
+/// 背景与原主界面保持一致。
+struct SettingsHubView: View {
+
+    /// 从主界面继承检测引擎，再传给「设置」页的音乐检测按钮。
+    @EnvironmentObject private var coordinator: PlaybackCoordinator
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(0.8),
+                    Color.black,
+                    Color.blue.opacity(0.5)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+
+                NavigationLink {
+                    ContentView()
+                        .environmentObject(coordinator)
+                } label: {
+                    Label(
+                        "设置",
+                        systemImage: "gearshape.2.fill"
+                    )
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
+                }
+
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label(
+                        "关于",
+                        systemImage: "info.circle.fill"
+                    )
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(15)
+                }
+
+                Spacer()
+            }
+            .padding()
+        }
+        .navigationTitle("设置中心")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 struct ContentView: View {
 
-    @State private var opacity = 0.65
-    @State private var fontSize = 22.0
+    /// 音乐检测控制从主界面移到这里，复用 App 级检测引擎。
+    @EnvironmentObject private var coordinator: PlaybackCoordinator
 
-    private let demoLyrics = """
-    [00:00.00]TrollLyricsDesk
-    [00:04.00]透明动漫歌词桌面
-    [00:08.00]第一阶段开发测试
-    [00:12.00]欢迎使用歌词桌面
-    [00:16.00]让音乐与歌词同步
-    [00:20.00]TrollStore Edition
-    """
+    @State private var opacity = 1.0
+    @State private var fontSize = 23.0
+
+    /// 悬浮窗背景透明度（与悬浮控制器共享 App Group 的 floatingLyric.cardOpacity）。
+    /// 0 = 背景完全透明，只显示歌词；1 = 完全不透明。
+    @AppStorage("floatingLyric.cardOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    private var cardOpacity = 0.23
 
     var body: some View {
 
-        NavigationView {
+        ZStack {
 
-            ZStack {
-
-                LinearGradient(
+            LinearGradient(
                     colors: [
                         Color.purple.opacity(0.8),
                         Color.black,
@@ -36,147 +95,128 @@ struct ContentView: View {
 
                     VStack(spacing: 24) {
 
-                        Text("TrollLyricsDesk")
-                            .font(.largeTitle.bold())
-                            .foregroundColor(.white)
-
-                        Text("透明动漫歌词桌面")
-                            .foregroundColor(.white.opacity(0.7))
-
                         VStack(spacing: 16) {
 
-                            Text("歌词透明度")
-                                .foregroundColor(.white)
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("歌词透明度")
+                                        .foregroundColor(.white)
 
-                            Slider(
-                                value: $opacity,
-                                in: 0.1...1.0
-                            )
+                                    Spacer()
 
-                            Text(
-                                "\(Int(opacity * 100))%"
-                            )
-                            .foregroundColor(.white)
+                                    Text("\(Int(opacity * 100))%")
+                                        .foregroundColor(.white)
+                                }
 
-                            Text("歌词字体大小")
-                                .foregroundColor(.white)
+                                Slider(
+                                    value: $opacity,
+                                    in: 0.1...1.0
+                                )
+                            }
 
-                            Slider(
-                                value: $fontSize,
-                                in: 14...36
-                            )
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("歌词字体大小")
+                                        .foregroundColor(.white)
 
-                            Text(
-                                "\(Int(fontSize)) pt"
-                            )
-                            .foregroundColor(.white)
+                                    Spacer()
+
+                                    Text("\(Int(fontSize)) pt")
+                                        .foregroundColor(.white)
+                                }
+
+                                Slider(
+                                    value: $fontSize,
+                                    in: 14...36
+                                )
+                            }
+
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("悬浮窗透明度")
+                                        .foregroundColor(.white)
+
+                                    Spacer()
+
+                                    Text(
+                                        cardOpacity <= 0.001
+                                            ? "完全透明（仅歌词）"
+                                            : "\(Int(cardOpacity * 100))%"
+                                    )
+                                    .foregroundColor(.white)
+                                }
+
+                                Slider(
+                                    value: $cardOpacity,
+                                    in: 0...1
+                                )
+                            }
+
                         }
                         .padding()
                         .background(.ultraThinMaterial)
                         .cornerRadius(20)
 
-                        Button(action: loadDemo) {
-
-                            Text("加载测试歌词")
-                                .fontWeight(.bold)
+                        VStack(spacing: 12) {
+                            Text("音乐检测")
+                                .font(.headline)
                                 .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button {
+                                coordinator.start()
+                            } label: {
+                                Label(
+                                    "开始检测音乐",
+                                    systemImage: "play.fill"
+                                )
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(
-                                    Color.purple
-                                )
-                                .cornerRadius(15)
-                        }
-
-                        VStack(spacing: 12) {
-
-                            Text("歌词悬浮窗")
+                                .background(Color.purple)
                                 .foregroundColor(.white)
-
-                            Button(action: startFloatingLyrics) {
-
-                                Text("开启歌词悬浮窗")
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        Color.purple
-                                    )
-                                    .cornerRadius(15)
+                                .cornerRadius(15)
                             }
 
-                            Button(action: stopFloatingLyrics) {
-
-                                Text("关闭悬浮窗")
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        Color.purple
-                                    )
-                                    .cornerRadius(15)
-                            }
-
-                            Button(action: previewFloatingLyrics) {
-
-                                Text("预览悬浮歌词")
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        Color.purple
-                                    )
-                                    .cornerRadius(15)
+                            Button {
+                                coordinator.stop()
+                            } label: {
+                                Label(
+                                    "停止检测",
+                                    systemImage: "stop.fill"
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white.opacity(0.14))
+                                .foregroundColor(.white)
+                                .cornerRadius(15)
                             }
                         }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(20)
 
                         NavigationLink {
                             LyricsSearchView()
                         } label: {
                             Label(
-                                "歌词搜索与导入",
+                                "网易云 / QQ / 本地歌词",
                                 systemImage: "music.note.list"
                             )
                             .font(.headline)
                             .padding()
                         }
-
-                        NavigationLink {
-                            PlaybackDashboardView()
-                        } label: {
-                            Label(
-                                "统一音乐播放引擎",
-                                systemImage: "waveform"
-                            )
-                        }
-
-                        NavigationLink {
-                            AboutView()
-                        } label: {
-                            Label(
-                                "关于",
-                                systemImage: "info.circle"
-                            )
-                        }
-
-                        Text("请在主屏幕添加 TrollLyrics Widget")
-                            .font(.footnote)
-                            .foregroundColor(.white.opacity(0.7))
                     }
                     .padding()
                 }
             }
-            .navigationBarHidden(true)
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
             .onChange(of: opacity) { _ in
                 saveSettings()
             }
             .onChange(of: fontSize) { _ in
                 saveSettings()
             }
-        }
     }
 
     private func saveSettings() {
@@ -191,47 +231,5 @@ struct ContentView: View {
         LyricStore.save(snapshot)
 
         WidgetCenter.shared.reloadAllTimelines()
-    }
-
-    private func loadDemo() {
-
-        let snapshot = LyricSnapshot(
-            title: "TrollLyricsDesk Demo",
-            artist: "TrollStore Edition",
-            lyrics: LyricParser.parse(demoLyrics),
-            startedAt: Date(),
-            isPlaying: true,
-            elapsedWhenPaused: 0,
-            opacity: opacity,
-            fontSize: fontSize
-        )
-
-        LyricStore.save(snapshot)
-
-        WidgetCenter.shared.reloadAllTimelines()
-    }
-
-    private func startFloatingLyrics() {
-        TLHelper.startHUD()
-    }
-
-    private func stopFloatingLyrics() {
-        TLHelper.stopHUD()
-    }
-
-    private func previewFloatingLyrics() {
-        // 没有窗口时不做事：往一个没上屏的兜底 view 里加面板，
-        // 面板会被单例卡住、再也点不出来。
-        guard let host = TLAppRoot.keyWindowRootView() else {
-            return
-        }
-
-        FloatingLyricsController.shared.show(in: host)
-        FloatingLyricsController.shared.update(
-            title: "TrollLyricsDesk",
-            previous: "上一句歌词",
-            current: "当前正在播放的歌词",
-            next: "下一句歌词"
-        )
     }
 }

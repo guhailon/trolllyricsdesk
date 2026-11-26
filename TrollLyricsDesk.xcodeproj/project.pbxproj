@@ -5,6 +5,97 @@
 	};
 	objectVersion = 56;
 	objects = {
+		EA00000000000000000000A1 /* TrollLyricsDesk-Bridging-Header.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = "TrollLyricsDesk-Bridging-Header.h";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000001 /* main.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = "main.m";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000002 /* TLDSAppDelegate.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = "TLDSAppDelegate.h";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000003 /* TLDSAppDelegate.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = "TLDSAppDelegate.m";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000004 /* TLDSSceneDelegate.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = "TLDSSceneDelegate.h";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000005 /* TLDSSceneDelegate.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = "TLDSSceneDelegate.m";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000006 /* TLDSPassThroughWindow.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			path = "TLDSPassThroughWindow.h";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000007 /* TLDSPassThroughWindow.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			path = "TLDSPassThroughWindow.m";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000008 /* FloatingLyricViewController.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "FloatingLyricViewController.swift";
+			sourceTree = "<group>";
+		};
+		EA0000000000000000000015 /* main.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = EA0000000000000000000001 /* main.m */;
+		};
+		EA0000000000000000000016 /* TLDSAppDelegate.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = EA0000000000000000000003 /* TLDSAppDelegate.m */;
+		};
+		EA0000000000000000000017 /* TLDSSceneDelegate.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = EA0000000000000000000005 /* TLDSSceneDelegate.m */;
+		};
+		EA0000000000000000000018 /* TLDSPassThroughWindow.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = EA0000000000000000000007 /* TLDSPassThroughWindow.m */;
+		};
+		EA0000000000000000000019 /* FloatingLyricViewController.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = EA0000000000000000000008 /* FloatingLyricViewController.swift */;
+		};
+		EA0000000000000000000028 /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+				EA0000000000000000000001 /* main.m */,
+				EA0000000000000000000002 /* TLDSAppDelegate.h */,
+				EA0000000000000000000003 /* TLDSAppDelegate.m */,
+				EA0000000000000000000004 /* TLDSSceneDelegate.h */,
+				EA0000000000000000000005 /* TLDSSceneDelegate.m */,
+				EA0000000000000000000006 /* TLDSPassThroughWindow.h */,
+				EA0000000000000000000007 /* TLDSPassThroughWindow.m */,
+				EA0000000000000000000008 /* FloatingLyricViewController.swift */,
+				EA00000000000000000000A1 /* TrollLyricsDesk-Bridging-Header.h */,
+			);
+			name = Overlay;
+			path = Overlay;
+			sourceTree = "<group>";
+		};
 		03A046C9868E7DF683A009BF /* PBXBuildFile */ = {
 			isa = PBXBuildFile;
 			fileRef = 1B442E42980596EBCD246D51;
@@ -131,7 +222,13 @@
 		4821909E9BF9E73E471FEA84 /* PBXSourcesBuildPhase */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (				933503AE1761DC1CE9E3744D,
+			files = (
+				EA0000000000000000000015 /* main.m in Sources */,
+				EA0000000000000000000016 /* TLDSAppDelegate.m in Sources */,
+				EA0000000000000000000017 /* TLDSSceneDelegate.m in Sources */,
+				EA0000000000000000000018 /* TLDSPassThroughWindow.m in Sources */,
+				EA0000000000000000000019 /* FloatingLyricViewController.swift in Sources */,				779A8DD19473D66876760A6E,
+				933503AE1761DC1CE9E3744D,
 				AF9E7CE481560CF8C41F7831,
 				F7439C015FB65F1255275CC9,
 				10D4BFE57B6BD8055DFF9ABE,
@@ -157,19 +254,6 @@
 				CA13F50A5DCB885BF2AA2005 /* TrackIdentifier.swift in Sources */,
 				80F1B3D04A96B4B3B471EF80 /* AboutView.swift in Sources */,
 				6EFFD66A90219D827D56995A /* LogView.swift in Sources */,
-				DCEFBED932F5EDBA023A6F24 /* LyricsHUDView.swift in Sources */,
-				2192B4F9ADF4453D3056D557 /* LyricsHUDController.swift in Sources */,
-				F2A1D151EDF8E3FDDFF7FC54 /* LyricsHUDBridge.swift in Sources */,
-				87D27C29C2BAA88B2DCFD473 /* FloatingLyricsController.swift in Sources */,
-				77C1DC25EC74FFAAB999A9DE /* FloatingLyricsPanel.swift in Sources */,
-				38C2596CB4C6E23EDC28E5F8 /* FloatingLyricsStyle.swift in Sources */,
-				EF1FCF9624888119C176E6FB /* TLLyricsIPC.mm in Sources */,
-				868FF40D24AC83E5EE3936EE /* TLHelper.mm in Sources */,
-				6281B91DC67C862834F92750 /* TLHUDWindow.mm in Sources */,
-				DA9CEB4D39FAF88F6662A4C8 /* TLHUDApplication.mm in Sources */,
-				8B185C7CA44B77909247FB4B /* TLAppDelegate.mm in Sources */,
-				65E1DB3CEE86C2A6E76B3523 /* main.mm in Sources */,
-				5536421856D0351EC5BD8EC1 /* TLAppRoot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,7 +310,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFS = "";
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -245,7 +329,8 @@
 		};
 		518DA81DB9B99529C0C0AEBE /* PBXGroup */ = {
 			isa = PBXGroup;
-			children = (				AE4ABEF48D5CF8F88DB9CE04,
+			children = (				EA0000000000000000000028 /* Overlay */,
+				AE4ABEF48D5CF8F88DB9CE04,
 				82CF2A43A7100F086D7FCFDD,
 				9D74F0FEE640EE6B11049A7E,
 				28ECAF0875BA5C25A1D36BB2,
@@ -253,8 +338,6 @@
 				EC21069A65F2CA977FE14A64,
 				547D009064F7C3F13BEF3460,
 				389F15E87F1A2EC0C3E735AE /* Core */,
-				C8C38E4E3BB5346EE36AFBDA /* HUD */,
-				4FB3A10826EDC0C8795D3003 /* sources */,
 			);
 			sourceTree = "<group>";
 		};
@@ -286,7 +369,14 @@
 		699FCDBED06EC64C8A6B513F /* XCBuildConfiguration */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				SWIFT_OBJC_BRIDGING_HEADER = "Overlay/TrollLyricsDesk-Bridging-Header.h";
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = TrollLyricsDesk-Swift.h;
+				DEFINES_MODULE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Overlay/Private",
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconV2;
 				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
@@ -294,21 +384,22 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 				"$(inherited)",
 				"@executable_path/Frameworks",
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
-				"-undefined",
-				"dynamic_lookup",
+				"$(SRCROOT)/Overlay/Private/FrontBoard.tbd",
+				"$(SRCROOT)/Overlay/Private/FrontBoardServices.tbd",
+				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
+				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				SWIFT_OBJC_BRIDGING_HEADER = "TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Release";
@@ -327,6 +418,10 @@
 			name = "LyricLine.swift";
 			path = "LyricLine.swift";
 			sourceTree = "<group>";
+		};
+		779A8DD19473D66876760A6E /* PBXBuildFile */ = {
+			isa = PBXBuildFile;
+			fileRef = BAA79374B26D7FC55566EFDA;
 		};
 		7EF2517A8FE63F4681EC5EEA /* XCConfigurationList */ = {
 			isa = XCConfigurationList;
@@ -355,7 +450,6 @@
 				8D7DB2EFDE7A82AE21A67119,
 				5522E08A4D890721DC2BFA94,
 				0AA74765B3B0AA9557D4381E,
-				7E101554603E80CF4C3D31EC /* TrollLyricsDesk-Bridging-Header.h */,
 			);
 			name = "TrollLyricsDesk";
 			path = "TrollLyricsDesk";
@@ -452,7 +546,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFS = "";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -514,10 +608,24 @@
 			isa = PBXBuildFile;
 			fileRef = 8D7DB2EFDE7A82AE21A67119;
 		};
+		BAA79374B26D7FC55566EFDA /* PBXFileReference */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = "sourcecode.swift";
+			name = "TrollLyricsDeskApp.swift";
+			path = "TrollLyricsDeskApp.swift";
+			sourceTree = "<group>";
+		};
 		C0DD1C3E4BFC124D878FE440 /* XCBuildConfiguration */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				SWIFT_OBJC_BRIDGING_HEADER = "Overlay/TrollLyricsDesk-Bridging-Header.h";
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = TrollLyricsDesk-Swift.h;
+				DEFINES_MODULE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Overlay/Private",
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconV2;
 				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
@@ -525,21 +633,22 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 				"$(inherited)",
 				"@executable_path/Frameworks",
 			);
 			OTHER_LDFLAGS = (
 				"$(inherited)",
-				"-undefined",
-				"dynamic_lookup",
+				"$(SRCROOT)/Overlay/Private/FrontBoard.tbd",
+				"$(SRCROOT)/Overlay/Private/FrontBoardServices.tbd",
+				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
+				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				SWIFT_OBJC_BRIDGING_HEADER = "TrollLyricsDesk/TrollLyricsDesk-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug";
@@ -566,14 +675,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 				"$(inherited)",
 				"@executable_path/Frameworks",
 				"@executable_path/../../Frameworks",
 			);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk.TrollLyricsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -660,14 +769,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 				"$(inherited)",
 				"@executable_path/Frameworks",
 				"@executable_path/../../Frameworks",
 			);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hailong.TrollLyricsDesk.TrollLyricsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -928,13 +1037,13 @@
 		AE4ABEF48D5CF8F88DB9CE04 /* PBXGroup */ = {
 			isa = PBXGroup;
 			children = (
+				BAA79374B26D7FC55566EFDA,
 				B5BF97F0F477B61FCDF6EF09,
 				67E34E88AD31EF35553B75A1,
 				F66887D7CE8530865B6EA804,
 				D5C30227B891262EA40DBB04,
 				8236BC683D875B749B244608,
 				E7695063FA73476DC5917E8E,
-				F6E69C20EC98FEA99A89BC7E /* TLAppRoot.swift */,
 			);
 			name = "App";
 			path = "App";
@@ -963,253 +1072,6 @@
 			);
 			name = "Lyrics";
 			path = "Lyrics";
-			sourceTree = "<group>";
-		};
-		27B355ADF18C9D9014AE6B4A /* LyricsHUDView.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "LyricsHUDView.swift";
-			path = "LyricsHUDView.swift";
-			sourceTree = "<group>";
-		};
-		57828F382DABE111E0EC03CD /* LyricsHUDController.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "LyricsHUDController.swift";
-			path = "LyricsHUDController.swift";
-			sourceTree = "<group>";
-		};
-		EBCB390FCFAFBC4797440AB9 /* LyricsHUDBridge.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "LyricsHUDBridge.swift";
-			path = "LyricsHUDBridge.swift";
-			sourceTree = "<group>";
-		};
-		8A0ED59E206C33EFE6D8263F /* FloatingLyricsController.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "FloatingLyricsController.swift";
-			path = "FloatingLyricsController.swift";
-			sourceTree = "<group>";
-		};
-		195291080F6A323406ECA403 /* FloatingLyricsPanel.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "FloatingLyricsPanel.swift";
-			path = "FloatingLyricsPanel.swift";
-			sourceTree = "<group>";
-		};
-		6B9FE2915A9CD65D800E3A21 /* FloatingLyricsStyle.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "FloatingLyricsStyle.swift";
-			path = "FloatingLyricsStyle.swift";
-			sourceTree = "<group>";
-		};
-		7F624A66729CB1A52B853919 /* TLLyricsIPC.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLLyricsIPC.h";
-			path = "TLLyricsIPC.h";
-			sourceTree = "<group>";
-		};
-		66D4759AD0BE9144D8C31753 /* TLLyricsIPC.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "TLLyricsIPC.mm";
-			path = "TLLyricsIPC.mm";
-			sourceTree = "<group>";
-		};
-		9ACD106C74B5FFCA00D87A91 /* TLPrivate.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLPrivate.h";
-			path = "TLPrivate.h";
-			sourceTree = "<group>";
-		};
-		3C130B16D8A02585B6CF2C4E /* TLHelper.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLHelper.h";
-			path = "TLHelper.h";
-			sourceTree = "<group>";
-		};
-		B9EF3B62BB5D5877E0861288 /* TLHelper.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "TLHelper.mm";
-			path = "TLHelper.mm";
-			sourceTree = "<group>";
-		};
-		439AE20F8C39FDE6199C44E0 /* TLHUDWindow.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLHUDWindow.h";
-			path = "TLHUDWindow.h";
-			sourceTree = "<group>";
-		};
-		532AFB5AF19AAB081045B2DC /* TLHUDWindow.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "TLHUDWindow.mm";
-			path = "TLHUDWindow.mm";
-			sourceTree = "<group>";
-		};
-		FB6EC2C0F498F49D5C92BCCD /* TLHUDApplication.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLHUDApplication.h";
-			path = "TLHUDApplication.h";
-			sourceTree = "<group>";
-		};
-		4D1FB76C27C7874362AC0276 /* TLHUDApplication.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "TLHUDApplication.mm";
-			path = "TLHUDApplication.mm";
-			sourceTree = "<group>";
-		};
-		9BECA82012C9F7C7453DAD8B /* TLAppDelegate.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TLAppDelegate.h";
-			path = "TLAppDelegate.h";
-			sourceTree = "<group>";
-		};
-		B6DD03F414715032A8ACEDE3 /* TLAppDelegate.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "TLAppDelegate.mm";
-			path = "TLAppDelegate.mm";
-			sourceTree = "<group>";
-		};
-		CF734C5E18A08A7A2B2604DF /* main.mm */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.cpp.objcpp;
-			name = "main.mm";
-			path = "main.mm";
-			sourceTree = "<group>";
-		};
-		F6E69C20EC98FEA99A89BC7E /* TLAppRoot.swift */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.swift;
-			name = "TLAppRoot.swift";
-			path = "TLAppRoot.swift";
-			sourceTree = "<group>";
-		};
-		7E101554603E80CF4C3D31EC /* TrollLyricsDesk-Bridging-Header.h */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = "TrollLyricsDesk-Bridging-Header.h";
-			path = "TrollLyricsDesk-Bridging-Header.h";
-			sourceTree = "<group>";
-		};
-		7DEACA385B39A5F524261AE5 /* BackBoardServices.framework */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = wrapper.framework;
-			name = "BackBoardServices.framework";
-			path = "System/Library/PrivateFrameworks/BackBoardServices.framework";
-			sourceTree = SDKROOT;
-		};
-		45D504235C2D181CEFB16F0F /* GraphicsServices.framework */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = wrapper.framework;
-			name = "GraphicsServices.framework";
-			path = "System/Library/PrivateFrameworks/GraphicsServices.framework";
-			sourceTree = SDKROOT;
-		};
-		8E40693BEEA4C8B7CEB433E9 /* SpringBoardServices.framework */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = wrapper.framework;
-			name = "SpringBoardServices.framework";
-			path = "System/Library/PrivateFrameworks/SpringBoardServices.framework";
-			sourceTree = SDKROOT;
-		};
-		DCEFBED932F5EDBA023A6F24 /* LyricsHUDView.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 27B355ADF18C9D9014AE6B4A /* LyricsHUDView.swift */;
-		};
-		2192B4F9ADF4453D3056D557 /* LyricsHUDController.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 57828F382DABE111E0EC03CD /* LyricsHUDController.swift */;
-		};
-		F2A1D151EDF8E3FDDFF7FC54 /* LyricsHUDBridge.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = EBCB390FCFAFBC4797440AB9 /* LyricsHUDBridge.swift */;
-		};
-		87D27C29C2BAA88B2DCFD473 /* FloatingLyricsController.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 8A0ED59E206C33EFE6D8263F /* FloatingLyricsController.swift */;
-		};
-		77C1DC25EC74FFAAB999A9DE /* FloatingLyricsPanel.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 195291080F6A323406ECA403 /* FloatingLyricsPanel.swift */;
-		};
-		38C2596CB4C6E23EDC28E5F8 /* FloatingLyricsStyle.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 6B9FE2915A9CD65D800E3A21 /* FloatingLyricsStyle.swift */;
-		};
-		EF1FCF9624888119C176E6FB /* TLLyricsIPC.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 66D4759AD0BE9144D8C31753 /* TLLyricsIPC.mm */;
-		};
-		868FF40D24AC83E5EE3936EE /* TLHelper.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = B9EF3B62BB5D5877E0861288 /* TLHelper.mm */;
-		};
-		6281B91DC67C862834F92750 /* TLHUDWindow.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 532AFB5AF19AAB081045B2DC /* TLHUDWindow.mm */;
-		};
-		DA9CEB4D39FAF88F6662A4C8 /* TLHUDApplication.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = 4D1FB76C27C7874362AC0276 /* TLHUDApplication.mm */;
-		};
-		8B185C7CA44B77909247FB4B /* TLAppDelegate.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = B6DD03F414715032A8ACEDE3 /* TLAppDelegate.mm */;
-		};
-		65E1DB3CEE86C2A6E76B3523 /* main.mm in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = CF734C5E18A08A7A2B2604DF /* main.mm */;
-		};
-		5536421856D0351EC5BD8EC1 /* TLAppRoot.swift in Sources */ = {
-			isa = PBXBuildFile;
-			fileRef = F6E69C20EC98FEA99A89BC7E /* TLAppRoot.swift */;
-		};
-		C8C38E4E3BB5346EE36AFBDA /* HUD */ = {
-			isa = PBXGroup;
-			children = (
-				27B355ADF18C9D9014AE6B4A /* LyricsHUDView.swift */,
-				57828F382DABE111E0EC03CD /* LyricsHUDController.swift */,
-				EBCB390FCFAFBC4797440AB9 /* LyricsHUDBridge.swift */,
-				8A0ED59E206C33EFE6D8263F /* FloatingLyricsController.swift */,
-				195291080F6A323406ECA403 /* FloatingLyricsPanel.swift */,
-				6B9FE2915A9CD65D800E3A21 /* FloatingLyricsStyle.swift */,
-			);
-			name = "HUD";
-			path = "HUD";
-			sourceTree = "<group>";
-		};
-		4FB3A10826EDC0C8795D3003 /* sources */ = {
-			isa = PBXGroup;
-			children = (
-				7F624A66729CB1A52B853919 /* TLLyricsIPC.h */,
-				66D4759AD0BE9144D8C31753 /* TLLyricsIPC.mm */,
-				9ACD106C74B5FFCA00D87A91 /* TLPrivate.h */,
-				3C130B16D8A02585B6CF2C4E /* TLHelper.h */,
-				B9EF3B62BB5D5877E0861288 /* TLHelper.mm */,
-				439AE20F8C39FDE6199C44E0 /* TLHUDWindow.h */,
-				532AFB5AF19AAB081045B2DC /* TLHUDWindow.mm */,
-				FB6EC2C0F498F49D5C92BCCD /* TLHUDApplication.h */,
-				4D1FB76C27C7874362AC0276 /* TLHUDApplication.mm */,
-				9BECA82012C9F7C7453DAD8B /* TLAppDelegate.h */,
-				B6DD03F414715032A8ACEDE3 /* TLAppDelegate.mm */,
-				CF734C5E18A08A7A2B2604DF /* main.mm */,
-			);
-			name = "sources";
-			path = "sources";
 			sourceTree = "<group>";
 		};
 	};

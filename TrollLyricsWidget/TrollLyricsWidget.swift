@@ -64,13 +64,24 @@ struct TrollLyricsProvider: TimelineProvider {
             )
         ]
 
-        // 预先安排后续歌词
+        // 预先安排后续歌词。
+        // 关键：快照可能从歌曲中途开始（elapsedWhenPaused > 0），
+        // 这里必须扣掉起始进度，否则整条时间轴会整体后移、歌词错位。
+        let elapsedAtStart = LyricStore.currentElapsed(
+            snapshot,
+            at: snapshot.startedAt
+        )
+
+        // 叠加用户的歌词时间偏移：与悬浮窗 / 主界面 currentLyric 保持一致，
+        // 否则 Widget 的切换时刻会和歌词内容对不上（内容提前了、entry 没提前）。
+        let offset = LyricStore.timeOffset(snapshot)
+
         let futureEntries = snapshot.lyrics
             .map { line in
                 (
                     time: line.time,
                     date: snapshot.startedAt.addingTimeInterval(
-                        line.time
+                        line.time - elapsedAtStart - offset
                     )
                 )
             }
