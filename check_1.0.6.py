@@ -849,6 +849,24 @@ check("第 2 项：DiagnosticsView 三项判定分行显示（安装环境行＋
 check("第 2 项：复核只定显示能力——delegate 的 native-candidate 分支写 displayCapability，不改安装环境",
       'setDisplayCapability:@"nativeHUD"' in td
       and 'setRunMode:@"native-candidate"' in td)
+_widget_files = ["TrollLyricsWidget/TrollLyricsWidget.swift",
+               "TrollLyricsWidget/WidgetView.swift",
+               "TrollLyricsWidget/TrollLyricsWidgetBundle.swift",
+               "Lyrics/LyricLine.swift", "Lyrics/LyricParser.swift",
+               "Lyrics/LyricStore.swift"]
+# 只查代码行（注释里提类型名不算引用，编得过）。
+_widget_code = "\n".join(
+    ln for f in _widget_files for ln in read(f).splitlines()
+    if not ln.strip().startswith("///") and not ln.strip().startswith("//"))
+check("Widget target 自包含：Widget Sources 的 6 个 Swift 文件代码行不引用 App-only 类型（InstallEnvironment／DisplayCapability）",
+      "InstallEnvironment" not in _widget_code
+      and "DisplayCapability" not in _widget_code,
+      "run 45850840777 教训：LyricStore 引用枚举类型导致 Widget target Archive 失败")
+for _s in ["TrollStore（巨魔）", "LiveContainer 宿主", "普通签名（沙盒内）",
+           "未确认（权限探测不可用）", "原生 HUD 悬浮歌词",
+           "PiP 画中画歌词（实验）", "应用内歌词"]:
+    check(f"显示名一致：{_s} 在 LyricStore（字符串 switch）与 RuntimeEnvironment（枚举 displayName）两边都在",
+          _s in ls and _s in re_)
 pc = read("PlaybackEngine/PlaybackCoordinator.swift")
 check("第 3 项：PlaybackCoordinator.start() 幂等（guard timer == nil，重复记跳过，不建第二个任务）",
       "guard timer == nil else" in pc

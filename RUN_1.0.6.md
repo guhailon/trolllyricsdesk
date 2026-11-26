@@ -59,8 +59,10 @@
 
 ## §五 编译日志
 
-- 待补：头 run 号＋结论＋run 链接。
-- 池子取消按皇上 2026-11-26 02:32 的定默默重跑（rerun-failed-jobs），不报；只报编成（验包后发包）或真失败。轮询读 `status_field`／`conclusion`。
+- 头 run **45850840777**（head e091bf0）：排队＋5 次池子取消（Build cancelled、0 steps）后终于上了机器，**Archive (unsigned) 真失败**（job 140058674420，11 steps：Checkout／Xcode／zsign 过，Archive 挂，后面全 skipped）。
+- **病根（日志亲验，`hidden_files/job-45850840777.log`）**：`Lyrics/LyricStore.swift:404:9: error: cannot find 'InstallEnvironment' in scope`、`423:9: error: cannot find 'DisplayCapability' in scope`——错在 **Widget target**，不在 App target。Widget 只编 6 个 Swift 文件（TrollLyricsWidget／WidgetView／WidgetWidgetBundle／LyricLine／LyricParser／LyricStore），`InstallEnvironment`／`DisplayCapability` 在 `Compatibility/RuntimeEnvironment.swift` 里，只在 App target 的 Sources 里，Widget 看不到。1.0.5 能编过是因为 LyricStore 当时没引用这两个枚举；1.0.6 协调员加 `installEnvironmentDescription`／`displayCapabilityDescription` 时直接用了枚举，漏了 Widget 这一路。
+- **修法（第 3 笔提交，待补号）**：LyricStore.swift 两处改字符串 switch（显示名与枚举 displayName 一字不差）；自检 §15 加两项防回归——Widget 6 文件代码行不引用 App-only 类型、7 个显示名两边一致。自检重跑：**250 PASS，0 FAIL，28 OPEN**。
+- 新头 run（待补）：推第 3 笔后重新触发。
 
 ## §六 验包（编成后下载真 IPA 亲验，不要只信 run 绿）
 
@@ -113,6 +115,7 @@
 ## §十 提交链
 
 - 第 1 笔 `2606458`：1.0.6 核心（26 个文件，+985/-186）——RuntimeEnvironment 重写＋实测权限＋MediaRemote 签名修正＋start() 幂等＋native-candidate＋PiP 两段＋激活快照＋版本 1.0.6/20。
-- 第 2 笔（待补）：check_1.0.6.py＋RUN_1.0.6.md。
-- 头 run（待补）→ IPA（待补）。
+- 第 2 笔 `e091bf0`：check_1.0.6.py（242 PASS）＋RUN_1.0.6.md。
+- 第 3 笔（待补）：Widget 编译修——LyricStore 两处枚举引用改字符串 switch＋自检防回归（250 PASS）＋RUN 补失败经过。
+- 头 run：45850840777（head e091bf0）Archive 真失败（见 §五）；新头 run（待补）→ IPA（待补）。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。

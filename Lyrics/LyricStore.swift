@@ -400,8 +400,19 @@ extension LyricStore {
         set { defaults?.set(newValue, forKey: installEnvironmentReasonKey) }
     }
 
+    /// 安装环境中文描述（第 2 项）。注意：LyricStore 同时编进 App 与 Widget
+    /// 两个 target，RuntimeEnvironment.swift 只在 App target 里——这里不能
+    /// 引用 InstallEnvironment 类型，显示名用字符串 switch 写死（与
+    /// RuntimeEnvironment.swift 里 InstallEnvironment.displayName 保持一致；
+    /// 自检 §15 有一项专查两边一致）。
     static var installEnvironmentDescription: String {
-        InstallEnvironment(rawValue: installEnvironment)?.displayName ?? "未确认"
+        switch installEnvironment {
+        case "trollstore": return "TrollStore（巨魔）"
+        case "livecontainer": return "LiveContainer 宿主"
+        case "signature": return "普通签名（沙盒内）"
+        case "unknown": return "未确认（权限探测不可用）"
+        default: return "未确认"
+        }
     }
 
     /// 显示能力（第 2 项）：nativeHUD／pip／inApp。
@@ -419,8 +430,16 @@ extension LyricStore {
         set { defaults?.set(newValue, forKey: displayCapabilityReasonKey) }
     }
 
+    /// 显示能力中文描述（第 2 项）。与上同理：不能引用 DisplayCapability 类型，
+    /// 显示名用字符串 switch 写死（与 RuntimeEnvironment.swift 里
+    /// DisplayCapability.displayName 保持一致；自检 §15 专查两边一致）。
     static var displayCapabilityDescription: String {
-        DisplayCapability(rawValue: displayCapability)?.displayName ?? "未定"
+        switch displayCapability {
+        case "nativeHUD": return "原生 HUD 悬浮歌词"
+        case "pip": return "PiP 画中画歌词（实验）"
+        case "inApp": return "应用内歌词"
+        default: return "未定"
+        }
     }
 
     /// 激活前后悬浮窗状态快照的通知名（第 7 项）：Swift 侧发，ObjC 侧
