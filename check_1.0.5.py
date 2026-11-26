@@ -235,10 +235,10 @@ check("LogView: 现有清理仍在（clearLogs / 清理日志）",
 cv = read("App/ContentView.swift")
 check("AppBackgroundView 在 ContentView.swift（无新文件）",
       "struct AppBackgroundView: View" in cv)
-check("AppBackgroundView: 三个键（App Group）",
+check("AppBackgroundView: 三个键（走 LyricStore.defaults）",
       '"animeBackgroundEnabled"' in cv and '"backgroundOpacity"' in cv
       and '"selectedBackgroundData"' in cv
-      and cv.count('UserDefaults(suiteName: LyricStore.groupID)') >= 3)
+      and cv.count('store: LyricStore.defaults') >= 3)
 check("AppBackgroundView: 关->纯黑；有图 scaledToFill，透明度 1-backgroundOpacity",
       "Color.black" in cv and "if animeBackgroundEnabled" in cv
       and "UIImage(data: selectedBackgroundData)" in cv
@@ -420,6 +420,7 @@ check("Core/ 与 MusicProviders/ 只动两处诊断文件（Bridge＋Adapter）�
 changed = git_out(["diff", "--name-only", BASE, "HEAD"]).splitlines()
 allowed = {
     "App/ContentView.swift",
+    "App/ActivationView.swift",
     "App/PlaybackDashboardView.swift",
     "App/SettingsView.swift", "App/TrollLyricsDeskApp.swift",
     "Compatibility/EntitlementDiagnostics.swift",
@@ -430,6 +431,7 @@ allowed = {
     "Diagnostics/MediaRemoteDiagnostics.swift",
     "Diagnostics/OverlayDiagnostics.swift",
     "Lyrics/LyricStore.swift",
+    "Lyrics/LyricParser.swift",
     "MusicProviders/MediaRemoteAdapter.swift",
     "Overlay/FloatingLyricViewController.swift",
     "Overlay/TLDSAppDelegate.h", "Overlay/TLDSAppDelegate.m",
@@ -449,6 +451,7 @@ allowed = {
     "TrollLyricsWidget/WidgetView.swift",
     ".github/workflows/build.yml",
     "check_1.0.5.py", "RUN_1.0.5.md",
+    "ENGINE_FIX.md", "EngineTests/main.swift",
 }
 extra = [f for f in changed if f not in allowed]
 check(f"红线 diff {BASE}..HEAD 只动允许文件", not extra, str(extra))
@@ -465,6 +468,7 @@ for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
     check(f"{rel}: 与底子一字未动（零新增权限）", read(rel) == head)
 for f in ["App/ActivationView.swift", "App/ContentView.swift",
           "App/PlaybackDashboardView.swift", "Lyrics/LyricStore.swift",
+          "Lyrics/LyricParser.swift", "MusicProviders/MediaRemoteAdapter.swift",
           "PlaybackEngine/PlaybackCoordinator.swift",
           "TrollLyricsWidget/WidgetView.swift"]:
     t = read(f)
@@ -684,6 +688,95 @@ check("逐字歌词未现编实现（LyricWord.swift／LyricSyncEngine.swift 不
 check("设置里「逐字卡拉OK」选项文案保留（不删）",
       "逐字卡拉OK" in sv)
 
+print("\n== 13. ChatGPT 审查两 bug 修复（1.0.5 范围内，皇上 22:00 令） ==")
+ad = read("MusicProviders/MediaRemoteAdapter.swift")
+mrd = read("Diagnostics/MediaRemoteDiagnostics.swift")
+check("adapter: 暂停进度修正——rate 纳入公式（elapsed + delta * rate，duration 钳制，有限值守卫）",
+      "let delta = timestamp.map { max(0, Date().timeIntervalSince($0)) } ?? 0" in ad
+      and "let estimated = elapsed + delta * rate" in ad
+      and "let safePosition = estimated.isFinite ? max(0, estimated) : 0" in ad
+      and "$0.isFinite && $0 > 0 ? min(safePosition, $0) : safePosition" in ad
+      and "Date().timeIntervalSince(timestamp) + elapsed" not in ad)
+check("adapter: 请求超时 2 秒（Task.sleep 看门狗）＋缓存最长 3 秒（maxCacheAge）",
+      "try? await Task.sleep(nanoseconds: 2_000_000_000)" in ad
+      and "private let maxCacheAge: TimeInterval = 3" in ad
+      and "Date().timeIntervalSince(cachedAt) <= maxCacheAge" in ad)
+check("adapter: 请求编号 UUID＋超时复位＋旧回调丢弃",
+      "private var requestID = UUID()" in ad
+      and "let id = UUID()" in ad and "requestID = id" in ad
+      and "guard let self, self.requestID == id, self.fetching else { return }" in ad)
+check("diagnostics: recordFetchTimeout 存在（第 1 次＋每 10 次记一行，看门狗里调用）",
+      "static func recordFetchTimeout()" in mrd
+      and "fetchTimeoutCount" in mrd
+      and "MediaRemoteDiagnostics.recordFetchTimeout()" in ad)
+# 存储统一：除 LyricStore.swift 本尊（defaults 定义）外，全树不得再直接建 suite
+all_swift_files = [f for f in git_out(["ls-files"]).splitlines() if f.endswith(".swift")]
+bypass = [f for f in all_swift_files
+          if f != "Lyrics/LyricStore.swift"
+          and ("UserDefaults(suiteName:" in read(f)
+               or 'suiteName: "group.com.hailong.TrollLyricsDesk"' in read(f))]
+check("存储统一：Swift 侧除 LyricStore.swift 外无直接 UserDefaults(suiteName:)",
+      not bypass, str(bypass))
+check("存储统一：ActivationView 激活门走 LyricStore.defaults",
+      "@AppStorage(ActivationStore.activatedKey, store: LyricStore.defaults)" in read("App/ActivationView.swift"))
+check("存储统一：FloatingLyricViewController prefs 走 LyricStore.defaults",
+      "private var prefs: UserDefaults? { LyricStore.defaults }" in read("Overlay/FloatingLyricViewController.swift"))
+check("存储统一：SettingsView 7 处硬编码 group 字符串已改走 LyricStore.defaults",
+      read("App/SettingsView.swift").count("store: LyricStore.defaults") == 7
+      and '"group.com.hailong.TrollLyricsDesk"' not in read("App/SettingsView.swift"))
+app_m = read("Overlay/TLDSAppDelegate.m")
+check("存储统一：ObjC 侧三处改走 [TLDSRuntime sharedDefaults]，无 initWithSuiteName",
+      app_m.count("[TLDSRuntime sharedDefaults]") == 3
+      and "initWithSuiteName" not in app_m)
+check("存储统一：TLDSRuntime.sharedDefaults 存在（回 .standard 兜底）",
+      "@objc static func sharedDefaults() -> UserDefaults" in read("App/TrollLyricsDeskApp.swift")
+      and "LyricStore.defaults ?? .standard" in read("App/TrollLyricsDeskApp.swift"))
+
+print("\n== 14. Engine Fix 并入（皇上 22:03 令，包为准） ==")
+pc = read("PlaybackEngine/PlaybackCoordinator.swift")
+lp = read("Lyrics/LyricParser.swift")
+check("coordinator: latestState 与 state 分离＋searchGeneration（UUID）",
+      "private var latestState: PlaybackState?" in pc
+      and "private var searchGeneration = UUID()" in pc)
+check("coordinator: stop／无音乐时重置状态＋轮换代次",
+      pc.count("searchGeneration = UUID()") >= 3
+      and "latestState = nil" in pc)
+check("coordinator: 换歌键用稳定标识 trackKey(track)，缓存优先才搜词",
+      "let key = trackKey(newState.track)" in pc
+      and "LyricStore.cachedLyrics(title:" in pc
+      and "await loadLyrics(for: newState.track, generation: generation)" in pc)
+check("coordinator: 暂停拖动进度同步（|Δposition| > 0.1）",
+      "abs(previous.position - newState.position) > 0.1" in pc
+      and "syncPlaybackState(newState, previous: previous)" in pc)
+check("coordinator: 快照归属改稳定标识比对",
+      "LyricStore.stableSongIdentity(title: snapshot.title, artist: snapshot.artist) ==" in pc)
+check("coordinator: loadLyrics 带 generation 守卫（入口／取回后／出错时）",
+      "for track: MusicTrack, generation: UUID" in pc
+      and "guard !Task.isCancelled, generation == searchGeneration else { return }" in pc
+      and "guard let current = latestState, trackKey(current.track) == trackKey(track) else {" in pc
+      and "syncLyrics(lines, at: current)" in pc)
+check("coordinator: syncLyrics 进度基准用 current 推算，不再重调 adapter",
+      "let basePosition = current.position + (baseStatus == .playing ? max(0, Date().timeIntervalSince(current.observedAt)) : 0)" in pc
+      and "let live = adapter.currentState()" not in pc)
+check("coordinator: 锁屏没带回来（publishLiveLyrics／LiveLyricKey 不在）",
+      "publishLiveLyrics" not in pc and "LiveLyricKey" not in pc
+      and "lastLiveState" not in pc)
+check("parser: 一行多时间标签＋[offset:]＋稳定排序（包的重写版）",
+      "offsetPattern" in lp and "[offset:" in lp
+      and "let time = max(0, minutes * 60 + seconds + fraction - offset / 1000)" in lp
+      and "enumerated().sorted" in lp)
+check("parser: [offset:] 只动解析出的时间，不碰 LyricStore 逐歌偏移",
+      "timeOffset" not in lp and "LyricStore" not in lp)
+check("ENGINE_FIX.md 已带入（包的说明原文）",
+      os.path.exists(os.path.join(ROOT, "ENGINE_FIX.md"))
+      and "Three Swift files changed" in read("ENGINE_FIX.md"))
+check("EngineTests/main.swift 已带入（LRC 回归测试，不进编译目标）",
+      os.path.exists(os.path.join(ROOT, "EngineTests/main.swift"))
+      and 'precondition(a.count == 2 && a[0].time == 9.5' in read("EngineTests/main.swift")
+      and "EngineTests" not in pbx)
+check("pbxproj: EngineTests 不在任何 Sources 里（只留文件不加 target）",
+      "EngineTests" not in pbx)
+
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "ActivityKit 弱链接、DynamicIsland 展开区、if #available 组合、"
@@ -713,6 +806,22 @@ open_item("验包时 ActivityKit 应为不在位（锁屏已取消，弱链接�
           "AppleAccount）是悬浮窗的，仍应在位")
 
 
+open_item("暂停进度修正要真机验（30 秒处暂停，5 秒后进度应停在 30 秒附近，不涨到 35 秒）",
+          "只改了 MediaRemoteAdapter 的估算公式与缓存逻辑，未改同步修正；"
+          "暂停后歌词行是否还跟着错误进度走，以真机为准")
+open_item("Engine Fix 换歌／搜词代次要真机验（快切歌时旧任务歌词不写进新歌）",
+          "generation 守卫＋缓存优先是源码级并入，只过自检，未过 Xcode 编译；"
+          "真机上快切两三首歌，看歌词是否跟当前歌走")
+open_item("LyricParser [offset:] 与逐歌偏移叠加要真机验",
+          "解析层 [offset:] 只改解析出的时间，逐歌 timeOffset 另在 lookup 时叠加；"
+          "以前给带 [offset:] 的歌手调过的逐歌偏移可能要重调（旧解析忽略 [offset:]，"
+          "手调值可能一直在替它补，见 RUN 附二）")
+open_item("EngineTests LRC 回归测试本机没跑成（无 swiftc），以云端构建＋真机为准",
+          "包自称 Linux 下 LRC 测试通过，但本机无 Swift 工具链，没法复核；"
+          "解析逻辑是源码级审过，不是执行验证")
+open_item("LC 激活存储统一要真机验（LC 里激活成功后应直接进主界面，不再停留激活页）",
+          "只改了存储入口，激活流程／服务端校验一字未动；"
+          "巨魔模式下 LyricStore.defaults 就是 App Group suite，行为不变")
 open_item("1.0.5 诊断要真机验：日志页抄回诊断行（见 RUN_1.0.5.md 待验清单）",
           "MediaRemote dlopen/dlsym／回调触发／info 有无；强制测试开关开后悬浮窗"
           "是否出现测试文字；托管复核逐项结论；运行模式进了哪档；启动计数是否都为 1")
@@ -720,9 +829,9 @@ open_item("LC 里首次调用 FBSystemShellInitialize 的风险未验证",
           "1.0.4／newbase 在宿主模式下从不调它；1.0.5 为探测增强宿主改为尝试＋复核，"
           "调用包在 @try/@catch 里、回调不来时 6 秒兜底复核判兼容；若 LC 真机启动就闪退，"
           "第一嫌疑就是这次尝试——日志里若连「待探测」都没有，就是启动时崩了")
-open_item("PiP 可行性只研究未验证（RUN_1.0.5.md 小结为准，不实现）",
-          "AVPictureInPictureController 的公开规则只作书面推断；LC 客人里能不能跑、"
-          "要不要视频轨，都标了「未验证」，不要当结论用")
+open_item("PiP 是实验引擎，真机只验到哪一步以实测为准（RUN_1.0.5.md §五）",
+          "先验固定测试文字能否在桌面／其他 App 上方出现，再接实时歌词；"
+          "透明背景受限、拖动由系统控制、锁屏不保证；PiP 能显示不代表能拿到别的播放器的歌")
 open_item("三档模式的复核时序未验证",
           "复核在创建后 2 秒跑、场景未连上时 3 秒后再跑一次；真机上场景连接若慢于 5 秒，"
           "会误判兼容——日志里「复核推迟」出现几次、最终进了哪档，以真机为准")

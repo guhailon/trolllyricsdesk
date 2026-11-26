@@ -36,6 +36,117 @@
   build 18 那个已发皇上的包不动（里面有锁屏，皇上正在测，不重编）。
 - 验包里锁屏项改成「不在位」验证（见第十一节）。
 
+## 附一、ChatGPT 审查两 bug 修复（皇上 22:00 令，1.0.5 范围内，不另开版本）
+来源：皇上 21:57、21:59 发的两个 ChatGPT 链接（同一「源码审查优化」对话），
+是对新底子源码（6857d3c）的静态审查，不是 1.0.5 设计；其中两处已核实的具体 bug
+划进 1.0.5 现有的 MediaRemote／激活范围一起修。
+**不做的**：「1.0.1-newbase」20 项四阶段计划不跟（版本号不对，皇上定的是 1.0.5；
+还写「不删除现有功能」，跟皇上 21:46 取消锁屏的令直接冲突）。
+**后续候选（只记，不动手）**：LRC 多时间标签解析、保活状态机、权限最小化、
+激活升级服务端签名。
+
+### 1. 暂停后播放时间还在涨（MediaRemoteAdapter.swift，P0）
+- 病根：旧公式 `position = max(0, Date().timeIntervalSince(timestamp) + elapsed)`
+  没把播放速率 rate 纳入——播放器暂停后时间戳不刷新，算出来的播放时间还在继续涨
+  （30 秒处暂停，5 秒后算成 35 秒）。
+- 修法（ChatGPT 给的公式，核对后采用；变量名与现有代码完全一致，不用改写）：
+  `elapsed`／`timestamp`／`rate`／`duration` 四个名在现有代码里就是这么叫的；
+  `rate` 取自 `kMRMediaRemoteNowPlayingInfoPlaybackRate`（缺失默认 0）；
+  暂停时 rate=0，`estimated` 停在 `elapsed` 不再涨；duration 为 0 或缺失时不 clamp。
+  ```swift
+  let delta = timestamp.map { max(0, Date().timeIntervalSince($0)) } ?? 0
+  let estimated = max(0, elapsed + delta * rate)
+  let position: TimeInterval = duration.map { $0 > 0 ? min(estimated, $0) : estimated } ?? estimated
+  ```
+- 防卡死（fetching 一直 true、后续检测停掉）：
+  **请求超时 2.0 秒**——超过 2 秒没回回调，fetching 自动复位，下一次 poll 重新发请求，
+  超时记一行诊断日志（第 1 次＋每 10 次，不刷屏）；
+  **请求编号**——每次发请求 requestID+1，回调里 `guard id == self.requestID`，
+  旧请求的迟到回调直接丢弃，不覆盖新缓存、不清新请求的 fetching；
+  **缓存硬过期 3.0 秒**——快照超过 3 秒没被新回调替换就再也不采用（currentState 返回 nil，
+  显示「没有检测到」，不拿旧快照冒充当前播放）；保鲜 0.3 秒（cacheLifetime）不动，
+  正常流程回调几毫秒就到，硬过期只是兜底。
+- 数值来源：超时 2 秒＋缓存龄 3 秒与 ChatGPT「1.0.1 Engine Fix」ZIP 里核实的值一致
+  （那包的 MediaRemoteAdapter 也是 2 秒超时＋requestID＋3 秒缓存龄；
+  ZIP 在 `~/workspace/user/files/TrollLyricsDesk-EngineFix.zip`，
+  923,187 B，SHA256 f59ae5d1…，已由浏览器对 6857d3c diff 核实）。
+  Engine Fix 那包还改了 PlaybackCoordinator.swift（换歌／暂停／异步搜词）
+  和 LyricParser.swift（多时间标签＋[offset:]），**不在本次范围**，
+  只记在上面后续候选里，不动手。
+
+### 2. LiveContainer 下激活存储不一致（高）
+- 病根：LyricStore.swift 在 LC 环境下用 UserDefaults.standard，
+  但 ActivationView.swift 的激活门（ActivationGateView）直接读 App Group——
+  激活状态写入（ActivationStore.markActivated 走 LyricStore.defaults）和读取的位置不一致，
+  激活成功却仍停留在激活界面。
+- 修法：全工程存储入口统一走 LyricStore.defaults（巨魔 App Group／宿主 .standard，
+  巨魔模式下行为不变）。grep 全工程列出的绕过点，逐一改掉：
+  ActivationView.swift（激活门，正主）×1、ContentView.swift（背景×3＋悬浮窗透明度×1）、
+  PlaybackDashboardView.swift（悬浮开关×3＋syncFloatingEnabled 直接读×1）、
+  SettingsView.swift ×7（原来还是硬编码 `"group.com.hailong.TrollLyricsDesk"` 字符串，
+  连 LyricStore.groupID 都没用）、FloatingLyricViewController.swift（`prefs` 改成计算属性）、
+  TLDSAppDelegate.m ×3（`[[NSUserDefaults alloc] initWithSuiteName:…]` 读 floatingLyric.enabled，
+  改走新增的 ObjC 入口 `[TLDSRuntime sharedDefaults]`——TLDSRuntime 已有 @objc 桥，
+  sharedDefaults 就是 `LyricStore.defaults ?? .standard`）。
+  改完后全树 `UserDefaults(suiteName:` 只剩 LyricStore.swift:58 本尊（defaults 定义），
+  ObjC 侧 `initWithSuiteName` 零处；Widget 里本来就没有直接存储调用。
+- 真机验：LC 里激活成功后应直接进主界面，不再停留激活页；巨魔模式行为不变。
+
+## 附二、Engine Fix 并入（皇上 22:03 令，以包的 diff 为准）
+来源包：`~/workspace/user/files/TrollLyricsDesk-EngineFix.zip`，923,187 B，
+SHA256 f59ae5d1…（已验）；解开实测 82 个文件。与 6857d3c 全树对 diff：
+**只改三个文件**（其余一字不动），加 ENGINE_FIX.md 和 EngineTests/main.swift。
+包只过了 Swift 语法检查和 Linux 下的 LRC 测试，**没编过 Xcode、没签过包、没上过真机**——
+真正的验证就是接下来的云端构建和协调员的验包；编不过就修，不把没编过的代码报成已实现。
+本机无 swiftc，EngineTests 的 LRC 回归测试这里没法复跑（包自称 Linux 下通过，未复核）。
+
+### 1. MediaRemoteAdapter.swift——用包的版本，我的只留诊断钩子
+- 包的版本 vs 我上一条已提交的版本（fad1e84）：**包的更完整**，采用包的——
+  requestID 是 UUID（我的是 Int）、超时是 Task.sleep 2 秒看门狗（我的是 poll 时检查）、
+  缓存上限叫 maxCacheAge=3（我的是 cacheHardExpiry=3.0）、
+  位置公式多了 **isFinite 有限值守卫**（`estimated.isFinite ? max(0, estimated) : 0`，
+  duration 也验 isFinite；防 MediaRemote 返回 NaN/inf 污染进度）。
+  rate 公式、2 秒超时、编号防旧回调、3 秒缓存龄、0.3 秒去重缓存，两边数值一致。
+- 我的版本只留了一个诊断钩子：包的看门狗超时不记日志，1.0.5 诊断层在看门狗里补记
+  `MediaRemoteDiagnostics.recordFetchTimeout()`（第 1 次＋每 10 次）。
+- **冲突处理**：包基于底子，没有 1.0.5 的第 1 项诊断——整文件拷过来时自检立刻报 3 处 FAIL
+  （注册通知 typealias、recordRegistration／recordNotificationFire／recordInfoCallback、
+  四符号引用）。已把诊断层从 1.0.5 诊断版原样补回包的版本上
+  （Register typealias＋registerForNowPlayingNotifications＋回调里的 recordInfoCallback），
+  自检恢复 207 PASS。最终 adapter 与包的 diff 只剩这三处诊断补回。
+
+### 2. PlaybackCoordinator.swift——按包的 hunks 逐个并，锁屏一律不带回
+并入：latestState 与 state 分离；searchGeneration（UUID）取消守卫（stop／无音乐／换歌时轮换）；
+换歌键改稳定标识 trackKey(track)（原 `newState.trackKey` 是 platform|title|artist 原拼接，
+字段型播放器互换 title/artist 时会误判成不停换歌；稳定标识只用固定部分，交换后仍是同一个串）；
+缓存优先搜词（本地有缓存就不联网搜）；没音乐时重置状态＋取消搜词；
+暂停时拖动进度同步（|Δposition| > 0.1 时 syncPlaybackState）；
+快照归属改稳定标识比对；loadLyrics 带 generation 守卫（入口／取回后／出错时）；
+syncLyrics 进度基准改用 current 推算，不再回头调 adapter.currentState()。
+**锁屏**：包的 coordinator 还带着锁屏代码（publishLiveLyrics 调用点＋LiveLyricKey／
+lastLiveState／publishLiveLyrics 定义）——并的时候只取上面第 2 条的改动，
+换歌分支里的 `publishLiveLyrics()` 调用点**跳过没并**，定义更没动；
+并完 grep 确认 publishLiveLyrics／LiveLyricKey／lastLiveState 全树零处（只剩 WidgetBundle 里
+一句说明移除的注释）。验包里锁屏仍须不在位（见第十一节）。
+
+### 3. LyricParser.swift——整文件采用包的重写版
+一行多个时间标签（每标签各出一行，文本取最后一个标签之后）；标准 [offset:...] 标签
+（毫秒，正数提前：`time - offset/1000`，下限 0）；稳定排序（时间相同按原文顺序）。
+**与逐歌偏移的叠加核对**：[offset:] 只改解析出的 LyricLine.time（解析层）；
+逐歌 timeOffset 是另一层——`LyricStore.currentLyric` 在 lookup 时做
+`currentElapsed(...) + timeOffset(snapshot)`，不改解析出的时间。
+两层独立、可叠加、不重复计算；解析文件里没有 timeOffset／LyricStore 引用（自检已核）。
+**一个真实交互**：以前给带 [offset:] 的歌手调过的逐歌偏移可能要重调——
+旧解析忽略 [offset:]，手调值可能一直在替它补；现在 [offset:] 在解析层生效了，
+那份手调再叠上去会 double-count。待真机验（自检 OPEN 有一项）。
+
+### ENGINE_FIX.md／EngineTests 怎么放
+- `ENGINE_FIX.md`（包的说明原文，一字未动）放仓库根目录；`EngineTests/main.swift`
+  放 `EngineTests/` 目录。**两个都不进 pbxproj、不进任何编译目标**（只留文件），
+  自检核「EngineTests 不在 pbxproj 里」。main.swift 是独立 LRC 回归测试
+  （多标签＋[offset:500] 正数提前＋[offset:-1000] 负数延后＋非法行过滤），
+  按包里的说明跑：`swiftc Lyrics/LyricLine.swift Lyrics/LyricParser.swift EngineTests/main.swift -o /tmp/engine-tests && /tmp/engine-tests`。
+
 ## 一、7 项各改了哪些文件
 
 | # | 项 | 文件 |
@@ -171,22 +282,43 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 - `（第五笔）` — **1.0.5 移除锁屏（皇上 2026-11-26 21:46 令，真机从未证实可用；可从 newbase e0c154a 恢复）**。
   注：皇上原令是「先做这笔，在功能提交之前」，但这条令到时四笔功能提交已经推上去了，
   退不回去——移除仍是单独一笔、可 revert 的提交，只是顺序上落在功能提交之后。
+- `（第六笔）` — 锁屏移除修正：LyricStore 注释还原（红线零删行）＋自检允许清单补 ContentView／Widget 四文件。
+  头 run 45833177574（b10a2ba）在排队，未出结论就被后续提交取代。
+- `（第七笔）` — 修 PiP 编译错（run 45833421434 Archive 败）：ActionAtItemEnd 用 .advance；
+  height * 0.6 改 CGFloat(height) * 0.6。头 run 45834568842 在排队。
+- `（第八笔）` — ChatGPT 审查两 bug 修复（皇上 22:00 令）：暂停进度 rate 公式＋
+  请求超时 2 秒／编号／缓存硬过期 3 秒；全工程存储统一走 LyricStore.defaults。
+- `（第九笔）` — Engine Fix 并入（皇上 22:03 令）：adapter 用包版＋诊断钩子、
+  coordinator 按包 hunks 并（锁屏跳过）、LyricParser 整文件采用、ENGINE_FIX.md＋EngineTests 带入。
+- `（第十笔）` — 自检升级（§13 按包改写＋§14 并入检查＋OPEN 更新）＋本 RUN 文件更新。
 
 ## 六、编译日志
 - 诊断版头 run：**45828687961**，head a5ae262，workflow Build，job Build，
   status_field=completed，**conclusion=success**（排队约 6 分钟，跑约 1 分钟），
   11 个步骤全部 success，无池子取消、无重跑。
-- PiP 版头 run 45830330430（head 29a26c6）：12 次轮询（12 分钟）仍在排队，
-  第二段接力时被锁屏移除的新提交取代，不再等它——最终 IPA 以移除锁屏后的新头 run 为准。
-- 移除锁屏后头 run：（推第五笔后填：run 号／结论／产物大小／SHA256。）
+- PiP 版头 run 45830330430（head 29a26c6）：job Build 结论 cancelled、steps 0/0——
+  **池子取消**，不是代码失败（run 级 conclusion=failure 是池子取消的老样子）。
+  同批 45830270998（c6821f1）也是池子取消。按皇上 02:32 的定默默重跑，不报。
+- 移除锁屏后头 run 45833421434（head ae74495）：**真失败**——11 步全跑完，
+  败在「Archive (unsigned)」，日志两个编译错都在我写的 PiP 代码里：
+  `AVPlayer.ActionAtItemEnd` 没有 `advanceToNextItem`（应为 `.advance`）；
+  `height * 0.6` 里 height 是 Int、不能直接当 CGFloat 用（改 `CGFloat(height) * 0.6`）。
+- PiP 编译修复版头 run：**45834568842**，head 839efb8，status_field=completed，
+  **conclusion=success**，job Build success，11 个步骤全部 success——
+  PiP 编译错修好了（产物未下载，最终 IPA 以并入后的新头 run 为准）。
+- Engine Fix 并入后头 run：（推第九、十笔后填：run 号／结论／产物大小／SHA256。）
 
 ## 七、自检
-`python3 check_1.0.5.py`（锚点 6857d3c）：**182 PASS，FAILED: none，OPEN 11**。
+`python3 check_1.0.5.py`（锚点 6857d3c）：**207 PASS，FAILED: none，OPEN 16**。
 红线：LyricStore diff 零删行；9 个同步锚符号在位；两份 entitlements 与 6857d3c 一字未动；
 全树无 38473／DualProcessBridge／dynamic_lookup／OverlayEngine／LyricsSyncEngine；
 BackBoard 只在权限对照表里提一次名字（标签，不是实现）；
 锁屏不在位：两锁屏文件不在、NSSupportsLiveActivities 不在、accessoryRectangular 不在、
-ActivityKit 弱链接 0 处。
+ActivityKit 弱链接 0 处；
+两 bug 修复在位：rate 公式＋超时 2 秒／编号／硬过期 3 秒＋过期缓存不用；
+存储统一：Swift 侧除 LyricStore.swift 外无直接 UserDefaults(suiteName:)，ObjC 侧三处走 sharedDefaults；
+Engine Fix 并入在位：adapter 包版＋诊断钩子、coordinator 代次／稳定键／缓存优先、
+parser 多标签＋[offset:]＋稳定排序、ENGINE_FIX.md＋EngineTests 带入且不进 target。
 
 ## 八、新结构与 ChatGPT 树的出入（以皇上的树为准）
 | 位置 | ChatGPT 建议的树 | 皇上的树（实际建的） | 备注 |
@@ -254,7 +386,15 @@ ActivityKit 弱链接 0 处。
 6. **巨魔模式回归**：同一 IPA 装回越狱机 TrollStore，悬浮窗／保活／激活一切照旧；
    日志里应是「巨魔原生模式」，不应出现复核行（巨魔不复核）。
 7. **不验的**：Telegram 行点没反应——1.0.5 不修这一项，不要顺手报它修没修好。
-   锁屏歌词已取消（下节），不用验。
+   锁屏歌词已取消（见零节），不用验。
+8. **暂停进度修正**：在 30 秒处暂停，5 秒后看进度——应停在 30 秒附近，不涨到 35 秒；
+   歌词行也不应跟着错误进度走。
+9. **LC 激活存储统一**：LiveContainer 里激活成功后应直接进主界面，不再停留激活页；
+   巨魔模式下行为不变。
+10. **Engine Fix 快切歌**：快切两三首歌，歌词是否跟当前歌走（旧任务的歌词不写进新歌）。
+11. **Engine Fix [offset:] 叠加**：找一首 LRC 带 [offset:] 的歌，看歌词时间对不对；
+    以前给这首歌调过的逐歌偏移可能要重调（旧解析忽略 [offset:]，手调值可能一直在替它补）。
+12. **Engine Fix 多时间标签**：一行多个时间标签的歌词（如副歌重复行），各时间点都应出现。
 8. **PiP 实验第一段（固定测试文字）**：在 LiveContainer 里打开 App → 设置页 → 诊断（1.0.5）
    → 点「开始 PiP 测试（固定文字，实验）」，然后按 Home 回桌面、再打开别的 App（如 Safari）：
    - 若桌面／别的 App 上方出现一个小窗，里面是「悬浮测试 · 桌面歌词 1.0.5」白字黑底
