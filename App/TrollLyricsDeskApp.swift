@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import Network
 
 // MARK: - 后台保活
 // iOS 退到后台会暂停 Timer，检测引擎就不 polling 了，换歌检测不到。
@@ -97,11 +98,12 @@ final class TrollLyricsRuntime: NSObject {
         guard !started else { return }
         started = true
 
-        BackgroundKeepAlive.shared.start()
+        if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }
+        DualProcessBridge.shared.start()
 
         let coordinator = ensurePlayback()
         Task { @MainActor in
-            coordinator.start()
+            if !LyricStore.isLiveContainer { coordinator.start() }
             LyricLogger.log("运行时启动：自动跟随所有播放器")
         }
     }
@@ -122,5 +124,104 @@ final class TrollLyricsRuntime: NSObject {
     /// ObjC AppDelegate / SceneDelegate 写日志（复用 App 内同一个日志文件）。
     @objc func logMessage(_ message: String) {
         LyricLogger.log(message)
+    }
+}
+
+// Read-only, explicitly paired loopback bridge. Never grants guest system privileges.
+final class DualProcessBridge {
+    static let shared = DualProcessBridge()
+    private let queue = DispatchQueue(label: "tlds.bridge")
+    private var listener: NWListener?
+    private var timer: DispatchSourceTimer?
+    private var active: NWConnection?
+    private let port = NWEndpoint.Port(rawValue: 38473)!
+    static let tokenKey = "tlds.bridge.token"
+    static let freshnessKey = "tlds.bridge.lastReceived"
+    static var token: String {
+        LyricStore.defaults?.string(forKey: tokenKey) ?? ""
+    }
+    func start() {
+        queue.async {
+            if LyricStore.isLiveContainer { self.startClient() }
+            else { self.startServer() }
+        }
+    }
+    private func startServer() {
+        if Self.token.isEmpty {
+            LyricStore.defaults?.set(UUID().uuidString, forKey: Self.tokenKey)
+        }
+        let params = NWParameters.tcp
+        params.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
+        do {
+            let server = try NWListener(using: params, on: port)
+            listener = server
+            server.newConnectionHandler = { [weak self] connection in
+                guard let self = self else { connection.cancel(); return }
+                connection.start(queue: self.queue)
+                self.queue.asyncAfter(deadline: .now() + 3) { connection.cancel() }
+                connection.receive(minimumIncompleteLength: 36, maximumLength: 36) { data, _, _, _ in
+                    guard ActivationStore.isActivated,
+                          let data = data, let token = String(data: data, encoding: .utf8),
+                          token == Self.token, !token.isEmpty,
+                          let snapshot = LyricStore.load(),
+                          let payload = try? JSONEncoder().encode(snapshot), payload.count <= 1_000_000 else {
+                        connection.cancel(); return
+                    }
+                    connection.send(content: payload, contentContext: .finalMessage, isComplete: true,
+                                    completion: .contentProcessed { _ in connection.cancel() })
+                }
+            }
+            server.start(queue: queue)
+        } catch { LyricLogger.log("双进程桥启动失败：\(error)") }
+    }
+    private func startClient() {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        self.timer = timer
+        timer.schedule(deadline: .now(), repeating: 1)
+        timer.setEventHandler { [weak self] in self?.request() }
+        timer.resume()
+    }
+    private func request() {
+        guard active == nil, ActivationStore.isActivated,
+              UUID(uuidString: Self.token) != nil else { return }
+        let connection = NWConnection(host: "127.0.0.1", port: port, using: .tcp)
+        active = connection
+        connection.stateUpdateHandler = { [weak self, weak connection] state in
+            guard let self = self, let connection = connection else { return }
+            switch state {
+            case .ready:
+                connection.send(content: Data(Self.token.utf8), completion: .contentProcessed { error in
+                    if error != nil { self.finish(connection) }
+                    else { self.receive(connection, accumulated: Data()) }
+                })
+            case .failed, .cancelled: self.finish(connection)
+            default: break
+            }
+        }
+        connection.start(queue: queue)
+        queue.asyncAfter(deadline: .now() + 3) { [weak self, weak connection] in
+            if let connection = connection { self?.finish(connection) }
+        }
+    }
+    private func receive(_ connection: NWConnection, accumulated: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, complete, error in
+            guard let self = self, self.active === connection else { return }
+            var buffer = accumulated
+            if let data = data { buffer.append(data) }
+            guard buffer.count <= 1_000_000, error == nil else { self.finish(connection); return }
+            if complete {
+                if let snapshot = try? JSONDecoder().decode(LyricSnapshot.self, from: buffer) {
+                    LyricStore.save(snapshot)
+                    LyricStore.defaults?.set(Date().timeIntervalSince1970, forKey: Self.freshnessKey)
+                }
+                self.finish(connection)
+            } else { self.receive(connection, accumulated: buffer) }
+        }
+    }
+    private func finish(_ connection: NWConnection) {
+        guard active === connection else { return }
+        active = nil
+        connection.stateUpdateHandler = nil
+        connection.cancel()
     }
 }

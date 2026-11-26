@@ -6,7 +6,7 @@ import WidgetKit
 /// 不用重启。整个 App 第一次打开就要码；码不对不放行，没网也不放行。
 struct ActivationGateView<Content: View>: View {
 
-    @AppStorage(ActivationStore.activatedKey, store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage(ActivationStore.activatedKey, store: LyricStore.defaults)
     private var activated = false
 
     let content: Content
@@ -168,7 +168,7 @@ struct ActivationView: View {
         do {
             let type = try await ActivationVerifier.verify(code: code)
             ActivationStore.markActivated(type: type)
-            WidgetCenter.shared.reloadAllTimelines()
+            if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
             LyricLogger.log("激活成功（\(type)）")
         } catch ActivationError.wrongCode {
             message = "激活码不正确，请重新输入"

@@ -166,7 +166,7 @@ final class LyricsLiveActivityController: ObservableObject {
 
     /// 歌词颜色 0xRRGGBB：复用 Overlay 取色器键，默认白。
     static func lyricColorHex() -> Int {
-        if let value = UserDefaults(suiteName: LyricStore.groupID)?
+        if let value = LyricStore.defaults?
             .object(forKey: "floatingLyric.textColorHex") as? Int {
             return value
         }

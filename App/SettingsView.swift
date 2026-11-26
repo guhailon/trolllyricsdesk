@@ -120,25 +120,25 @@ private struct ImagePickerSheet: UIViewControllerRepresentable {
 
 struct SettingsView: View {
 
-    @AppStorage("lyricsFontSize", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("lyricsFontSize", store: LyricStore.defaults)
     private var lyricsFontSize: Double = 22
 
-    @AppStorage("lyricsOpacity", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("lyricsOpacity", store: LyricStore.defaults)
     private var lyricsOpacity: Double = 1.0
 
-    @AppStorage("backgroundOpacity", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("backgroundOpacity", store: LyricStore.defaults)
     private var backgroundOpacity: Double = 0.25
 
-    @AppStorage("lyricsDisplayMode", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("lyricsDisplayMode", store: LyricStore.defaults)
     private var lyricsDisplayMode: String = "highlight"
 
-    @AppStorage("showNextLine", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("showNextLine", store: LyricStore.defaults)
     private var showNextLine: Bool = true
 
-    @AppStorage("animeBackgroundEnabled", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("animeBackgroundEnabled", store: LyricStore.defaults)
     private var animeBackgroundEnabled: Bool = true
 
-    @AppStorage("selectedBackgroundData", store: UserDefaults(suiteName: "group.com.hailong.TrollLyricsDesk"))
+    @AppStorage("selectedBackgroundData", store: LyricStore.defaults)
     private var selectedBackgroundData: Data = Data()
 
     @State private var selectedPhoto: PhotosPickerItem?
@@ -287,7 +287,7 @@ struct SettingsView: View {
             selectedBackgroundData = data
         }
 
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     // MARK: - 读取图片

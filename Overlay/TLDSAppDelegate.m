@@ -9,6 +9,7 @@
 // 承载 FBScene 画面，默认不透明黑底且盖在场景窗口之上。
 // 用 category 强制透明 + 高 windowLevel，避免打开 App 全黑。
 // ============================================================
+#ifndef TLDS_LIVE_CONTAINER
 @interface UIRootSceneWindow : UIWindow
 @end
 
@@ -25,6 +26,8 @@
 
 @end
 
+#endif
+
 @implementation TLDSAppDelegate
 
 - (BOOL)application:(UIApplication *)application
@@ -37,11 +40,14 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [self log:@"App 启动：自动跟随已开启"];
 
     // 注册系统级 Shell + 创建全局悬浮歌词场景
+    #ifndef TLDS_LIVE_CONTAINER
     [self startFloatingOverlay];
+#endif
 
     return YES;
 }
 
+#ifndef TLDS_LIVE_CONTAINER
 - (void)startFloatingOverlay {
     if (self.shellInitialized) {
         return;
@@ -104,6 +110,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [binder addScene:scene];
     return binder;
 }
+
+#endif
 
 - (void)log:(NSString *)message {
     [[TLDSRuntime shared] logMessage:message];

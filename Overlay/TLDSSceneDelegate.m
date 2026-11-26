@@ -30,6 +30,10 @@ willConnectToSession:(UISceneSession *)session
         isMain = YES;   // 首个未知会话当主界面
     }
 
+    #ifdef TLDS_LIVE_CONTAINER
+    isMain = YES;
+    isFloating = NO;
+#endif
     if (isMain) {
         appDelegate.mainSceneConnected = YES;
 

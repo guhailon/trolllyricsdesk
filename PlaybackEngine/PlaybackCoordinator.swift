@@ -43,6 +43,7 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     func start() {
+        guard !LyricStore.isLiveContainer else { return }
 
         stop()
 
@@ -158,6 +159,7 @@ final class PlaybackCoordinator: ObservableObject {
     /// 没词时同一首歌只推一次「♪ {title}」占位；还没唱到第一句时推 ♪ 标题＋
     /// 第一句当 next，不留上一首歌的词。读不到歌时 poll() 提前 return，不会走到这里。
     private func publishLiveLyrics() {
+        guard !LyricStore.isLiveContainer else { return }
         if #available(iOS 16.1, *) {
             // BUG-01 第一层：没开锁屏歌词时不记已推状态；重开后第一轮就推。
             guard LyricsLiveActivityController.shared.isActive else {
@@ -286,7 +288,7 @@ final class PlaybackCoordinator: ObservableObject {
         )
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
 
         if cached != nil {
             message = "歌词匹配成功（本地）"
@@ -325,7 +327,7 @@ final class PlaybackCoordinator: ObservableObject {
         snapshot.isPlaying = newState.status == .playing
 
         LyricStore.save(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     private func currentAppearance() -> (opacity: Double, fontSize: Double) {
@@ -438,7 +440,7 @@ final class PlaybackCoordinator: ObservableObject {
         }
 
         LyricStore.save(final)
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     private func trackKey(

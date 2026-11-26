@@ -1,0 +1,14 @@
+name: Build LiveContainer
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build-livecontainer.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrollLyricsDesk-LiveContainer
+          path: dist/TrollLyricsDesk-1.0.5-LiveContainer.ipa

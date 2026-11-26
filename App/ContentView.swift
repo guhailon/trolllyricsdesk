@@ -65,13 +65,13 @@ struct SettingsHubView: View {
 /// @AppStorage 会实时刷新。MinOS 15.0 兼容（UIImage(data:) 等老 API）。
 struct AppBackgroundView: View {
 
-    @AppStorage("animeBackgroundEnabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("animeBackgroundEnabled", store: LyricStore.defaults)
     private var animeBackgroundEnabled = true
 
-    @AppStorage("backgroundOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("backgroundOpacity", store: LyricStore.defaults)
     private var backgroundOpacity = 0.25
 
-    @AppStorage("selectedBackgroundData", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("selectedBackgroundData", store: LyricStore.defaults)
     private var selectedBackgroundData = Data()
 
     var body: some View {
@@ -113,7 +113,7 @@ struct ContentView: View {
 
     /// 悬浮窗背景透明度（与悬浮控制器共享 App Group 的 floatingLyric.cardOpacity）。
     /// 0 = 背景完全透明，只显示歌词；1 = 完全不透明。
-    @AppStorage("floatingLyric.cardOpacity", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.cardOpacity", store: LyricStore.defaults)
     private var cardOpacity = 0.55
 
     var body: some View {
@@ -218,7 +218,10 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                            if #available(iOS 16.1, *) {
+                            if LyricStore.isLiveContainer {
+                                Text("LiveContainer 模式不支持锁屏歌词和小组件")
+                                    .foregroundColor(.white)
+                            } else if #available(iOS 16.1, *) {
                                 LiveActivitySectionView()
                             } else {
                                 Text("锁屏歌词需要 iOS 16.1 或以上")
@@ -271,7 +274,7 @@ struct ContentView: View {
 
         LyricStore.save(snapshot)
 
-        WidgetCenter.shared.reloadAllTimelines()
+        if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
     }
 }
 

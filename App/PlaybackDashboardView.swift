@@ -13,18 +13,19 @@ struct PlaybackDashboardView: View {
 
     /// 悬浮歌词窗开关（与悬浮控制器共享 App Group 的 floatingLyric.enabled）。
     /// UserDefaults.bool 未设置时返回 false，所以这里显式注册默认值 true。
-    @AppStorage("floatingLyric.enabled", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.enabled", store: LyricStore.defaults)
     private var floatingEnabled = true
 
     /// 悬浮窗固定位置开关（与悬浮控制器共享 App Group 的 floatingLyric.positionLocked）。
     /// 默认 false（可拖）；打开后悬浮窗拖不动，位置保持上次存好的地方。
-    @AppStorage("floatingLyric.positionLocked", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.positionLocked", store: LyricStore.defaults)
     private var positionLocked = false
 
     /// 悬浮歌词文字颜色（0xRRGGBB，写进 App Group，悬浮窗每次刷新时读取）。
-    @AppStorage("floatingLyric.textColorHex", store: UserDefaults(suiteName: LyricStore.groupID))
+    @AppStorage("floatingLyric.textColorHex", store: LyricStore.defaults)
     private var lyricTextColorHex: Int = 0xFFFFFF
 
+    @AppStorage(DualProcessBridge.tokenKey, store: LyricStore.defaults) private var bridgeToken = ""
     @State private var showSettings = false
     @State private var showAbout = false
 
@@ -108,6 +109,43 @@ struct PlaybackDashboardView: View {
                         .cornerRadius(20)
                     }
 
+                    if LyricStore.isLiveContainer {
+                        TextField("输入独立版配对码", text: $bridgeToken)
+                            .textFieldStyle(.roundedBorder).autocapitalization(.none).disableAutocorrection(true)
+                        Text("LiveContainer · 应用内歌词模式")
+                            .foregroundColor(.white)
+                        TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                            let fresh = context.date.timeIntervalSince1970 - (LyricStore.defaults?.double(forKey: DualProcessBridge.freshnessKey) ?? 0) < 4
+                            Text(fresh ? "独立核心已连接" : "未连接核心 · 本地模式").foregroundColor(.white)
+                            if let snapshot = LyricStore.load() {
+                                VStack(spacing: 12) {
+                                    Text(snapshot.title).font(.headline)
+                                    Text(LyricStore.currentLyric(snapshot, at: context.date)?.text ?? "等待歌词 / 请到设置导入")
+                                        .font(.title2).multilineTextAlignment(.center)
+                                    if !fresh {
+                                    Button(snapshot.isPlaying ? "暂停歌词" : "开始歌词") {
+                                        var updated = snapshot
+                                        updated.elapsedWhenPaused = LyricStore.currentElapsed(snapshot, at: Date())
+                                        updated.startedAt = Date()
+                                        updated.isPlaying.toggle()
+                                        LyricStore.save(updated)
+                                    }
+                                    Button("歌词归零") {
+                                        var updated = snapshot
+                                        updated.elapsedWhenPaused = 0
+                                        updated.startedAt = Date()
+                                        LyricStore.save(updated)
+                                    }
+                                    }
+                                }.foregroundColor(.white)
+                            } else {
+                                Text("请在设置中搜索或导入歌词").foregroundColor(.white)
+                            }
+                        }
+                    } else {
+                    Button("复制 LiveContainer 配对码") {
+                        UIPasteboard.general.string = bridgeToken
+                    }.foregroundColor(.white)
                     // 悬浮窗操作提示（原先在悬浮窗卡片底部，现移到主界面；文案跟固定开关走）
                     Text(positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏")
                         .font(.system(size: 20, weight: .semibold))
@@ -152,6 +190,7 @@ struct PlaybackDashboardView: View {
                     .background(.ultraThinMaterial)
                     .cornerRadius(15)
 
+                    }
                     Spacer()
                 }
                 .padding()

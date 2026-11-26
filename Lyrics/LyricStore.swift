@@ -23,8 +23,12 @@ enum LyricStore {
 
     static let dataKey = "lyric.snapshot"
 
+    static var isLiveContainer: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true
+    }
+
     static var defaults: UserDefaults? {
-        UserDefaults(suiteName: groupID)
+        isLiveContainer ? .standard : UserDefaults(suiteName: groupID)
     }
 
     static func save(_ snapshot: LyricSnapshot) {
