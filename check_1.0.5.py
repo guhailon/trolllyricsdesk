@@ -8,6 +8,12 @@ base = newbase HEAD 6857d3c (1.0.0/build 18 已合并版)
     不只看路径/类名/plist，不只看「注册成功」日志)
   + 版本 1.0.5, build 19, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥/
     独立客户端/双 IPA；不修 Telegram 行点、不修锁屏歌词不见。
+  + PiP 画中画歌词实验引擎（皇上 21:26 定：只研究作废，按皇上的树实现；
+    先验固定测试文字，再接实时歌词；全程标「实验」，不得报成已实现）
+  + 新结构（皇上的树为准）：Compatibility／Renderer／Diagnostics 三组；
+    切换逻辑放 RuntimeEnvironment／LyricsRenderer 层；逐字歌词未实现，
+    只保留现有选项／文案（见 RUN）。
+
 
 FAILED: none is the goal. OPEN items are recorded, not failures:
 things that cannot be verified on Linux (macOS compile, device) or that
@@ -389,11 +395,16 @@ check("pbxproj: 括号平衡",
       pbx.count("{") == pbx.count("}") and pbx.count("(") == pbx.count(")"))
 
 print("\n== 9. 红线 ==")
-for bad in ["BackBoard", "TLHUD", "TLHUDApplication", "dynamic_lookup",
+for bad in ["TLHUD", "TLHUDApplication", "dynamic_lookup",
             "38473", "DualProcessBridge"]:
     check(f"全树无 {bad!r}", bad not in all_swift
           and bad not in pbx
           and bad not in read(".github/workflows/build.yml"))
+check("全树无 BackBoard 实现（只允许 EntitlementDiagnostics 对照表提一次名字）",
+      all_swift.count("BackBoard") == 1
+      and "BackBoard" in read("Compatibility/EntitlementDiagnostics.swift")
+      and "BackBoard" not in pbx
+      and "BackBoard" not in read(".github/workflows/build.yml"))
 tracked = git_out(["ls-files"]).splitlines()
 check("build/ 不在仓库里", not [f for f in tracked if f.startswith("build/")])
 check("hidden_files/ 不在仓库里",
@@ -411,13 +422,24 @@ changed = git_out(["diff", "--name-only", BASE, "HEAD"]).splitlines()
 allowed = {
     "App/PlaybackDashboardView.swift",
     "App/SettingsView.swift", "App/TrollLyricsDeskApp.swift",
+    "Compatibility/EntitlementDiagnostics.swift",
+    "Compatibility/RuntimeCapabilities.swift",
+    "Compatibility/RuntimeEnvironment.swift",
     "Core/MediaRemoteBridge.swift",
+    "Diagnostics/DiagnosticsView.swift",
+    "Diagnostics/MediaRemoteDiagnostics.swift",
+    "Diagnostics/OverlayDiagnostics.swift",
     "Lyrics/LyricStore.swift",
     "MusicProviders/MediaRemoteAdapter.swift",
     "Overlay/FloatingLyricViewController.swift",
     "Overlay/TLDSAppDelegate.h", "Overlay/TLDSAppDelegate.m",
     "Overlay/TLDSSceneDelegate.m",
     "PlaybackEngine/PlaybackCoordinator.swift",
+    "Renderer/InAppLyricsRenderer.swift",
+    "Renderer/LyricsRenderer.swift",
+    "Renderer/NativeHUDRenderer.swift",
+    "Renderer/PiPFrameRenderer.swift",
+    "Renderer/PiPLyricsRenderer.swift",
     "TrollLyricsDesk.xcodeproj/project.pbxproj",
     "TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist",
     ".github/workflows/build.yml",
@@ -454,21 +476,26 @@ check("build.yml: 产物已升 桌面歌词-1.0.5.ipa（一个 workflow）",
 
 print("\n== 11. 1.0.5 诊断（7 项＋三档模式） ==")
 bridge = read("Core/MediaRemoteBridge.swift")
-check("MediaRemoteBridge: dlopen 成败＋dlerror 记日志",
-      "dlopen" in bridge and "dlopen 成功" in bridge
-      and "dlopen 失败" in bridge and "lastDLError" in bridge)
-check("MediaRemoteBridge: dlsym 逐符号只记一次（成功／失败＋原因）",
-      "loggedSymbols" in bridge and "dlsym" in bridge
-      and "符号缺失" not in bridge and "失败" in bridge)
+mrd = read("Diagnostics/MediaRemoteDiagnostics.swift")
+check("MediaRemoteBridge: 调 recordDlopen／recordDlsym 上报（记录集中在 Diagnostics）",
+      "recordDlopen" in bridge and "recordDlsym" in bridge
+      and "lastDLError" in bridge)
+check("MediaRemoteDiagnostics: dlopen／dlsym 日志行（成功／失败＋原因，只记一次）",
+      "dlopen 成功" in mrd and "dlopen 失败" in mrd
+      and "dlsym" in mrd and "loggedSymbols" in mrd
+      and "summaryLine" in mrd)
 mra = read("MusicProviders/MediaRemoteAdapter.swift")
 check("MediaRemoteAdapter: 注册 NowPlaying 通知（真签名 typealias）",
       "MRMediaRemoteRegisterForNowPlayingNotificationsFn" in mra
       and "registerForNowPlayingNotifications" in mra
       and 'bridge.symbol(MediaRemoteSymbols.registerForNowPlayingNotifications)' in mra)
-check("MediaRemoteAdapter: 回调触发记第一次＋每 50 次；info 有无只在切换时记",
-      "NowPlaying 通知回调已触发" in mra and "% 50 == 0" in mra
-      and "GetNowPlayingInfo 回调已触发" in mra
-      and "lastInfoWasNil" in mra)
+check("MediaRemoteAdapter: 调 recordRegistration／recordNotificationFire／recordInfoCallback",
+      "recordRegistration" in mra and "recordNotificationFire" in mra
+      and "recordInfoCallback" in mra)
+check("MediaRemoteDiagnostics: 回调触发记第一次＋每 50 次；info 有无只在切换时记",
+      "NowPlaying 通知回调已触发" in mrd and "% 50 == 0" in mrd
+      and "GetNowPlayingInfo 回调已触发" in mrd
+      and "lastInfoWasNil" in mrd)
 check("MediaRemoteAdapter: 四符号仍按现有代码用（GetNowPlayingInfo／IsPlaying／Register／DisplayID 不增不减）",
       "MediaRemoteSymbols.getNowPlayingInfo" in mra
       and "MediaRemoteSymbols.registerForNowPlayingNotifications" in mra)
@@ -538,15 +565,37 @@ check("SettingsView: 诊断区（强制测试开关＋运行模式行，写明�
       and "LyricStore.isTestTextEnabled" in sv
       and "运行模式" in sv and "runModeDescription" in sv)
 pd = read("App/PlaybackDashboardView.swift")
-check("Dashboard: 宿主应用内歌词区显示测试文字（注明非悬浮窗）",
-      "LyricStore.isTestTextEnabled ? (LyricStore.testText()" in pd
-      and "应用内显示，非悬浮窗" in pd)
+check("Dashboard: 宿主应用内歌词区走 InAppLyricsRenderer.currentDisplayText",
+      "InAppLyricsRenderer.currentDisplayText(at: context.date)" in pd)
+check("InAppLyricsRenderer: 测试开关开时显示测试文字（注明非悬浮窗），关时显示当前行",
+      "LyricStore.isTestTextEnabled" in read("Renderer/InAppLyricsRenderer.swift")
+      and "应用内显示，非悬浮窗" in read("Renderer/InAppLyricsRenderer.swift")
+      and "static func currentDisplayText(at date: Date) -> String" in read("Renderer/InAppLyricsRenderer.swift"))
 check("PlaybackCoordinator: 检测引擎启动计数（第 N 次）",
       "startCount" in pc and "检测引擎启动第" in pc)
 all_src = all_swift + read("Overlay/TLDSAppDelegate.m") + read("Overlay/TLDSSceneDelegate.m")
-check("无 PiP 实现代码（只研究，不实现；全树无 AVPictureInPicture）",
-      "AVPictureInPicture" not in all_src
-      and "PictureInPicture" not in all_src)
+pip = read("Renderer/PiPLyricsRenderer.swift")
+pipf = read("Renderer/PiPFrameRenderer.swift")
+check("PiP 实验引擎在位：AVPictureInPictureController＋delegate 回调判定",
+      "AVPictureInPictureController" in pip
+      and "pictureInPictureControllerDidStartPictureInPicture" in pip
+      and "failedToStartPictureInPictureWithError" in pip
+      and "isPictureInPictureSupported" in pip)
+check("PiP 实验引擎：先固定测试文字、再接实时歌词（两段都在）",
+      "func startTestText()" in pip and "func startLiveLyrics()" in pip
+      and "悬浮测试 · 桌面歌词 1.0.5" in pip)
+check("PiP 实验标记在位（协议 isExperimental＋文案「实验」，不得报成已实现）",
+      "isExperimental" in pip and "var isExperimental: Bool { true }" in pip
+      and "（实验）" in pip)
+check("PiP 画面层在位：文字画成视频段（AVAssetWriter＋H.264＋黑底白字）",
+      "AVAssetWriter" in pipf and "AVVideoCodecType.h264" in pipf
+      and "static func renderVideo(" in pipf)
+check("无 ChatGPT 树的错文件（OverlayEngine.swift／LyricsSyncEngine.swift／OverlayMode.swift 不建）",
+      not os.path.exists(os.path.join(ROOT, "Renderer/OverlayEngine.swift"))
+      and not os.path.exists(os.path.join(ROOT, "Core/LyricsSyncEngine.swift"))
+      and not os.path.exists(os.path.join(ROOT, "Compatibility/OverlayMode.swift"))
+      and "OverlayEngine" not in all_src
+      and "LyricsSyncEngine" not in all_src)
 diff_ls = git_out(["diff", BASE, "HEAD", "--", "Lyrics/LyricStore.swift"])
 removed_ls = [ln for ln in diff_ls.splitlines()
               if ln.startswith("-") and not ln.startswith("---")]
@@ -565,6 +614,72 @@ for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
             "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
     head = git_out(["show", f"{BASE}:{rel}"])
     check(f"{rel}: 与 6857d3c 一字未动（零新增权限）", read(rel) == head)
+
+
+print("\n== 12. 1.0.5 新结构（皇上的树为准） ==")
+for rel in ["Compatibility/RuntimeCapabilities.swift",
+            "Compatibility/RuntimeEnvironment.swift",
+            "Compatibility/EntitlementDiagnostics.swift",
+            "Renderer/LyricsRenderer.swift",
+            "Renderer/NativeHUDRenderer.swift",
+            "Renderer/PiPLyricsRenderer.swift",
+            "Renderer/PiPFrameRenderer.swift",
+            "Renderer/InAppLyricsRenderer.swift",
+            "Diagnostics/MediaRemoteDiagnostics.swift",
+            "Diagnostics/OverlayDiagnostics.swift",
+            "Diagnostics/DiagnosticsView.swift"]:
+    check(f"新文件在位：{rel}", os.path.exists(os.path.join(ROOT, rel)))
+pbx = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
+app_sources = pbx_sources_files(pbx, "4821909E9BF9E73E471FEA84")
+for fn in ["RuntimeCapabilities.swift", "RuntimeEnvironment.swift",
+           "EntitlementDiagnostics.swift", "LyricsRenderer.swift",
+           "NativeHUDRenderer.swift", "PiPLyricsRenderer.swift",
+           "PiPFrameRenderer.swift", "InAppLyricsRenderer.swift",
+           "MediaRemoteDiagnostics.swift", "OverlayDiagnostics.swift",
+           "DiagnosticsView.swift"]:
+    check(f"pbxproj: {fn} 进 App Sources", fn in app_sources, str(app_sources))
+for g in ["Compatibility", "Renderer", "Diagnostics"]:
+    check(f"pbxproj: {g} 组在位", f'name = "{g}"' in pbx or f"name = {g};" in pbx)
+re_ = read("Compatibility/RuntimeEnvironment.swift")
+check("RuntimeEnvironment: 三档 → 引擎映射（巨魔原生／增强宿主 PiP／兼容应用内）",
+      '"trollstore"' in re_ and '"enhanced-host"' in re_
+      and "return .nativeHUD" in re_ and "return .pip" in re_
+      and "return .inApp" in re_)
+lr = read("Renderer/LyricsRenderer.swift")
+check("LyricsRenderer: 统一渲染协议＋Hub（切换逻辑在此层）",
+      "protocol LyricsRenderer" in lr and "isExperimental" in lr
+      and "final class LyricsRendererHub" in lr
+      and "currentRenderer" in lr)
+check("RuntimeEnvironment: 切换阈值集中（preferredEngine＋日志）",
+      "static func preferredEngine(forRunMode mode: String)" in re_
+      and "logEngineSelection" in re_)
+td = read("Overlay/TLDSAppDelegate.m")
+check("AppDelegate: 三处定档点都记显示引擎选择",
+      td.count("诊断1.0.5 显示引擎：") == 3)
+check("AppDelegate: 增强宿主不信任原生 HUD（写明权限受限）",
+      "透明全域悬浮在此模式为权限受限" in td)
+sv = read("App/SettingsView.swift")
+check("SettingsView: 诊断详情入口＋PiP 实验按钮（标明实验）",
+      "DiagnosticsView()" in sv
+      and "开始 PiP 测试（固定文字，实验）" in sv
+      and "接入实时歌词到 PiP（实验）" in sv)
+dv = read("Diagnostics/DiagnosticsView.swift")
+check("DiagnosticsView: 模式／MediaRemote／PiP／权限对照四区在位",
+      "运行模式（三档，按实际能力）" in dv
+      and "MediaRemote 音乐识别" in dv
+      and "PiP 画中画歌词（实验）" in dv
+      and "权限对照（声明 ≠ 可用）" in dv)
+ed = read("Compatibility/EntitlementDiagnostics.swift")
+check("EntitlementDiagnostics: 声明 vs 实测对照（MediaRemote／FrontBoard／平台应用／PiP）",
+      "声明" in ed and "实测" in ed
+      and "MediaRemote" in ed and "FrontBoard" in ed
+      and "platform-application" in ed)
+check("逐字歌词未现编实现（LyricWord.swift／LyricSyncEngine.swift 不存在）",
+      not os.path.exists(os.path.join(ROOT, "Lyrics/LyricWord.swift"))
+      and not os.path.exists(os.path.join(ROOT, "Core/LyricSyncEngine.swift"))
+      and "LyricSyncEngine" not in all_swift)
+check("设置里「逐字卡拉OK」选项文案保留（不删）",
+      "逐字卡拉OK" in sv)
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",

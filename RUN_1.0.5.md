@@ -46,7 +46,7 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 | 档 | 条件 | 行为 |
 |---|---|---|
 | 巨魔原生 `trollstore` | 非 LiveContainer | 悬浮窗照现在走，行为一字不动；不复核 |
-| 增强宿主 `enhanced-host` | LiveContainer ＋复核关键项全过 | 走悬浮窗（与巨魔同款 Overlay／FBScene） |
+| 增强宿主 `enhanced-host` | LiveContainer ＋复核关键项全过 | 首选 PiP 实验，应用内备选（原生 HUD 在此模式视为权限受限，不信任） |
 | 普通签名兼容 `compat` | LiveContainer ＋复核任一关键项失败 | 不建悬浮窗：摘掉场景、隐藏窗口、不再重建／恢复；只走应用内歌词 |
 
 复核关键项（逐项打日志，通过／失败＋原因）：
@@ -78,7 +78,8 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 [时间] 诊断1.0.5 托管复核：窗口 isHidden=NO（通过），windowLevel=10000（期望 10000），alpha=1.00，backgroundColor=已设置
 [时间] 诊断1.0.5 托管复核：windowScene 通过（非空），rootView 已挂到 window 通过（view.window 非空），frame={{x, y}, {w, h}}
 [时间] 诊断1.0.5 托管复核：Context ID=12345（通过（有效））
-[时间] 运行模式：增强宿主模式（LiveContainer，悬浮窗已确认可见，走悬浮窗）
+[时间] 运行模式：增强宿主模式（LiveContainer，悬浮窗复核通过，首选 PiP 实验，应用内备选）
+[时间] 诊断1.0.5 显示引擎：PiP 画中画歌词（实验）（增强宿主模式首选），应用内歌词备选；透明全域悬浮在此模式为权限受限，不信任原生 HUD
 [时间] 诊断1.0.5 托管复核结论：已确认可见
 ```
 未通过时则是：
@@ -115,41 +116,91 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 - 模式：`运行模式：巨魔原生模式／待探测／增强宿主模式／普通签名兼容模式`＋
   `诊断1.0.5 运行模式：写入 <mode>（<原因>）`。
 
-## 四、PiP 画中画歌词可行性小结（只研究，不实现）
-- 代码核查：全树 grep `AVPictureInPicture`／`PictureInPicture` **0 命中**
+## 四、PiP 画中画歌词实验引擎（皇上 21:26 定：只研究作废，按树实现）
+
+- 代码核查：改动前全树 grep `AVPictureInPicture`／`PictureInPicture` **0 命中**
   （TrollLyricsDesk 这边没有 PiP 相关串；DYYY 那边按任务说明也没有）。
-- 公开 API 规则：`AVPictureInPictureController` 是公开 API（AVKit），
-  用来把**视频内容**浮在其他 App 之上；它要求一个正在播放的 `AVPlayer`／
-  `AVPlayerLayer` 视频源，**不能直接挂任意 UIView（歌词视图）**。
-  想用它显示歌词，唯一公开路子是把歌词实时渲染成视频帧
-  （逐句生成画面 → 喂给 AVPlayer 的视频轨），再让系统 PiP 播这个「歌词视频」。
-- 限制：窗口由系统控制（大小／位置／关闭按钮），没有自定义手势、没有点击穿透、
-  没有透明保证；视频轨一停（缓冲／切歌断档）PiP 可能被系统收掉；
-  为一句歌词维持一条视频编码管线费电又脆弱；还要配后台音频／视频播放模式
-  才能在切后台后存活。
-- 在 LiveContainer 客人里能不能跑：**未验证**。PiP 本身是公开 API、不需要
-  私有权限，理论上比 FBScene 悬浮窗的门槛低；但 LC 客人的后台存活、
-  系统 PiP 控制器接管、后台模式声明是否生效，都没在真机上试过，不能断言。
-- 结论：**作为备选显示方案，技术上可想（歌词渲染成视频 → 系统 PiP），
-  但不是歌词窗的直接替代品**：要另起一套视频管线，窗口行为归系统管，
-  LC 里跑不跑得起来未验证。按皇上定的，PiP 他自己弄，这里不写实现代码。
+- 实现位置（皇上的树）：`Renderer/PiPLyricsRenderer.swift`（引擎＋delegate 回调判定）、
+  `Renderer/PiPFrameRenderer.swift`（文字 → 视频段：AVAssetWriter＋H.264，
+  960×540 黑底白字居中，每段 4 秒、2fps）、`Renderer/LyricsRenderer.swift`
+  （统一渲染协议＋Hub）、`Compatibility/RuntimeEnvironment.swift`（模式 → 引擎映射）。
+- 步骤分两段，都已实现、都是实验：
+  ① **固定测试文字先行**（`startTestText()`）：生成「悬浮测试 · 桌面歌词 1.0.5」视频段，
+  循环播，调 `startPictureInPicture()`，确认 PiP 能不能在桌面和其他 App 上方出现；
+  ② **再接实时歌词**（`startLiveLyrics()`）：每 0.5 秒读快照当前行，行一变就生成新视频段、
+  排进 AVQueuePlayer（队列只留最近两段，旧段文件清掉）。歌词本身仍走新底子同步引擎。
+  两段在设置页「诊断（1.0.5）」区和诊断页里都有按钮，全程标「实验」，不得报成已实现。
+- 真能显示的唯一证据是 delegate 回调
+  `pictureInPictureControllerDidStartPictureInPicture`；`canStartPictureInPicture` 为真、
+  调了 start，都不算成功；失败走 `failedToStartPictureInPictureWithError`，错误记进日志。
+- 限制（不回避）：透明背景受限（视频帧是黑底，不是透明悬浮窗）、拖动与大小由系统控制、
+  锁屏不保证、后台行为未验证、每行歌词都要现编码一段视频；**PiP 能显示也不代表能自动
+  拿到别的播放器的歌，跨应用识别要单独解决**（MediaRemote 诊断第 1 项）。
+  PiP 启动要在前台由用户点按钮触发，后台回调里调不可靠，所以增强宿主模式
+  不自动开 PiP，只自动选引擎（见下节）。
+- 「逐字歌词」说明：第 7 点说的「保留逐字歌词」——新底子里没有逐字同步实现
+  （LyricWord.swift、LyricSyncEngine.swift 不存在，设置里的「逐字卡拉OK」只是选项文字）。
+  「保留」= 不删现有选项／文案，**没有现编逐字实现**（自检 §12 核过：两文件不存在，
+  全树无 LyricSyncEngine）。播放进度修正就是新底子已有的 syncLiveLyricsAndProgress，保留不动。
 
 ## 五、提交链
 - `2c64cad` — 1.0.5 build 19：诊断实现（15 个文件，＋647／−35）。
-- `（第二笔）` — 自检 check_1.0.5.py＋本 RUN 文件（提交后重跑自检）。
+- `a5ae262` — 自检 check_1.0.5.py（锚点 6857d3c，146 PASS）＋RUN_1.0.5.md。
+  头 run **45828687961 success**（11 步全过，见下节）——诊断版代码能编。
+- `（第三笔）` — PiP 实验引擎＋皇上树新结构（11 个新文件＋接线改动）。
+- `（第四笔）` — 自检升级（187 PASS）＋本 RUN 文件更新。
 
 ## 六、编译日志
-（推第二笔后填：run 号／结论／产物大小／SHA256。）
+- 诊断版头 run：**45828687961**，head a5ae262，workflow Build，job Build，
+  status_field=completed，**conclusion=success**（排队约 6 分钟，跑约 1 分钟），
+  11 个步骤全部 success，无池子取消、无重跑。
+- PiP 版头 run：（推第四笔后填：run 号／结论／产物大小／SHA256。）
 
 ## 七、自检
-`python3 check_1.0.5.py`（锚点 6857d3c）：**146 PASS，FAILED: none，OPEN 11**。
+`python3 check_1.0.5.py`（锚点 6857d3c）：**187 PASS，FAILED: none，OPEN 11**。
 红线：LyricStore diff 零删行；9 个同步锚符号在位；两份 entitlements 与 6857d3c 一字未动；
-全树无 38473／DualProcessBridge／BackBoard／dynamic_lookup／AVPictureInPicture。
+全树无 38473／DualProcessBridge／dynamic_lookup／OverlayEngine／LyricsSyncEngine；
+BackBoard 只在权限对照表里提一次名字（标签，不是实现）。
 
-## 八、待真机验证清单（逐项写怎么验）
+## 八、新结构与 ChatGPT 树的出入（以皇上的树为准）
+| 位置 | ChatGPT 建议的树 | 皇上的树（实际建的） | 备注 |
+|---|---|---|---|
+| Compatibility 第三档 | OverlayMode.swift | **EntitlementDiagnostics.swift** | 皇上的为准；模式判定不在这里，在 RuntimeEnvironment |
+| Renderer | NativeLyricsHUD.swift／InAppLyricsHUD.swift／OverlayEngine.swift | **LyricsRenderer.swift（统一渲染协议＋Hub）／NativeHUDRenderer.swift／PiPFrameRenderer.swift／InAppLyricsRenderer.swift** | 没有 OverlayEngine.swift——切换逻辑放 RuntimeEnvironment／LyricsRenderer 层 |
+| Core | LyricsSyncEngine.swift／MediaRemoteAdapter.swift／LyricsTestMode.swift 三个新文件 | **保留新底子歌词引擎（不新建）** | MediaRemote 修复与强制测试歌词分别进 Diagnostics／Core 现有位置，按 7 项做 |
+| Diagnostics | （ChatGPT 树没单列） | **MediaRemoteDiagnostics.swift／OverlayDiagnostics.swift／DiagnosticsView.swift** | 皇上的树有，照建 |
+
+新文件进 pbxproj 的 App Sources（11 个，自检 §12 核过）；没动 .tbd 直链与 ActivityKit 弱链接。
+
+## 九、三档模式 → 显示引擎（阈值与判定，补 ChatGPT 没给的缺口）
+对话没有给代码级 if／enum、阈值、检测函数签名、返回值或切换优先级，
+也没有逐文件规格和 PiP 搭建代码——以下是我自己补的设计（RUN 里写明，不冒充对话原文）：
+- 模式判定（ObjC 侧，TLDSAppDelegate 托管复核）：关键项全过 → 增强宿主；
+  任一关键项失败 → 普通签名兼容；非 LC → 巨魔原生。阈值：复核在创建后 2 秒跑，
+  场景未连上时 3 秒后再跑一次，Shell 回调不来时 6 秒兜底；关键项 = 场景非空、
+  binder 收录场景、窗口非空、isHidden=NO、windowScene 非空、视图已挂 window；
+  Context ID 读不到只记警告、不进判定。
+- 引擎映射（`RuntimeEnvironment.preferredEngine(forRunMode:)`，纯映射）：
+  trollstore → 原生 HUD；enhanced-host → PiP 实验（首选），应用内备选；
+  compat／probing → 应用内。增强宿主不信任原生 HUD 的原因：
+  1.0.4 的教训是创建日志成功≠真显示，复核过的 FBScene 也可能在 LC 里被系统静默不合成；
+  只信任 PiP 的 delegate 回调（真显示出来才算）。
+- PiP 搭建（公开做法）：`AVPictureInPictureController.isPictureInPictureSupported()`
+  先查系统支持 → `PiPFrameRenderer` 把文字画成 960×540／H.264／4 秒视频段 →
+  `AVQueuePlayer`＋`AVPlayerLayer`（挂在一个不进窗口的宿主 view 上，实验性质）
+  → `AVPictureInPictureController(playerLayer:)`＋delegate → 用户前台点按钮调
+  `startPictureInPicture()`；实时歌词每 0.5 秒读快照行、行变则生成新段排队。
+- 引擎选择日志（三处定档点都记）：「诊断1.0.5 显示引擎：原生 HUD 悬浮歌词…」／
+  「PiP 画中画歌词（实验）…应用内歌词备选…」／「应用内歌词…唯一档…」。
+- 权限对照（`EntitlementDiagnostics`）：声明列是 entitlements 文件的静态镜像
+  （与 6857d3c 一字未动，自检核过）；实测列来自真实调用。LC 宿主是普通开发者签名，
+  客人继承不到私有权限——IPA 自己声明了也不代表在 LC 里能用。
+
+## 十、待真机验证清单（逐项写怎么验）
 1. **启动就看模式（最重要）**：装 1.0.5 进 LiveContainer，打开 App，等 5 秒，
    进关于页 → 日志，抄回「运行模式：…」那一行和「托管复核结论：…」那一行。
-   - 若是「增强宿主模式／已确认可见」→ 悬浮窗应该已经能看见，去第 2 项。
+   - 若是「增强宿主模式／已确认可见」→ 复核过了，但原生悬浮窗仍不信任（创建成功≠可见），
+     首选是 PiP——去第 8 项试 PiP；原生悬浮窗就算出来了也不算数。
    - 若是「普通签名兼容模式／未确认可见（原因：…）」→ 抄回括号里的原因，
      那就是病根（binder 没收录／窗口为空／isHidden 等）；悬浮窗不出现是**预期**的，
      应用内歌词应正常。
@@ -177,3 +228,18 @@ workflow 产物 `桌面歌词-1.0.5.ipa`。
 6. **巨魔模式回归**：同一 IPA 装回越狱机 TrollStore，悬浮窗／锁屏／保活／激活一切照旧；
    日志里应是「巨魔原生模式」，不应出现复核行（巨魔不复核）。
 7. **不验的**：Telegram 行点没反应、锁屏歌词不见——1.0.5 不修这两项，不要顺手报它们修没修好。
+8. **PiP 实验第一段（固定测试文字）**：在 LiveContainer 里打开 App → 设置页 → 诊断（1.0.5）
+   → 点「开始 PiP 测试（固定文字，实验）」，然后按 Home 回桌面、再打开别的 App（如 Safari）：
+   - 若桌面／别的 App 上方出现一个小窗，里面是「悬浮测试 · 桌面歌词 1.0.5」白字黑底
+     → 第一段成了，抄回日志里「PiP 已显示（实验）」那一行。
+   - 若没出现，抄回日志里 PiP 那几行（「启动失败：…」或「暂不能启动…」），
+     尤其是有没有 `failedToStartPictureInPictureWithError` 的错误原因。
+   - 小窗是黑底不是透明、大小拖动由系统定——都是已知的实验限制，不是 bug。
+   - 关掉：点小窗的关闭按钮，或回设置页点「停止 PiP」。
+9. **PiP 实验第二段（实时歌词）**：第一段成了之后再试——放一首歌（先确认主界面应用内歌词
+   在跟），设置页点「接入实时歌词到 PiP（实验）」，看 PiP 小窗里的行是否跟着歌词走。
+   行一切换要等新视频段现编码（约半秒到一秒），不是逐字跳——逐字同步本来就没实现，
+   不要按逐字标准验。若行不动，先看主界面歌词动不动：主界面不动就是识别／同步的问题，
+   不是 PiP 的问题。
+10. **诊断页**：设置页 → 诊断（1.0.5）→「查看诊断详情」，看模式／MediaRemote／PiP 状态／
+    权限对照四区显示是否与日志一致；点「刷新快照」应记一行能力快照进日志。
