@@ -47,17 +47,14 @@ struct PlaybackDashboardView: View {
 
                 VStack(spacing: 22) {
 
-                    // 左上角标题，右上角设置入口
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("桌面歌词")
-                                .font(.system(size: 36, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        // 标题和下方内容再整体下移一行；齿轮按钮仍固定在右上角原位
-                        .padding(.top, 80)
-
-                        Spacer()
+                    // 标题居中，齿轮仍固定在右上角原位
+                    ZStack(alignment: .topTrailing) {
+                        Text("桌面歌词")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            // 标题和下方内容再整体下移一行
+                            .padding(.top, 80)
 
                         Menu {
                             Button {
@@ -110,6 +107,13 @@ struct PlaybackDashboardView: View {
                         .background(.ultraThinMaterial)
                         .cornerRadius(20)
                     }
+
+                    // 悬浮窗操作提示（原先在悬浮窗卡片底部，现移到主界面；文案跟固定开关走）
+                    Text(positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
 
                     // 悬浮歌词窗开关（放在「开始检测音乐」按钮上方）
                     Toggle(

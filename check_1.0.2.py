@@ -336,11 +336,11 @@ check("pbxproj: braces/parens balanced",
       pbx.count("{") == pbx.count("}") and pbx.count("(") == pbx.count(")"))
 
 print("\n== 6. 红线 ==")
-# 1.0.2 前三件不动 Overlay/；第四件（固定位置开关）只动
-# Overlay/FloatingLyricViewController.swift 一处（锁判断＋提示文字），
-# 场景注册／入口／entitlements／.tbd 一律不动。
-# 红线锚点是 1.0.2 的起点 555c666（1.0.1 末提交）：1.0.2 四件里
-# 只有第四件动 Overlay/，且只动 FloatingLyricViewController.swift。
+# 1.0.2 前三件不动 Overlay/；第四件（固定位置开关）与第五件
+# （提示文字移出悬浮窗）只动 Overlay/FloatingLyricViewController.swift 一处
+# （锁判断＋提示文字移出），场景注册／入口／entitlements／.tbd 一律不动。
+# 红线锚点是 1.0.2 的起点 555c666（1.0.1 末提交）：1.0.2 五件里
+# 只有第四、五件动 Overlay/，且只动 FloatingLyricViewController.swift。
 diff_overlay_files = subprocess.check_output(
     ["git", "diff", "--name-only", "555c666", "HEAD", "--", "Overlay/"],
     cwd=ROOT, text=True).strip().splitlines()
@@ -351,11 +351,12 @@ check("Overlay/: only FloatingLyricViewController.swift changed (position lock)"
 diff_fl = subprocess.check_output(
     ["git", "diff", "555c666", "HEAD", "--", "Overlay/FloatingLyricViewController.swift"],
     cwd=ROOT, text=True)
-check("Overlay diff: only the position-lock guard + hint (no scene/entry changes)",
+check("Overlay diff: only position-lock + hint removal (no scene/entry changes)",
       "positionLocked" in diff_fl
       and "handlePan" in diff_fl
       and "registerWindowWithContextID" not in diff_fl
-      and "FBSystemShellInitialize" not in diff_fl)
+      and "FBSystemShellInitialize" not in diff_fl
+      and "hintLabel" not in [ln for ln in diff_fl.splitlines() if ln.startswith("+")])
 for rel in ["TrollLyricsDesk/TrollLyricsDesk.entitlements",
             "TrollLyricsWidget/TrollLyricsWidget.entitlements"]:
     head = git_head(rel)
@@ -496,9 +497,40 @@ check("FloatingLyricViewController: save/restore position untouched",
       "private func savePosition(center: CGPoint)" in fl
       and "private func restorePosition()" in fl
       and '"floatingLyric.posX"' in fl and '"floatingLyric.posY"' in fl)
-check("FloatingLyricViewController: hint text follows the lock",
-      '"已固定 · 双击隐藏"' in fl and '"长按拖动 · 双击隐藏"' in fl)
+check("PlaybackDashboardView: hint text follows the lock (moved from Overlay)",
+      '"悬浮窗口 · 已固定 · 双击隐藏"' in pd
+      and '"悬浮窗口 · 长按拖动 · 双击隐藏"' in pd)
 check("Version still 1.0.2 / build 15 (position lock does not bump version)",
+      read("TrollLyricsDesk/Info.plist").count("<string>1.0.2</string>") == 1
+      and read("TrollLyricsDesk/Info.plist").count("<string>15</string>") == 1)
+
+print("\n== 6.9 1.0.2：提示文字移到界面＋标题居中 ==")
+fl = read("Overlay/FloatingLyricViewController.swift")
+check("FloatingLyricViewController: no hintLabel left",
+      "hintLabel" not in fl)
+check("FloatingLyricViewController: no hint strings left",
+      "长按拖动" not in fl and "已固定" not in fl)
+check("FloatingLyricViewController: lyric stack anchored to card (12pt top/bottom)",
+      "stack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 12)" in fl
+      and "stack.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -12)" in fl)
+check("FloatingLyricViewController: lock guard + save/restore untouched",
+      "guard !positionLocked else { return }" in fl
+      and "private func savePosition(center: CGPoint)" in fl
+      and "private func restorePosition()" in fl)
+pd = read("App/PlaybackDashboardView.swift")
+check("PlaybackDashboardView: hint line between song card and floating toggle",
+      '"悬浮窗口 · 长按拖动 · 双击隐藏"' in pd
+      and '"悬浮窗口 · 已固定 · 双击隐藏"' in pd
+      and pd.index('"悬浮窗口 · 长按拖动 · 双击隐藏"') > pd.index('进度：')
+      and pd.index('"悬浮窗口 · 长按拖动 · 双击隐藏"') < pd.index('"显示悬浮歌词窗"'))
+check("PlaybackDashboardView: title centered (ZStack, gear stays top-right)",
+      "ZStack(alignment: .topTrailing)" in pd
+      and '.frame(maxWidth: .infinity, alignment: .center)' in pd
+      and '"桌面歌词"' in pd
+      and ".padding(.top, 80)" in pd
+      and "gearshape.fill" in pd
+      and pd.index('ZStack(alignment: .topTrailing)') < pd.index('"桌面歌词"'))
+check("Version still 1.0.2 / build 15 (item 5 does not bump version)",
       read("TrollLyricsDesk/Info.plist").count("<string>1.0.2</string>") == 1
       and read("TrollLyricsDesk/Info.plist").count("<string>15</string>") == 1)
 
@@ -518,8 +550,13 @@ open_item("1.0.2 背景更换要真机验（新增第三件）",
           "开关关掉变纯黑；透明度滑杆拖动图跟着变透（默认 0.25 即图 75% 显示）；"
           "没选过图时是原来的紫／黑／蓝渐变；悬浮窗与小组件不受影响")
 open_item("1.0.2 悬浮窗固定位置要真机验（新增第四件）",
-          "主界面悬浮歌词区打开「固定悬浮窗位置」后，悬浮窗拖不动、提示文字变成“已固定 · 双击隐藏”，"
-          "双击隐藏仍可用；关掉开关又能拖；重启 App 后悬浮窗还在上次存好的位置（位置本来就会记住，开关只锁拖动）")
+          "主界面悬浮歌词区打开「固定悬浮窗位置」后，悬浮窗拖不动、主界面的提示行变成"
+          "“悬浮窗口 · 已固定 · 双击隐藏”，双击隐藏仍可用；关掉开关又能拖；"
+          "重启 App 后悬浮窗还在上次存好的位置（位置本来就会记住，开关只锁拖动）")
+open_item("1.0.2 提示文字移到界面＋标题居中要真机验（新增第五件）",
+          "悬浮窗里只剩歌词，没有任何提示小字；主界面歌曲卡片和开关之间有一行提示，"
+          "开锁时变“悬浮窗口 · 已固定 · 双击隐藏”，关锁时变“悬浮窗口 · 长按拖动 · 双击隐藏”；"
+          "「桌面歌词」标题横向居中，齿轮仍在右上角原位")
 open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget Extension 两个二进制各跑 otool -l | grep ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB；强链接则 iOS 15 有启动失败风险")

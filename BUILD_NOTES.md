@@ -220,7 +220,7 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
 检查：`python3 check_1.0.1.py`（106 PASS，FAILED: none，OPEN 17；
 含三项否定检查：无 Engine V2、无 1.0.6 播放改进、无 BackBoard/-hud/dynamic_lookup）。
 
-## 1.0.2 build 15（v1.0.1 分支，2026-11-26，1.0.1 只加四件小改）
+## 1.0.2 build 15（v1.0.1 分支，2026-11-26，1.0.1 只加五件小改）
 
 - `App/AboutView.swift`：Telegram 行标签 `@seadragonjb`→`@Guhailon`；
   `openTelegram()` 改 `tg://resolve?domain=Guhailon`，退回 `https://t.me/Guhailon`；
@@ -241,11 +241,18 @@ LyricStore 改动、Tests/、ENGINE_V2.md、产物名 1.0.4）；1.0.6 的播放
   与 enabled／textColorHex 同一组声明）。
 - `Overlay/FloatingLyricViewController.swift`：新键 `floatingLyric.positionLocked`（Bool，未设置时
   `UserDefaults.bool` 返回 false，与默认一致）；`handlePan` 开头 `guard !positionLocked else { return }`，
-  锁住时拖动不生效；`refresh()` 里提示文字跟着变（锁住→“已固定 · 双击隐藏”，不锁→“长按拖动 · 双击隐藏”）。
-  位置保存（`savePosition`）与启动恢复（`restorePosition`）一字未动——位置本来就会记住，开关只锁拖动。
+  锁住时拖动不生效；位置保存（`savePosition`）与启动恢复（`restorePosition`）一字未动——位置本来就会记住，开关只锁拖动。
+- `Overlay/FloatingLyricViewController.swift`（第五件）：提示文字移出悬浮窗——`hintLabel` 整个删掉
+  （声明、卡片底部小字、约束、`refresh()` 换文案行、`apply()` 里 `hintLabel.alpha` 全删）；歌词 stack 改锚卡片底部
+  （上下各留 12pt，UILabel 在整行高度内垂直居中）。悬浮窗从此只显示歌词；位置锁 guard、savePosition/restore 一字未动。
+- `App/PlaybackDashboardView.swift`（第五件）：歌曲卡片和「显示悬浮歌词窗」开关之间加居中提示行
+  （`positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏"`，20pt 半粗体、白 85%）；
+  「桌面歌词」标题横向居中（`ZStack(alignment: .topTrailing)`，标题 `frame(maxWidth: .infinity, alignment: .center)`，
+  齿轮 Menu 仍固定右上角原位，顶部 80 的 padding 不动）。
 - 版本 1.0.2，build 14→15（两 Info.plist＋pbxproj MARKETING_VERSION 四处；
   产物名桌面歌词-1.0.2.ipa）。其余与 1.0.1 一字未动。
 
-检查：`python3 check_1.0.2.py`（132 PASS，FAILED: none，OPEN 19；
+检查：`python3 check_1.0.2.py`（139 PASS，FAILED: none，OPEN 20；
 新增 §6.6 十项：Telegram 三项、LyricLogger 两项、LogView 五项；新增 §6.7 八项：背景图任意更换；
-新增 §6.8 六项：悬浮窗固定位置开关；§6 红线收窄：Overlay/ 只许 FloatingLyricViewController.swift 一处改动）。
+新增 §6.8 六项：悬浮窗固定位置开关；新增 §6.9 七项：提示文字移到界面＋标题居中；
+§6 红线收窄：Overlay/ 只许 FloatingLyricViewController.swift 一处改动）。

@@ -54,10 +54,9 @@ final class FloatingLyricViewController: UIViewController {
     private var refreshTimer: Timer?
     private var lastLineText: String?
 
-    // UI —— 只有歌词行 + 操作提示
+    // UI —— 只有歌词行（操作提示已移到主界面，悬浮窗只显示歌词）
     private let cardView = UIView()
     private let currentLabel = UILabel()    // 当前歌词行（唯一一行，自适应完整显示）
-    private let hintLabel = UILabel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -98,20 +97,11 @@ final class FloatingLyricViewController: UIViewController {
         currentLabel.shadowOffset = CGSize(width: 0, height: 1)
         currentLabel.text = "♪"
 
-        hintLabel.font = .systemFont(ofSize: 9, weight: .regular)
-        hintLabel.textColor = .white.withAlphaComponent(0.4)
-        hintLabel.textAlignment = .center
-        hintLabel.text = "长按拖动 · 双击隐藏"
-
         // 歌词行：垂直 stack，只放歌词，顶部对齐
         let stack = UIStackView(arrangedSubviews: [currentLabel])
         stack.axis = .vertical
         stack.translatesAutoresizingMaskIntoConstraints = false
         cardView.addSubview(stack)
-
-        // 操作提示：从 stack 中移出，固定到卡片最底部
-        hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addSubview(hintLabel)
 
         NSLayoutConstraint.activate([
             cardView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -122,12 +112,8 @@ final class FloatingLyricViewController: UIViewController {
             stack.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 14),
             stack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -14),
             stack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 12),
-            // 歌词底部不越过提示文字顶部，留 6pt 间距
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: hintLabel.topAnchor, constant: -6),
-
-            hintLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 14),
-            hintLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -14),
-            hintLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -8),
+            // 上下各留 12pt；UILabel 在整行高度内垂直居中，歌词始终居中显示
+            stack.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -12),
         ])
 
         // 拖动（长按后移动）
@@ -176,9 +162,6 @@ final class FloatingLyricViewController: UIViewController {
         // 主界面改开关后，悬浮窗在 0.25s 内自动恢复显示
         applyVisibility()
 
-        // 固定住时提示文字跟着变，免得用户以为拖动坏了
-        hintLabel.text = positionLocked ? "已固定 · 双击隐藏" : "长按拖动 · 双击隐藏"
-
         guard let data = prefs?.data(forKey: snapshotKey),
               let snapshot = try? JSONDecoder().decode(LyricSnapshot.self, from: data)
         else {
@@ -212,7 +195,6 @@ final class FloatingLyricViewController: UIViewController {
         // 背景透明度由「悬浮窗透明度」滑块独立控制（0 = 全透明，只剩歌词）
         let bg = max(0, min(1, cardBackgroundOpacity))
         cardView.backgroundColor = UIColor.black.withAlphaComponent(bg)
-        hintLabel.alpha = bg
         // 歌词本身仍用原有「歌词透明度」设置，颜色由主界面取色器控制
         currentLabel.alpha = max(0.2, min(1.0, opacity))
         currentLabel.textColor = lyricTextColor
