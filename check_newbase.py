@@ -470,6 +470,7 @@ open_item("二进制字面量扫描的限制（已查明，非缺陷；见 RUN �
           "（TLDSLiveContainer／lyric.timeOffset|／tld.activated）在位；"
           "方法名符号 Release 下被 strip，源码级核查为准；LC 宿主模式"
           "是否真生效只能真机验")
+open_item("otool 弱链接核实（编成后验包新增）",
           "App 与 Widget 两个二进制各跑 macho_inspect.py 查 ActivityKit，"
           "都要是 LC_LOAD_WEAK_DYLIB（0x80000018）；强链接则 iOS 15 有启动失败风险")
 
