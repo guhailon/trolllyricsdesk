@@ -349,3 +349,46 @@
 - 第 2 笔（本节）：RUN 补 build 24 一节（只改文档，触发的 run 不用跟）。
 - 头 run：45928829264（head 0cef79c）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build24-newbase.ipa`，1,677,719 B，SHA256 `4b27a043…`，验包 82 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定（皇上 2026-11-27 10:22），不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
+
+## §十五 build 25（1.0.6/build 25，启动＋回前台重建兜底）
+
+### 为什么只做这一件
+
+- 皇上 **2026-11-27 14:30 点选「做 build 25：启动＋回前台重建兜底」**（三选一：只做兜底／兜底＋保活加固／先不修）。
+- 真机证据（iPhone 11／TrollStore，build 24，皇上 2026-11-27 实测）：
+  - 10:53 锁屏那次重建跑通：旧窗藏起来，新窗 TLDSFloatingLyric_1 建起来报「已显示」。
+  - 10:56 锁屏→解锁，主屏幕上悬浮窗没了（录像确认）。
+  - 11:05 启动行：「上次会话结束于前台，未收到 WillTerminate（疑似被杀，距今 727 秒）」——进程在锁屏后在后台被系统杀了，解锁时没人重建。
+  - 11:05 新启动后退到主屏幕，悬浮窗还是没有；皇上原话「只有启动APP才会来」，而且这次重启动也没回来——启动重建这条路本身靠不住，有时来有时不来。
+- **病根（代码里坐实）**：首启建场景只靠异步 `FBSystemShellInitialize` 回调（`startFloatingOverlay`）；回调丢了，`floatingSceneEverCreated` 就永远是 NO；而所有恢复入口（2 秒看门狗 `tlds_watchdogReactivate`、回到前台 `tlds_reactivateFromForegroundNotification`、解锁重建 `rebuildFloatingOverlay`）都在「场景一次都没建过」时直接 return——启动创建丢一次就永远没窗，重启动只是重新掷骰子。第二缺口：场景建了但一直没连上（`willConnectToSession` 没跑）时，#1 守卫跳过恢复且无超时——卡住就无限等。
+- **不上源已定**（皇上 2026-11-27 10:22），不部署到越狱源；真机验收继续。**未发给皇上**（等上级转）。
+
+### 改了什么（一笔提交，产品代码＋版本＋自检 §20）
+
+只改 `Overlay/TLDSAppDelegate.h`／`.m`＋版本 4 处＋自检；其余一字未动。
+
+1. **兜底一：Shell 回调没来就直接建（根）**：`reactivateFloatingOverlayWithTrigger` 里原来「`!shellInitialized || !floatingSceneEverCreated` 就 return」那行拆开——`shellInitialized` 为 NO 仍 return（注册都没开始）；`floatingSceneEverCreated` 为 NO 时，2 秒看门狗／回到前台到这里就直接调同款 `createFloatingSceneWithIdentifier:` 建一次（与 Shell 回调同款入口，不复制新实现），记「诊断1.0.6 启动兜底：Shell 回调未到，直接建悬浮场景（触发：…，启动已过 N 秒）」，建完 return，下一次再走正常恢复流程。
+2. **兜底一的护栏**：①启动 2 秒内不抢建——新 `launchTime`（didFinishLaunching 里记），`now - launchTime < 2.0` 就 return，给 Shell 回调先到的机会（看门狗本来就是 2 秒一轮，首轮正好 2 秒后）；②Shell 回调晚到时有守卫——`startFloatingOverlay` 的回调里 `floatingSceneEverCreated` 已是 YES 就记「Shell 回调到了，悬浮场景已由兜底建好，跳过（不建第二个窗）」并 return，不建第二个窗。
+3. **兜底二：卡住超时 10 秒**：新 `floatingSceneCreatedTime`（`createFloatingSceneWithIdentifier` 里记）；#1 守卫的跳过只在「创建不到 10 秒」时生效，超过 10 秒还没连上就记「场景创建已超过 10 秒仍未连接（触发：…），判定卡住，走重建」，往下走 `rebuildFloatingOverlay`——rebuild 本身对未连上的场景跳过销毁（只摘 binder＋藏窗口），不会撞车。build 21 的闪退保护（连接窗口内跳过）一字未动。
+4. **不动的**：解锁重建 `rebuildFloatingOverlay` 原样不动（3 秒节流、未连上跳过销毁、换新标识全在）；`startFloatingOverlayRecreate`（无调用方）不动；BackgroundKeepAlive（静音保活）不动——它本来就在巨魔模式下启动，进程还是被杀了，保活保证不了活，这次不加保活；MediaRemote 回调 `@escaping` 不动（build 23 闪退修法）；激活、逐歌偏移、Engine Fix、锁屏（继续不恢复）、entitlements（零新增）、无 TCP 桥、无新 UI、无 LC 主线改动、compatMode 跳过逻辑照旧。
+- **版本**：1.0.6 不变，build 24→25（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处＋`LyricStore.versionTag = "build 25（1.0.6）"`，19 字节 UTF-8，仍进 `__cstring`）。
+- **diff 规模**：7 个文件（产品代码 3 个文件：TLDSAppDelegate.m +48/-…、TLDSAppDelegate.h +8、LyricStore.swift 版本 1 行＋注释；版本 3 个文件各 1 行；自检 `check_1.0.6.py` §20 新加 9 项 checks＋5 项 OPEN，§2／§8／§19 版本断言 24→25）。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**303 PASS，0 FAIL，40 OPEN**（build 24 是 294 PASS／35 OPEN；§20 加 9 项——版本号三处一致、Shell 回调守卫、看门狗／回前台直接建场景、启动 2 秒门槛＋launchTime、卡住 10 秒超时＋floatingSceneCreatedTime、#1 守卫不动、解锁重建原样不动、保活不动、@escaping 不动，全过；OPEN 加 5 条——build 25 真机验三项＋主页面不闪退＋只建一个窗）。
+
+### 待真机验证（巨魔机 iPhone 11／iOS 16.5／Dopamine rootless／TrollStore）
+
+1. **① 冷启动后退到主屏幕，悬浮窗在不在**：11:05 那次重启动后退出来没有窗——修完冷启动 2 秒后看门狗兜底应已建好窗，退到主屏幕窗应在；日志里应有「启动兜底」或「系统 Shell 注册成功」＋创建行。
+2. **② 锁屏→解锁，悬浮窗在不在**：10:56 那次解锁后主屏幕没窗——修完解锁重建照常跑；若进程还活着，窗应直接在；若进程被杀，解锁时没人重建，看第③项。
+3. **③ 锁屏久一点（等进程被杀）→解锁→打开一次 App，窗回不回来**（核心验收）：进程被杀后重启动，2 秒内看门狗兜底建窗，打开 App 再退到主屏幕窗应回来；日志里应有「启动兜底」行，且只建一个窗（回调守卫，不建两个）。
+4. **主页面不闪退**（#1 守卫仍在）：连接窗口（10 秒内）看门狗仍跳过恢复；进主页面不闪、悬浮窗／激活／逐歌偏移照常。
+5. **只建一个窗**：兜底建窗＋Shell 回调晚到、解锁重建＋旧窗残留两种情况都不应出现两个窗；日志里活着的悬浮场景数应为 1。
+
+### 提交链（build 25）
+
+- 第 1 笔（产品＋自检 §20，待填）：兜底两件＋版本 1.0.6/25。
+- 第 2 笔（本节）：RUN 补 build 25 一节（只改文档，触发的 run 不用跟）。
+- 头 run：（待填）——IPA `桌面歌詞-1.0.6-build25-newbase.ipa`，dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
