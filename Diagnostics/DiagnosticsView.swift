@@ -100,7 +100,7 @@ struct DiagnosticsView: View {
             "iOS \(RuntimeCapabilities.iOSVersion.majorVersion).\(RuntimeCapabilities.iOSVersion.minorVersion)（iOS 27+ = \(RuntimeCapabilities.isIOS27OrLater ? "是" : "否")）",
             "LiveContainer 信号：\(RuntimeCapabilities.liveContainerSignal ? "有" : "无")",
             "PiP 系统支持：\(RuntimeCapabilities.pipSupported ? "是" : "否")",
-            "原生悬浮显示能力：\(RuntimeCapabilities.nativeHUDProbePassed ? "通过" : "未通过")",
+            "HUD 守护进程显示能力：\(RuntimeCapabilities.nativeHUDProbePassed ? "通过" : "未通过")",
             MediaRemoteDiagnostics.summaryLine,
         ]
         entitlementRows = EntitlementDiagnostics.checks()

@@ -17,7 +17,7 @@ enum TLDSDisplayEngine: String {
 
     var displayName: String {
         switch self {
-        case .nativeHUD: return "原生 HUD 悬浮歌词"
+        case .nativeHUD: return "HUD 守护进程悬浮歌词"
         case .pip: return "PiP 画中画歌词（实验）"
         case .inApp: return "应用内歌词"
         }
@@ -65,7 +65,7 @@ enum DisplayCapability: String {
 
     var displayName: String {
         switch self {
-        case .nativeHUD: return "原生 HUD 悬浮歌词"
+        case .nativeHUD: return "HUD 守护进程悬浮歌词"
         case .pip: return "PiP 画中画歌词（实验）"
         case .inApp: return "应用内歌词"
         }

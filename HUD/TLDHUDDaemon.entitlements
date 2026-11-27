@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Minimal set for the HUD mechanism only. Every key is justified below.
+	     Deliberately NOT included: MediaRemote keys (no MediaRemote in
+	     this project), hid.* keys (no touch in v1),
+	     disallowControlCenter/NotificationCenter (not needed).
+	     0.2.0 adds ONE key: App Group (snapshot transport, see below). -->
+
+	<!-- TrollStore identity -->
+	<key>application-identifier</key>
+	<string>com.ycwl.Lyrics</string>
+
+	<!-- 0.2.0: App Group snapshot transport — the daemon READS the
+	     "lyric.snapshot" JSON the main TrollLyricsDesk app writes into
+	     group.com.hailong.TrollLyricsDesk (TLDHUDLyricsSnapshot.mm).
+	     Read-only use; the daemon never writes the snapshot. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hailong.TrollLyricsDesk</string>
+	</array>
+
+	<!-- Sandbox escape + platform app: the app must spawn processes as root
+	     and write outside its container (daemon plist, PID/log files). -->
+	<key>com.apple.private.security.no-sandbox</key>
+	<true/>
+	<key>platform-application</key>
+	<true/>
+	<key>get-task-allow</key>
+	<true/>
+
+	<!-- Spawn the HUD daemon as root (posix_spawn persona uid 0). -->
+	<key>com.apple.private.persona-mgmt</key>
+	<true/>
+
+	<!-- Backboard-hosted window: register the window context with
+	     SpringBoard's accessibility window hosting controller. -->
+	<key>com.apple.frontboard.launchapplications</key>
+	<true/>
+	<key>com.apple.backboard.client</key>
+	<true/>
+	<key>com.apple.QuartzCore.displayable-context</key>
+	<true/>
+	<key>com.apple.QuartzCore.secure-mode</key>
+	<true/>
+	<key>com.apple.springboard.accessibility-window-hosting</key>
+	<true/>
+	<key>com.apple.springboard.CFUserNotification</key>
+	<true/>
+	<key>com.apple.springboard.appbackgroundstyle</key>
+	<true/>
+	<key>com.apple.springboard-ui.client</key>
+	<true/>
+
+	<!-- Daemon survival: jetsam / memorystatus (same kinds TrollLyricsDesk
+	     already holds; v1 does not call memorystatus_control — the daemon
+	     survives via launchd KeepAlive + root, not via jetsam bypass). -->
+	<key>com.apple.private.kernel.jetsam</key>
+	<true/>
+	<key>com.apple.private.memorystatus</key>
+	<true/>
+
+	<!-- RunningBoard: launchd daemon assertions / process state. -->
+	<key>com.apple.runningboard.assertions.frontboard</key>
+	<true/>
+	<key>com.apple.runningboard.hereditarygrantoriginator</key>
+	<true/>
+	<key>com.apple.runningboard.launchprocess</key>
+	<true/>
+	<key>com.apple.runningboard.primitiveattribute</key>
+	<true/>
+	<key>com.apple.runningboard.process-state</key>
+	<true/>
+	<key>com.apple.runningboard.targetidentities</key>
+	<true/>
+	<key>com.apple.runningboard.terminateprocess</key>
+	<true/>
+
+	<!-- File / preference access outside the container. -->
+	<key>file-read-data</key>
+	<true/>
+	<key>user-preference-read</key>
+	<true/>
+	<key>user-preference-write</key>
+	<true/>
+	<key>com.apple.private.security.storage.AppBundles</key>
+	<true/>
+	<key>com.apple.private.security.storage.AppDataContainers</key>
+	<true/>
+
+	<!-- mach lookup: FrontBoard / UIKit / SpringBoard render services. -->
+	<key>com.apple.security.exception.mach-lookup.global-name</key>
+	<array>
+		<string>com.apple.frontboard.systemappservices</string>
+		<string>com.apple.UIKit.statusbarserver</string>
+		<string>com.apple.springboard.SBRendererService</string>
+	</array>
+
+	<!-- IOSurface / GPU: the floating window's rendering. -->
+	<key>com.apple.security.iokit-user-client-class</key>
+	<array>
+		<string>IOSurfaceRootUserClient</string>
+		<string>IOSurfaceAcceleratorClient</string>
+		<string>IOMobileFramebufferUserClient</string>
+		<string>IOGPUDeviceUserClient</string>
+	</array>
+</dict>
+</plist>

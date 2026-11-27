@@ -5,6 +5,470 @@
 	};
 	objectVersion = 56;
 	objects = {
+		16E43412E54EBAF214A5EB58 /* TLDHUDHelper.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDHelper.h";
+			path = "TLDHUDHelper.h";
+			sourceTree = "<group>";
+		};
+		F0EBF580FA9A6D440B4C86DC /* TLDHUDHelper.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDHelper.mm";
+			path = "TLDHUDHelper.mm";
+			sourceTree = "<group>";
+		};
+		029DA82DF81E339DCBC56905 /* TLDHUDPaths.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDPaths.h";
+			path = "TLDHUDPaths.h";
+			sourceTree = "<group>";
+		};
+		6E2A1DB5C27EB39A5B2EAF31 /* TLDHUDPaths.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDPaths.mm";
+			path = "TLDHUDPaths.mm";
+			sourceTree = "<group>";
+		};
+		9BD8633472D37CD9F5632E1A /* TLDHUDLog.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDLog.h";
+			path = "TLDHUDLog.h";
+			sourceTree = "<group>";
+		};
+		13AB39912B2A57568B4BC9E9 /* TLDHUDLog.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDLog.mm";
+			path = "TLDHUDLog.mm";
+			sourceTree = "<group>";
+		};
+		670DE36FF57563EFFB2D36EB /* TLDHUDDaemonMain.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDDaemonMain.mm";
+			path = "TLDHUDDaemonMain.mm";
+			sourceTree = "<group>";
+		};
+		07D4F45C910F0A1850057682 /* TLDHUDMainApplication.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDMainApplication.h";
+			path = "TLDHUDMainApplication.h";
+			sourceTree = "<group>";
+		};
+		1182026F8A8029A0B305E08A /* TLDHUDMainApplication.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDMainApplication.mm";
+			path = "TLDHUDMainApplication.mm";
+			sourceTree = "<group>";
+		};
+		D639BCA5AC5C02F81EB2D620 /* TLDHUDMainApplicationDelegate.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDMainApplicationDelegate.h";
+			path = "TLDHUDMainApplicationDelegate.h";
+			sourceTree = "<group>";
+		};
+		74DBB8ED744C87757040D6CC /* TLDHUDMainApplicationDelegate.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDMainApplicationDelegate.mm";
+			path = "TLDHUDMainApplicationDelegate.mm";
+			sourceTree = "<group>";
+		};
+		9B41DBD425DCA516E11A0B60 /* TLDHUDMainWindow.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDMainWindow.h";
+			path = "TLDHUDMainWindow.h";
+			sourceTree = "<group>";
+		};
+		FB8360F3AB0403A3013B14FE /* TLDHUDMainWindow.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDMainWindow.mm";
+			path = "TLDHUDMainWindow.mm";
+			sourceTree = "<group>";
+		};
+		3CC37E6D2F22427F7772EE8E /* TLDHUDRootViewController.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDRootViewController.h";
+			path = "TLDHUDRootViewController.h";
+			sourceTree = "<group>";
+		};
+		66DE1BB2699BB27D07D6F885 /* TLDHUDRootViewController.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDRootViewController.mm";
+			path = "TLDHUDRootViewController.mm";
+			sourceTree = "<group>";
+		};
+		5E2D18ABC92D8D4556C8DFF9 /* TLDHUDLyricsSnapshot.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDLyricsSnapshot.h";
+			path = "TLDHUDLyricsSnapshot.h";
+			sourceTree = "<group>";
+		};
+		2957C4F0C50C3FBC85383C44 /* TLDHUDLyricsSnapshot.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TLDHUDLyricsSnapshot.mm";
+			path = "TLDHUDLyricsSnapshot.mm";
+			sourceTree = "<group>";
+		};
+		7FF05442AC14E0945EE04573 /* TLDHUDVersion.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TLDHUDVersion.h";
+			path = "TLDHUDVersion.h";
+			sourceTree = "<group>";
+		};
+		2BA74BE65056CEBE9D2D85D2 /* TLDHUDDaemon.plist */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.xml;
+			name = "TLDHUDDaemon.plist";
+			path = "TLDHUDDaemon.plist";
+			sourceTree = "<group>";
+		};
+		9DAA1AFBD4185402236CB694 /* TLDHUDDaemon.entitlements */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.entitlements;
+			name = "TLDHUDDaemon.entitlements";
+			path = "TLDHUDDaemon.entitlements";
+			sourceTree = "<group>";
+		};
+		F7874D8AA0A50CB2D19289DB /* BackboardServices.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "BackboardServices.h";
+			path = "BackboardServices.h";
+			sourceTree = "<group>";
+		};
+		1001E811A1BA2B6E8A35EC4E /* SpringBoardServices.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "SpringBoardServices.h";
+			path = "SpringBoardServices.h";
+			sourceTree = "<group>";
+		};
+		EDCC4D235668335A53160B29 /* SBSAccessibilityWindowHostingController.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "SBSAccessibilityWindowHostingController.h";
+			path = "SBSAccessibilityWindowHostingController.h";
+			sourceTree = "<group>";
+		};
+		915FF1D95035144CAB7502F3 /* UIApplication+Private.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UIApplication+Private.h";
+			path = "UIApplication+Private.h";
+			sourceTree = "<group>";
+		};
+		70504FA94636B09C0D6F47AB /* UIWindow+Private.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UIWindow+Private.h";
+			path = "UIWindow+Private.h";
+			sourceTree = "<group>";
+		};
+		61834B6789A329E945711F25 /* LSApplicationProxy.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "LSApplicationProxy.h";
+			path = "LSApplicationProxy.h";
+			sourceTree = "<group>";
+		};
+		83FDEE1E33EB49692C48DA64 /* LSApplicationWorkspace.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "LSApplicationWorkspace.h";
+			path = "LSApplicationWorkspace.h";
+			sourceTree = "<group>";
+		};
+		967AF8103B959CA59A42B7AD /* IOKit+SPI.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "IOKit+SPI.h";
+			path = "IOKit+SPI.h";
+			sourceTree = "<group>";
+		};
+		437D3047E782CAB87E9CF8FE /* HUDLogView.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "HUDLogView.swift";
+			path = "HUDLogView.swift";
+			sourceTree = "<group>";
+		};
+		2BC11440B67094E1D1302C22 /* TLDHUDDaemon */ = {
+			isa = PBXFileReference;
+			explicitFileType = "compiled.mach-o.executable";
+			includeInIndex = 0;
+			path = "TLDHUDDaemon";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		2172AF9E476A2FEA1A5BC9EA /* TLDHUDHelper.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F0EBF580FA9A6D440B4C86DC /* TLDHUDHelper.mm */;
+		};
+		1005515C4C612BB6B16EAA91 /* TLDHUDPaths.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 6E2A1DB5C27EB39A5B2EAF31 /* TLDHUDPaths.mm */;
+		};
+		0711872937F70DDEE05DEDB4 /* TLDHUDLog.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 13AB39912B2A57568B4BC9E9 /* TLDHUDLog.mm */;
+		};
+		5D69FC280E7563936870A5C5 /* HUDLogView.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 437D3047E782CAB87E9CF8FE /* HUDLogView.swift */;
+		};
+		968DBE9282B383BF6BDE7C88 /* TLDHUDDaemon.plist in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = 2BA74BE65056CEBE9D2D85D2 /* TLDHUDDaemon.plist */;
+		};
+		C6518203D5AC16100FAD0856 /* TLDHUDDaemonMain.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 670DE36FF57563EFFB2D36EB /* TLDHUDDaemonMain.mm */;
+		};
+		35AF65372FAE6D85F773E900 /* TLDHUDMainApplication.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 1182026F8A8029A0B305E08A /* TLDHUDMainApplication.mm */;
+		};
+		9C58A0385E667522D7DA210C /* TLDHUDMainApplicationDelegate.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 74DBB8ED744C87757040D6CC /* TLDHUDMainApplicationDelegate.mm */;
+		};
+		4FE8D2DFBDABB8D411C0DD2B /* TLDHUDMainWindow.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = FB8360F3AB0403A3013B14FE /* TLDHUDMainWindow.mm */;
+		};
+		E8E5897CCE5F9DB171D4F6BA /* TLDHUDRootViewController.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 66DE1BB2699BB27D07D6F885 /* TLDHUDRootViewController.mm */;
+		};
+		3C4518D25DCE312AA435F2C1 /* TLDHUDLyricsSnapshot.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 2957C4F0C50C3FBC85383C44 /* TLDHUDLyricsSnapshot.mm */;
+		};
+		DCA10932A39698EBED69739B /* TLDHUDHelper.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F0EBF580FA9A6D440B4C86DC /* TLDHUDHelper.mm */;
+		};
+		3C262F0012A0FC626C34377F /* TLDHUDPaths.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 6E2A1DB5C27EB39A5B2EAF31 /* TLDHUDPaths.mm */;
+		};
+		4F474EC41D1957BAAFDEC200 /* TLDHUDLog.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 13AB39912B2A57568B4BC9E9 /* TLDHUDLog.mm */;
+		};
+		7FE9BEEA1075297AEF3CE052 /* HUD */ = {
+			isa = PBXGroup;
+			children = (
+				16E43412E54EBAF214A5EB58 /* TLDHUDHelper.h */,
+				F0EBF580FA9A6D440B4C86DC /* TLDHUDHelper.mm */,
+				029DA82DF81E339DCBC56905 /* TLDHUDPaths.h */,
+				6E2A1DB5C27EB39A5B2EAF31 /* TLDHUDPaths.mm */,
+				9BD8633472D37CD9F5632E1A /* TLDHUDLog.h */,
+				13AB39912B2A57568B4BC9E9 /* TLDHUDLog.mm */,
+				670DE36FF57563EFFB2D36EB /* TLDHUDDaemonMain.mm */,
+				07D4F45C910F0A1850057682 /* TLDHUDMainApplication.h */,
+				1182026F8A8029A0B305E08A /* TLDHUDMainApplication.mm */,
+				D639BCA5AC5C02F81EB2D620 /* TLDHUDMainApplicationDelegate.h */,
+				74DBB8ED744C87757040D6CC /* TLDHUDMainApplicationDelegate.mm */,
+				9B41DBD425DCA516E11A0B60 /* TLDHUDMainWindow.h */,
+				FB8360F3AB0403A3013B14FE /* TLDHUDMainWindow.mm */,
+				3CC37E6D2F22427F7772EE8E /* TLDHUDRootViewController.h */,
+				66DE1BB2699BB27D07D6F885 /* TLDHUDRootViewController.mm */,
+				5E2D18ABC92D8D4556C8DFF9 /* TLDHUDLyricsSnapshot.h */,
+				2957C4F0C50C3FBC85383C44 /* TLDHUDLyricsSnapshot.mm */,
+				7FF05442AC14E0945EE04573 /* TLDHUDVersion.h */,
+				2BA74BE65056CEBE9D2D85D2 /* TLDHUDDaemon.plist */,
+				9DAA1AFBD4185402236CB694 /* TLDHUDDaemon.entitlements */,
+				2ABF183767E0C7C847F5FB8A /* headers */,
+			);
+			name = "HUD";
+			path = "HUD";
+			sourceTree = "<group>";
+		};
+		2ABF183767E0C7C847F5FB8A /* headers */ = {
+			isa = PBXGroup;
+			children = (
+				F7874D8AA0A50CB2D19289DB /* BackboardServices.h */,
+				1001E811A1BA2B6E8A35EC4E /* SpringBoardServices.h */,
+				EDCC4D235668335A53160B29 /* SBSAccessibilityWindowHostingController.h */,
+				915FF1D95035144CAB7502F3 /* UIApplication+Private.h */,
+				70504FA94636B09C0D6F47AB /* UIWindow+Private.h */,
+				61834B6789A329E945711F25 /* LSApplicationProxy.h */,
+				83FDEE1E33EB49692C48DA64 /* LSApplicationWorkspace.h */,
+				967AF8103B959CA59A42B7AD /* IOKit+SPI.h */,
+			);
+			name = "headers";
+			path = "headers";
+			sourceTree = "<group>";
+		};
+		F18BB91F9DEBCF4A39C98FBB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C6518203D5AC16100FAD0856 /* TLDHUDDaemonMain.mm in Sources */,
+				35AF65372FAE6D85F773E900 /* TLDHUDMainApplication.mm in Sources */,
+				9C58A0385E667522D7DA210C /* TLDHUDMainApplicationDelegate.mm in Sources */,
+				4FE8D2DFBDABB8D411C0DD2B /* TLDHUDMainWindow.mm in Sources */,
+				E8E5897CCE5F9DB171D4F6BA /* TLDHUDRootViewController.mm in Sources */,
+				3C4518D25DCE312AA435F2C1 /* TLDHUDLyricsSnapshot.mm in Sources */,
+				DCA10932A39698EBED69739B /* TLDHUDHelper.mm in Sources */,
+				3C262F0012A0FC626C34377F /* TLDHUDPaths.mm in Sources */,
+				4F474EC41D1957BAAFDEC200 /* TLDHUDLog.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		885BC90FEB1B21447F00D5F4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9D0CE4B5AC7B6E2D1D2B644A /* Embed HUD Daemon */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed HUD Daemon";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cp -f \"$BUILT_PRODUCTS_DIR/TLDHUDDaemon\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME/TLDHUDDaemon\"\ntest -f \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME/TLDHUDDaemon\"";
+		};
+		960CAD0A614B044C164BDDDF /* TLDHUDDaemon */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5D11E3922C2864D9AC7E781 /* Build configuration list for PBXNativeTarget "TLDHUDDaemon" */;
+			buildPhases = (
+				F18BB91F9DEBCF4A39C98FBB /* Sources */,
+				885BC90FEB1B21447F00D5F4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "TLDHUDDaemon";
+			productName = "TLDHUDDaemon";
+			productReference = 2BC11440B67094E1D1302C22 /* TLDHUDDaemon */;
+			productType = "com.apple.product-type.tool";
+		};
+		2F0724C2C3847C2D7E17A822 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 960CAD0A614B044C164BDDDF;
+			targetProxy = 4764915399F003F708404F08;
+		};
+		4764915399F003F708404F08 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595;
+			proxyType = 1;
+			remoteGlobalIDString = 960CAD0A614B044C164BDDDF;
+			remoteInfo = "TLDHUDDaemon";
+		};
+		E88AA3F324A5DDA487FC9842 /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = "HUD/TLDHUDDaemon.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 29;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/HUD/headers",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
+					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
+					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.hud;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug";
+		};
+		DCA2A70556C6D841325570D2 /* XCBuildConfiguration */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = "HUD/TLDHUDDaemon.entitlements";
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 29;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_OPTIMIZATION_LEVEL = s;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/HUD/headers",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
+					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
+					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.hud;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release";
+		};
+		C5D11E3922C2864D9AC7E781 /* Build configuration list for PBXNativeTarget "TLDHUDDaemon" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E88AA3F324A5DDA487FC9842,
+				DCA2A70556C6D841325570D2,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release";
+		};
 		D3D5ADB0EB472C5BC9155CE1 /* RuntimeCapabilities.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -386,6 +850,7 @@
 			targets = (
 				E3435DDA2687639586BF0B70,
 				0661F517A86C8F5C87C0EDBA,
+				960CAD0A614B044C164BDDDF /* TLDHUDDaemon */,
 			);
 		};
 		4821909E9BF9E73E471FEA84 /* PBXSourcesBuildPhase */ = {
@@ -435,8 +900,11 @@
 				95AB7473D9026BBF26F4BC27 /* InAppLyricsRenderer.swift in Sources */,
 				D77C7CCE0E54161D7CD33843 /* MediaRemoteDiagnostics.swift in Sources */,
 				B23A5512378E5CA3C274146B /* OverlayDiagnostics.swift in Sources */,
-				EA9DD372B71F2540C91A1F6A /* DiagnosticsView.swift in Sources */,
-		);
+				2172AF9E476A2FEA1A5BC9EA /* TLDHUDHelper.mm in Sources */,
+				1005515C4C612BB6B16EAA91 /* TLDHUDPaths.mm in Sources */,
+				0711872937F70DDEE05DEDB4 /* TLDHUDLog.mm in Sources */,
+				5D69FC280E7563936870A5C5 /* HUDLogView.swift in Sources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		496AF46EC2762DDF91F78F13 /* PBXCopyFilesBuildPhase */ = {
@@ -519,6 +987,7 @@
 				BD9039214C2D61D74846CF65,
 				EC21069A65F2CA977FE14A64,
 				547D009064F7C3F13BEF3460,
+				7FE9BEEA1075297AEF3CE052 /* HUD */,
 				389F15E87F1A2EC0C3E735AE /* Core */,
 					48F133681CA17893A020CF75 /* Compatibility */,
 				8FD69D4DC5413CB7C8CA8FB2 /* Renderer */,
@@ -531,6 +1000,7 @@
 			children = (
 				84337AD8D27FCD69AF2C4FC2,
 				1B442E42980596EBCD246D51,
+				2BC11440B67094E1D1302C22 /* TLDHUDDaemon */,
 			);
 			name = "Products";
 			sourceTree = "<group>";
@@ -560,13 +1030,14 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/Overlay/Private",
+					"$(SRCROOT)/HUD",
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconV2;
 				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -581,7 +1052,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -813,13 +1284,14 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/Overlay/Private",
+					"$(SRCROOT)/HUD",
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconV2;
 				CODE_SIGN_ENTITLEMENTS = "TrollLyricsDesk/TrollLyricsDesk.entitlements";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -834,7 +1306,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -861,7 +1333,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -873,7 +1345,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -929,10 +1401,12 @@
 				6EFAB1ECC0D092E20FE51FCD,
 				F667297ED3AB90EAC07798D4,
 				496AF46EC2762DDF91F78F13,
+				9D0CE4B5AC7B6E2D1D2B644A /* Embed HUD Daemon */,
 			);
 			buildRules = ( );
 			dependencies = (
 				EE1DEC3FECAFB049B3EB4C70,
+				2F0724C2C3847C2D7E17A822 /* PBXTargetDependency */,
 			);
 			name = "TrollLyricsDesk";
 			productName = "TrollLyricsDesk";
@@ -965,7 +1439,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -977,7 +1451,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -991,6 +1465,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B9C172B11C922BDC2533F6FD,
+				968DBE9282B383BF6BDE7C88 /* TLDHUDDaemon.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1247,6 +1722,7 @@
 				8236BC683D875B749B244608,
 				E7695063FA73476DC5917E8E,
 				CDEE6B04F5D5DA0211F2CBD7,
+				437D3047E782CAB87E9CF8FE /* HUDLogView.swift */,
 			);
 			name = "App";
 			path = "App";

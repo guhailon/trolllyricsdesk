@@ -23,14 +23,14 @@ enum LyricStore {
 
     static let dataKey = "lyric.snapshot"
 
-    /// build 26：日志里的 build 号只从这里取（统一常量）——升版时改这一处＋
+    /// build 29：日志里的 build 号只从这里取（统一常量）——升版时改这一处＋
     /// 两处 Info.plist 的 CFBundleVersion＋pbxproj 的 CURRENT_PROJECT_VERSION。
-    /// 自检 §19／§21 核对它与三处版本号一致；MediaRemoteAdapter 的探针日志用它插值，
+    /// 自检 §19／§21 核对它与三处版本号一致（2.0.0 起另加 daemon 常量 TLDHUDVersion.h）；MediaRemoteAdapter 的探针日志用它插值，
     /// 不再写死 "build 22"（build 23 的日志写 build 22 就是写死字串的教训）。
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 28（1.0.6）"
+    static let versionTag = "build 29（2.0.0）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -417,7 +417,7 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 1.0.6 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 2.0.0 · \(fmt.string(from: Date()))"
     }
 }
 
@@ -482,7 +482,7 @@ extension LyricStore {
     /// DisplayCapability.displayName 保持一致；自检 §15 专查两边一致）。
     static var displayCapabilityDescription: String {
         switch displayCapability {
-        case "nativeHUD": return "原生 HUD 悬浮歌词"
+        case "nativeHUD": return "HUD 守护进程悬浮歌词"
         case "pip": return "PiP 画中画歌词（实验）"
         case "inApp": return "应用内歌词"
         default: return "未定"

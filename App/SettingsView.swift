@@ -163,6 +163,11 @@ struct SettingsView: View {
     /// 1.0.5：运行模式显示（进设置页时读一次当时判定结果）。
     @State private var runModeText = "待探测（启动后复核中）"
 
+    /// 2.0.0：HUD 守护进程状态（PID 文件＋-check 的实时结果，不是偏好设置）。
+    @State private var hudStatusText = "守护进程：未知"
+    @State private var hudRunning = false
+    @State private var hudBusy = false
+
     var body: some View {
         NavigationView {
             Form {
@@ -309,6 +314,70 @@ struct SettingsView: View {
                     }
                 }
 
+                // 悬浮歌词（HUD 守护进程，2.0.0）
+                // 沿用 HUD-Test 设置页的写法：状态（PID 文件＋-check）＋
+                // Enable／Disable（后台队列调，不卡 UI）＋看日志。
+                // LC 模式下整个区段只显示禁用说明，绝不调 SetHUDEnabled
+                // （宿主跑不了 root 守护进程；见 docs/2.0.0-MERGE-DESIGN.md §5）。
+                Section(header: Text("悬浮歌词（HUD 守护进程）")) {
+
+                    if LyricStore.isLiveContainer {
+                        Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        HStack {
+                            Text("守护进程状态")
+                            Spacer()
+                            Text(hudStatusText)
+                                .foregroundColor(hudRunning ? .green : .red)
+                        }
+                        .onAppear {
+                            refreshHUDStatus()
+                        }
+
+                        Button("启用 HUD 守护进程") {
+                            hudBusy = true
+                            hudStatusText = "正在启用…"
+                            DispatchQueue.global(qos: .userInitiated).async {
+                                TLDHUDLog("main: enable requested")
+                                TLDHUDSetEnabled(true)
+                                TLDHUDLog("main: enable done")
+                                DispatchQueue.main.async {
+                                    hudBusy = false
+                                    refreshHUDStatus()
+                                }
+                            }
+                        }
+                        .disabled(hudBusy)
+
+                        Button("停用 HUD 守护进程") {
+                            hudBusy = true
+                            hudStatusText = "正在停用…"
+                            DispatchQueue.global(qos: .userInitiated).async {
+                                TLDHUDLog("main: disable requested")
+                                TLDHUDSetEnabled(false)
+                                TLDHUDLog("main: disable done")
+                                DispatchQueue.main.async {
+                                    hudBusy = false
+                                    refreshHUDStatus()
+                                }
+                            }
+                        }
+                        .disabled(hudBusy)
+
+                        Text("启用后歌词药丸显示在桌面与其它 App 之上，锁屏解锁后仍在跟；停用后药丸消失。每次启用都会重写 daemon 配置（重装后容器路径变了也不怕）。")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        NavigationLink {
+                            HUDLogView()
+                        } label: {
+                            Text("查看守护进程日志")
+                        }
+                    }
+                }
+
                 // 背景设置
                 Section(header: Text("背景设置")) {
 
@@ -387,6 +456,25 @@ struct SettingsView: View {
     }
 
     // MARK: - 保存设置
+
+    /// 2.0.0：读 HUD 守护进程状态（HUD-Test MainViewController.refreshStatus
+    /// 同款：-check 为准，PID 文件只用来显示 pid）。
+    private func refreshHUDStatus() {
+        let running = TLDHUDIsEnabled()
+        hudRunning = running
+        if running,
+           let pidString = try? String(
+               contentsOfFile: TLDHUDPIDPath(),
+               encoding: .utf8
+           ) {
+            let pid = pidString.trimmingCharacters(in: .whitespacesAndNewlines)
+            hudStatusText = "运行中（pid \(pid)）"
+        } else if running {
+            hudStatusText = "运行中"
+        } else {
+            hudStatusText = "未运行"
+        }
+    }
 
     private func saveSettings() {
         if let image = backgroundImage,

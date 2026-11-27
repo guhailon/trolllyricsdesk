@@ -60,6 +60,13 @@ willConnectToSession:(UISceneSession *)session
     }
 
     // ==== 悬浮歌词场景 ====
+    // 2.0.0：FrontBoard 悬浮场景已停用（见 docs/2.0.0-MERGE-DESIGN.md §6）。
+    // 即使系统递来一个 TLDSFloatingLyric* 会话，也只记一行、不建窗口。
+    // 悬浮歌词改由 HUD 守护进程显示。主界面分支不受影响。
+    if (isFloating) {
+        [appDelegate log:@"诊断2.0.0 FrontBoard 已停用：忽略悬浮场景会话"];
+        return;
+    }
     if (isFloating && !appDelegate.floatingSceneCreated) {
         TLDSFloatingSceneConnectCount += 1;
         appDelegate.floatingSceneCreated = YES;

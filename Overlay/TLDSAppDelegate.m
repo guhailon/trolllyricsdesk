@@ -12,6 +12,11 @@ static NSInteger TLDSStartFloatingOverlayCalls = 0;
 static NSInteger TLDSCreateFloatingSceneCalls = 0;
 static BOOL TLDSNativeWindowFixInstalled = NO;
 
+// 2.0.0：FrontBoard 悬浮场景已从使用者路径移除（见 docs/2.0.0-MERGE-DESIGN.md §6）。
+// 悬浮歌詞改由 HUD 守護进程顯示。下面的创建／重现／重建／复核／看门狗代码
+// 全数保留在源码与 git 历史里，只是不再被调用；回滚路径在 git，不在 UI。
+static const BOOL TLDSFrontBoardOverlayDisabled = YES;
+
 // Apply the native window fix only to our standalone process, not the host.
 // 与下面已有的 UIRootSceneWindow 分类（TLDSHook）同款：背景透明＋windowLevel 10000；
 // 分类在加载时就生效，宿主模式下这个 swizzle 不调用，只保留给巨魔模式。
@@ -157,40 +162,26 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         [[TLDSRuntime shared] setRunMode:@"trollstore"
                                   reason:@"TrollStore 正面证据已出（见安装环境行）"];
         [[TLDSRuntime shared] setDisplayCapability:@"nativeHUD"
-                                            reason:@"巨魔原生模式，悬浮窗照常，不复核"];
+                                            reason:@"2.0.0：FrontBoard 场景已停用，悬浮歌词改由 HUD 守护进程（设置页启用）"];
         self.modeDecided = YES;
         self.shouldVerify = NO;
-        [self log:@"运行模式：巨魔原生模式（TrollStore，私有接口全可用，悬浮窗照常）"];
-        [self log:@"诊断1.0.6 显示引擎：原生 HUD 悬浮歌词（巨魔原生模式，唯一档）"];
-        // 1.0.6（并入 ChatGPT 1.0.6）：原生分支也包 @try/@catch，Shell 注册抛异常就降级。
-        @try {
-            TLDSInstallNativeWindowFix();
-            [self startFloatingOverlay];
-        } @catch (NSException *e) {
-            [self log:[NSString stringWithFormat:@"诊断1.0.6 托管：Shell 注册抛异常：%@（直接降级普通签名兼容模式）", e.reason ?: @"?"]];
-            [self downgradeToCompatModeWithReasons:@[@"Shell 注册抛异常"]];
-        }
+        [self log:@"运行模式：巨魔原生模式（TrollStore，悬浮歌词改由 HUD 守护进程）"];
+        // 2.0.0：不再建 FrontBoard 悬浮场景（见设计 §6）；也不装 NativeWindowFix。
+        // 悬浮歌詞由 HUD 守護进程顯示，使用者在设置頁啟用；
+        // startFloatingOverlay 留在源码里，不再被调用。
+        [self log:@"诊断2.0.0 显示引擎：HUD 守护进程悬浮歌词（FrontBoard 场景已停用，设置页启用）"];
     } else if ([installEnv isEqualToString:@"livecontainer"]) {
-        self.shouldVerify = YES;
-        [[TLDSRuntime shared] setRunMode:@"probing"
-                                  reason:@"LiveContainer 信号已出，等托管复核定显示能力"];
-        [self log:@"运行模式：待探测（LiveContainer 信号已出，尝试创建悬浮窗，等 2 秒后托管复核定显示能力）"];
-        @try {
-            [self startFloatingOverlay];
-        } @catch (NSException *e) {
-            [self log:[NSString stringWithFormat:@"诊断1.0.6 托管：Shell 注册抛异常：%@（直接降级普通签名兼容模式）", e.reason ?: @"?"]];
-            [self downgradeToCompatModeWithReasons:@[@"Shell 注册抛异常"]];
-        }
-        // 兜底：Shell 回调一直不来（createFloatingScene 没跑、复核没排上），
-        // 6 秒后仍没结论就直接复核一次——scene 为空也会判兼容，不会一直悬在「待探测」。
-        __weak TLDSAppDelegate *weakSelf = self;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{
-            __strong TLDSAppDelegate *strongSelf = weakSelf;
-            if (strongSelf && !strongSelf.modeDecided) {
-                [strongSelf verifyFloatingVisibility];
-            }
-        });
+        // 2.0.0：LC 宿主直接定兼容，不再试建悬浮场景、不再等托管复核。
+        // HUD 守护进程在宿主里跑不了（见设计 §5）；只走应用内歌词。
+        self.shouldVerify = NO;
+        self.modeDecided = YES;
+        self.compatMode = YES;
+        [[TLDSRuntime shared] setRunMode:@"compat"
+                                  reason:@"LiveContainer 宿主：HUD 守护进程不可用，只走应用内歌词"];
+        [[TLDSRuntime shared] setDisplayCapability:@"inApp"
+                                            reason:@"LiveContainer 宿主：HUD 守护进程不可用，只走应用内歌词"];
+        [self log:@"运行模式：普通签名兼容模式（LiveContainer 宿主，HUD 守护进程不可用，只走应用内歌词）"];
+        [self log:@"诊断2.0.0 显示引擎：应用内歌词（LiveContainer 宿主唯一档）"];
     } else if ([installEnv isEqualToString:@"signature"]) {
         [[TLDSRuntime shared] setRunMode:@"compat"
                                   reason:@"普通签名（已证实被沙盒拦住），不建悬浮窗"];
@@ -205,25 +196,16 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         // unknown：安装环境未确认。先记原生候选（安装来源未知，尝试 HUD，
         // 并入 ChatGPT 1.0.6），尝试创建悬浮窗，等复核定显示能力；
         // 复核通过写原生候选、失败降级兼容——安装环境仍记 unknown，不改。
-        self.shouldVerify = YES;
+        // 2.0.0：不再试建悬浮场景、不再等托管复核。daemon 路径为候选，
+        // 由使用者在设置页启用；modeDecided 直接定，不悬在「待探测」。
+        self.shouldVerify = NO;
+        self.modeDecided = YES;
         [[TLDSRuntime shared] setRunMode:@"native-candidate"
                                   reason:@"未发现宿主信号；安装来源及权限未知（见安装环境行的证据）"];
-        [self log:@"运行模式：原生候选（安装来源未知，尝试 HUD）"];
-        [self log:@"诊断1.0.6 显示引擎：原生 HUD 悬浮歌词（候选，实际可见性未确认）"];
-        @try {
-            [self startFloatingOverlay];
-        } @catch (NSException *e) {
-            [self log:[NSString stringWithFormat:@"诊断1.0.6 托管：Shell 注册抛异常：%@（直接降级普通签名兼容模式）", e.reason ?: @"?"]];
-            [self downgradeToCompatModeWithReasons:@[@"Shell 注册抛异常"]];
-        }
-        __weak TLDSAppDelegate *weakSelf = self;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{
-            __strong TLDSAppDelegate *strongSelf = weakSelf;
-            if (strongSelf && !strongSelf.modeDecided) {
-                [strongSelf verifyFloatingVisibility];
-            }
-        });
+        [[TLDSRuntime shared] setDisplayCapability:@"nativeHUD"
+                                            reason:@"2.0.0：FrontBoard 场景已停用，悬浮歌词改由 HUD 守护进程（设置页启用）"];
+        [self log:@"运行模式：原生候选（安装来源未知，悬浮歌词改由 HUD 守护进程）"];
+        [self log:@"诊断2.0.0 显示引擎：HUD 守护进程悬浮歌词（候选，设置页启用）"];
     }
 
     // 1.0.6（第 7 项）：激活前后悬浮窗状态快照——Swift 侧 ActivationView 发通知，
@@ -233,6 +215,12 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                                  name:@"TLDSLogFloatingWindowState"
                                                object:nil];
 
+    // 2.0.0：以下三处触发点全数停用（FrontBoard 已移除）。注册代码留着，
+    // 只在 TLDSFrontBoardOverlayDisabled == NO 时才执行——现在恒为 YES。
+    // 锁屏监听／前台复核／2 秒看门狗的回调（TLDSLockStateChanged／
+    // tlds_reactivateFromForegroundNotification／tlds_watchdogReactivate）
+    // 因此永远收不到触发；入口另有 early-return 双保险。
+    if (!TLDSFrontBoardOverlayDisabled) {
     // 监听锁屏状态：解锁后重新激活悬浮窗（锁屏会隐藏 Shell 前台场景）
     // lockcomplete = 已锁定；lockstate = 锁定状态变化（含解锁）。两个都监听。
     CFNotificationCenterRef darwin = CFNotificationCenterGetDarwinNotifyCenter();
@@ -248,10 +236,12 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                     CFSTR("com.apple.springboard.lockcomplete"),
                                     NULL,
                                     CFNotificationSuspensionBehaviorDeliverImmediately);
-
+    }
     // App 回到前台 / 即将进入前台：只做轻量恢复，不重建。
     // 注意：didBecomeActive 在启动时也会触发，若这里重建会把刚建好的 scene
     // 立刻拆掉重建，时序不稳会闪退。完整重建只由锁屏解锁的 Darwin 通知驱动。
+    // 2.0.0：停用（同上）。
+    if (!TLDSFrontBoardOverlayDisabled) {
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(tlds_reactivateFromForegroundNotification)
                                                  name:UIApplicationDidBecomeActiveNotification
@@ -260,7 +250,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                              selector:@selector(tlds_reactivateFromForegroundNotification)
                                                  name:UIApplicationWillEnterForegroundNotification
                                                object:nil];
-
+    }
     // 1.0.5（第 6 项）：后台挂起及恢复日志——真机日志要能看出悬浮窗消失
     // 是不是因为 App 被挂起了。只记日志，不改行为。
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -284,6 +274,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // 配置 audio session，避免两套 AVAudioSession 设置互相冲突导致启动异常。
 
     // 兜底自检：每 2 秒检查一次悬浮窗可见性。
+    // 2.0.0：停用（同上）。
+    if (!TLDSFrontBoardOverlayDisabled) {
     self.visibilityWatchdog = [NSTimer scheduledTimerWithTimeInterval:2.0
                                                                target:self
                                                              selector:@selector(tlds_watchdogReactivate)
@@ -291,11 +283,17 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                                               repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.visibilityWatchdog
                               forMode:NSRunLoopCommonModes];
+    }
 
     return YES;
 }
 
 - (void)startFloatingOverlay {
+    // 2.0.0：FrontBoard 已停用——任何调用方到这里都直接返回，不建场景。
+    if (TLDSFrontBoardOverlayDisabled) {
+        [self log:@"诊断2.0.0 FrontBoard 已停用：startFloatingOverlay 不执行"];
+        return;
+    }
     // 1.0.5（第 5 项）：调用计数＋一次性守卫，重复时记「已初始化，跳过」。
     TLDSStartFloatingOverlayCalls += 1;
     [self log:[NSString stringWithFormat:@"诊断1.0.6 启动：startFloatingOverlay 调用第 %ld 次", (long)TLDSStartFloatingOverlayCalls]];
@@ -432,6 +430,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 非宿主（安装环境未确认）时复核通过写 native-candidate 后 return，
 /// 不再写 enhanced-host（并入 ChatGPT 1.0.6，皇上 23:18 批并）。
 - (void)verifyFloatingVisibility {
+    // 2.0.0：FrontBoard 已停用（托管复核随悬浮场景一起退役）。
+    if (TLDSFrontBoardOverlayDisabled) {
+        [self log:@"诊断2.0.0 FrontBoard 已停用：verifyFloatingVisibility 不执行"];
+        return;
+    }
     if (self.modeDecided || !self.shouldVerify) {
         return;
     }
@@ -647,6 +650,12 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 只验、不直接建场景——创建归 build 25 的启动兜底管；窗不在就走现成的
 /// rebuildFloatingOverlay（先销毁旧会话、只建一个窗，3 秒节流照常）。
 - (void)foregroundVerifyFloatingWindow {
+    // 2.0.0：FrontBoard 已停用。
+    if (TLDSFrontBoardOverlayDisabled) {
+        self.foregroundVerifyScheduled = NO;
+        [self log:@"诊断2.0.0 FrontBoard 已停用：foregroundVerify 不执行"];
+        return;
+    }
     self.foregroundVerifyScheduled = NO;
     // 普通签名兼容模式：不建窗、不重建（与 reactivate 同款守卫）。
     if (self.compatMode) {
@@ -740,6 +749,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 }
 
 - (void)reactivateFloatingOverlayWithTrigger:(NSString *)trigger {
+    // 2.0.0：FrontBoard 已停用。
+    if (TLDSFrontBoardOverlayDisabled) {
+        [self log:@"诊断2.0.0 FrontBoard 已停用：reactivate 不执行"];
+        return;
+    }
     // 1.0.5：普通签名兼容模式下不再恢复悬浮窗（只记一次，不让 2 秒看门狗刷屏）。
     if (self.compatMode) {
         if (!self.compatSkipLogged) {
@@ -899,6 +913,11 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 那是下一件（SpringBoard 侧），不在这次里。
 /// 幂等：锁屏瞬间误触发也无害（显示器灭着，重发设置不起作用；解锁通知来了再跑一次）。
 - (void)unlockRestoreFloatingOverlay {
+    // 2.0.0：FrontBoard 已停用。
+    if (TLDSFrontBoardOverlayDisabled) {
+        [self log:@"诊断2.0.0 FrontBoard 已停用：unlockRestore 不执行"];
+        return;
+    }
     // 1.0.5：普通签名兼容模式下不重现悬浮窗（只记一次，不让看门狗刷屏）。
     if (self.compatMode) {
         if (!self.compatSkipLogged) {

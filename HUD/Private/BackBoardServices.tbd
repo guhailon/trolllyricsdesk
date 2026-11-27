@@ -1,0 +1,10 @@
+--- !tapi-tbd-v3
+archs:           [ arm64 ]
+platform:        ios
+install-name:    '/System/Library/PrivateFrameworks/BackBoardServices.framework/BackBoardServices'
+current-version: 0
+objc-constraint: none
+exports:
+  - archs:           [ arm64 ]
+    symbols:         [ _BKSDisplayServicesStart ]
+...

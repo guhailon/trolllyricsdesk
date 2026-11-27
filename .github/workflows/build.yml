@@ -1,13 +1,17 @@
-# TrollStore 云端编译：TrollLyricsDesk v1.0.6
+# TrollStore 云端编译：TrollLyricsDesk v2.0.0
 # 做法照分屏那套（macOS runner + 签名，不需要任何密钥/ Secret，不需要 Mac）。
 # 区别：这是 Xcode 工程（SwiftUI App + Widget Extension），不用 Theos；
 # 先 xcodebuild 不签名导出（archive），再按 entitlements 签名，
 # 最后打成 .ipa。推代码就自动跑；跑完在该次运行的 Artifacts 里下载
-# 桌面歌词-1.0.6.ipa。
+# 桌面歌词-2.0.0.ipa。
 # build 24 起同时上传 dSYM（与 IPA 同一个 run 的产物）：archive 是
 # dwarf-with-dsym，xcarchive/dSYMs 里有 App 与 Widget 的 dSYM；以后定位
 # 崩溃不用再靠 offset 猜，拿 dSYM 直接符号化（验包时核对 dSYM 的 UUID
 # 与 IPA 二进制的 Mach-O UUID 一致）。
+# 2.0.0/build 29 起多一个 helper 二进制 TLDHUDDaemon（HUD 守护进程，
+# 见 docs/2.0.0-MERGE-DESIGN.md）：它由独立 target 编出、由 App target
+# 的 Run Script phase 拷进包内根目录，签名时单独按自己的 entitlements
+# 签（HUD/TLDHUDDaemon.entitlements），dSYMs 里应有第三个 dSYM。
 # 签名工具：zsign（Homebrew 1.1.3）。ldid 走不通了——
 # procursus7（2023 年）和 procursus8（2026-11-17 最新版）都读不懂
 # Xcode 26.6 编出的 Mach-O（Unknown header magic；run 45535776981、
@@ -53,6 +57,10 @@ jobs:
           APP=build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app
           ls -la "$APP"
           ls -la "$APP/PlugIns/"
+          test -f "$APP/TLDHUDDaemon" || (echo "MISSING helper binary TLDHUDDaemon" && exit 1)
+          test -f "$APP/TLDHUDDaemon.plist" || (echo "MISSING daemon plist template" && exit 1)
+          ls -la build/TrollLyricsDesk.xcarchive/dSYMs/
+          test "$(ls build/TrollLyricsDesk.xcarchive/dSYMs/ | wc -l)" -eq 3 || (echo "EXPECTED 3 dSYMs (App + Widget + daemon)" && exit 1)
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/PlugIns/TrollLyricsWidget.appex/Info.plist"
 
@@ -64,19 +72,22 @@ jobs:
           APP=build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app
           zsign -a -f -e TrollLyricsDesk/TrollLyricsDesk.entitlements "$APP/TrollLyricsDesk"
           zsign -a -f -e TrollLyricsWidget/TrollLyricsWidget.entitlements "$APP/PlugIns/TrollLyricsWidget.appex/TrollLyricsWidget"
+          zsign -a -f -e HUD/TLDHUDDaemon.entitlements "$APP/TLDHUDDaemon"
           echo "--- app entitlements ---"
           codesign -d --entitlements - "$APP/TrollLyricsDesk"
           echo "--- widget entitlements ---"
           codesign -d --entitlements - "$APP/PlugIns/TrollLyricsWidget.appex/TrollLyricsWidget"
+          echo "--- daemon entitlements ---"
+          codesign -d --entitlements - "$APP/TLDHUDDaemon"
 
       - name: Package IPA
         run: |
-          rm -rf Payload 桌面歌词-1.0.6.ipa
+          rm -rf Payload 桌面歌词-2.0.0.ipa
           mkdir Payload
           cp -r build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app Payload/
-          zip -qr 桌面歌词-1.0.6.ipa Payload
-          ls -la 桌面歌词-1.0.6.ipa
-          unzip -l 桌面歌词-1.0.6.ipa
+          zip -qr 桌面歌词-2.0.0.ipa Payload
+          ls -la 桌面歌词-2.0.0.ipa
+          unzip -l 桌面歌词-2.0.0.ipa
 
       - name: Package dSYM
         # build 24：CI 同时上传 dSYM（与 IPA 同一个 run 的产物）。
@@ -84,19 +95,19 @@ jobs:
         # 配置被动过，这一步要响亮地失败，不要悄悄传个空包上去。
         run: |
           ls -la build/TrollLyricsDesk.xcarchive/dSYMs/
-          rm -f 桌面歌词-1.0.6-dSYM.zip
-          zip -qr 桌面歌词-1.0.6-dSYM.zip build/TrollLyricsDesk.xcarchive/dSYMs
-          ls -la 桌面歌词-1.0.6-dSYM.zip
-          unzip -l 桌面歌词-1.0.6-dSYM.zip
+          rm -f 桌面歌词-2.0.0-dSYM.zip
+          zip -qr 桌面歌词-2.0.0-dSYM.zip build/TrollLyricsDesk.xcarchive/dSYMs
+          ls -la 桌面歌词-2.0.0-dSYM.zip
+          unzip -l 桌面歌词-2.0.0-dSYM.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 桌面歌词-1.0.6
-          path: 桌面歌词-1.0.6.ipa
+          name: 桌面歌词-2.0.0
+          path: 桌面歌词-2.0.0.ipa
 
       - name: Upload dSYM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 桌面歌词-1.0.6-dSYM
-          path: 桌面歌词-1.0.6-dSYM.zip
+          name: 桌面歌词-2.0.0-dSYM
+          path: 桌面歌词-2.0.0-dSYM.zip

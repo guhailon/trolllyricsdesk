@@ -34,6 +34,20 @@
 					ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
 				</BuildableReference>
 			</BuildActionEntry>
+				<BuildActionEntry
+					buildForTesting = "YES"
+					buildForRunning = "YES"
+					buildForProfiling = "YES"
+					buildForArchiving = "YES"
+					buildForAnalyzing = "YES">
+					<BuildableReference
+						BuildableIdentifier = "primary"
+						BlueprintIdentifier = "960CAD0A614B044C164BDDDF"
+						BuildableName = "TLDHUDDaemon"
+						BlueprintName = "TLDHUDDaemon"
+						ReferencedContainer = "container:TrollLyricsDesk.xcodeproj">
+					</BuildableReference>
+				</BuildActionEntry>
 		</BuildActionEntries>
 	</BuildAction>
 	<LaunchAction

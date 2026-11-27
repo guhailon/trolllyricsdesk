@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- LaunchDaemon template, bundled inside the .app.
+     The main app installs this (as root, via "-install-daemon") to
+     /var/jb/Library/LaunchDaemons/com.ycwl.Lyrics.hud.plist on rootless
+     (or /Library/LaunchDaemons/... on rootful), rewriting
+     ProgramArguments[0] to the real executable path first.
+     Keys follow TrollSpeed's ch.xxtou.hudservices.plist exactly. -->
+<dict>
+	<key>EnablePressuredExit</key>
+	<false/>
+	<key>EnableTransactions</key>
+	<false/>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>DISABLE_TWEAKS</key>
+		<string>1</string>
+	</dict>
+	<key>GroupName</key>
+	<string>wheel</string>
+	<key>HighPriorityIO</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.ycwl.Lyrics.hud</string>
+	<key>POSIXSpawnType</key>
+	<string>App</string>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/var/jb/Applications/TrollLyricsDesk.app/TLDHUDDaemon</string>
+		<string>-hud</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+	<key>UserName</key>
+	<string>root</string>
+	<key>_AdditionalProperties</key>
+	<dict>
+		<key>RunningBoard</key>
+		<dict>
+			<key>Managed</key>
+			<false/>
+			<key>Reported</key>
+			<false/>
+		</dict>
+	</dict>
+</dict>
+</plist>
