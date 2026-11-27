@@ -330,6 +330,19 @@ check("@escaping 回调修法不动（build 23）",
 check("显示名：HUD 守护进程悬浮歌词（两边一致）",
       ls.count("HUD 守护进程悬浮歌词") == 1
       and read("Compatibility/RuntimeEnvironment.swift").count("HUD 守护进程悬浮歌词") == 2)
+stale_test = []
+for d in ["HUD", "App", "Overlay", "Lyrics", "Core", "Renderer",
+          "Compatibility", "Diagnostics", "PlaybackEngine", "MusicProviders",
+          "TrollLyricsWidget", "TrollLyricsDesk"]:
+    for dirpath, _, files in os.walk(os.path.join(ROOT, d)):
+        for fn in files:
+            if fn.endswith((".swift", ".m", ".mm", ".h")):
+                p = os.path.join(dirpath, fn)
+                c = open(p, encoding="utf-8", errors="replace").read()
+                if "桌面歌词 1.0.6" in c or "桌面歌詞 1.0.6" in c:
+                    stale_test.append(os.path.relpath(p, ROOT))
+check("无残留 1.0.6 测试文字（SettingsView／PiPLyricsRenderer 曾漏改）",
+      not stale_test, str(stale_test))
 
 print("\n== 7. pbxproj：daemon target ==")
 check("pbxproj 大括号平衡", pbx.count("{") == pbx.count("}"))

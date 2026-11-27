@@ -105,7 +105,7 @@ final class PiPLyricsRenderer: NSObject, ObservableObject {
         setStatus("测试视频生成中…")
         let url = PiPFrameRenderer.testVideoURL()
         PiPFrameRenderer.renderVideo(
-            mainText: "悬浮测试 · 桌面歌词 1.0.6",
+            mainText: "悬浮测试 · 桌面歌词 2.0.0",
             subText: "PiP 实验 · 固定文字",
             to: url
         ) { [weak self] error in
