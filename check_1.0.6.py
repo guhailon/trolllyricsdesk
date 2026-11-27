@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.6 build 22 (LiveContainer 专项兼容修复版):
+"""Verify TrollLyricsDesk 1.0.6 build 23 (LiveContainer 专项兼容修复版):
 
 base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
   + build 21（2026-11-27 02:18 令，只修最可疑一处——启动时重建竞态）：
@@ -190,7 +190,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 22", pl.get("CFBundleVersion") == "22",
+    check(f"{rel}: build 23", pl.get("CFBundleVersion") == "23",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -421,9 +421,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 22（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 22;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 22;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 23（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 23;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 23;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -893,9 +893,13 @@ check("第 3 项：TLDSRuntime.start() 仍有 started 守卫（不建第二个�
       "startCallCount" in ta and "已启动，跳过" in ta)
 mrd = read("Diagnostics/MediaRemoteDiagnostics.swift")
 mra = read("MusicProviders/MediaRemoteAdapter.swift")
-check("第 4 项：MediaRemoteAdapter 签名修正（ChatGPT 并入，P0 首要怀疑）——GetNowPlayingInfo 回调改 block",
-      "@convention(block) (CFDictionary?) -> Void" in mra
-      and "@escaping (CFDictionary?) -> Void" not in mra)
+# build 23（2026-11-27 09:58 第三次审计定）：上面这条旧断言被推翻——
+# @convention(block) 正是崩点：编译器在调用点后插 swift_isEscapingClosureAtFileLocation
+# 检查，MediaRemote（异步 XPC）调用返回后仍持有 block，检查为真 → brk #1（0x44A5C）。
+# 1.0.5 的 @escaping 才是对的，build 23 改回去；isPlaying 探针仍是 block（未动）。
+check("第 4 项：MediaRemoteAdapter 签名修正（build 23 改回 @escaping——@convention(block) 是崩点）",
+      "@escaping (CFDictionary?) -> Void" in mra
+      and "@convention(block) (CFDictionary?) -> Void" not in mra)
 check("第 4 项：注册改只收队列（删掉 1.0.5 的假回调——系统根本不调它）",
       "MRMediaRemoteRegisterForNowPlayingNotificationsFn" in mra
       and "DispatchQueue\n) -> Void" in mra)
@@ -1042,6 +1046,37 @@ check("build 22：其余不动——#1 守卫、SecTask 三参数、native-candi
       and "timeOffset" in ls)
 
 
+print("\n== 18. build 23 只改回调回 @escaping（病根修复实验，第三次审计 2026-11-27 09:58 定） ==")
+mra23 = read("MusicProviders/MediaRemoteAdapter.swift")
+check("build 23：GetNowPlayingInfo 回调改回 @escaping（typealias 里在位）",
+      "private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (" in mra23
+      and "@escaping (CFDictionary?) -> Void" in mra23)
+_i_fn = mra23.index("MRMediaRemoteGetNowPlayingInfoFn")
+_i_esc = mra23.index("@escaping (CFDictionary?) -> Void")
+check("build 23：@escaping 就在 GetNowPlayingInfo 的 typealias 里（不在别处）",
+      _i_fn < _i_esc < _i_fn + 200,
+      f"fn={_i_fn} escaping={_i_esc}")
+check("build 23：GetNowPlayingInfo 回调不再是 @convention(block)（CFDictionary 版不在）",
+      "@convention(block) (CFDictionary?) -> Void" not in mra23)
+check("build 23：isPlaying 探针的 typealias 绝对未动——仍是 @convention(block) (UInt8)",
+      "@convention(block) (UInt8) -> Void" in mra23
+      and "MRMediaRemoteGetNowPlayingApplicationIsPlayingFn" in mra23)
+check("build 23：没有用 withoutActuallyEscaping 包起来，也没有删回调",
+      "withoutActuallyEscaping" not in mra23
+      and "getNowPlayingInfo(" in mra23
+      and "MediaRemoteDiagnostics.recordRequest()" in mra23)
+check("build 23：isPlaying 探针仍禁用（build 22 标记＋return 仍在）",
+      "诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用" in mra23
+      and "\n    return\n    guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)" in mra23)
+check("build 23：其余不动——#1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements 均未碰",
+      "floatingSceneEverConnected" in read("Overlay/TLDSAppDelegate.m")
+      and "(UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?)" in read("Compatibility/EffectiveEntitlements.swift")
+      and "native-candidate" in read("Overlay/TLDSAppDelegate.m")
+      and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
+      and "https://guhailong-repo.pages.dev/api/verify" in ls
+      and "timeOffset" in ls)
+
+
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
 open_item("macOS 编译未做（Linux 没 Xcode/swiftc）",
           "ActivityKit 弱链接、DynamicIsland 展开区、if #available 组合、"
@@ -1143,6 +1178,10 @@ open_item("build 22 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页
           "只禁 isPlaying 探针：决定性实验——若不闪了，#2 就是崩点（或崩点之一）；"
           "若还闪，#2 排除，下一处查 #4 场景创建时序；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"
           "日志里应有「build 22：isPlaying 探针已禁用」行")
+open_item("build 23 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
+          "只改 GetNowPlayingInfo 回调回 @escaping：病根修复实验——若不闪了，逃逸检查就是崩点；"
+          "若还闪，#2／回调签名都排除，下一处查 #4 场景创建时序；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"
+          "日志里仍应有「build 22：isPlaying 探针已禁用」行（探针仍禁着）")
 open_item("build 21 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
           "只修重建竞态：主页面出现那一刻 DidBecomeActive／2 秒看门狗在连接窗口里跳过恢复，"
           "rebuild 不销毁未连上的会话；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"

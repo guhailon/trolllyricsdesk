@@ -13,7 +13,7 @@ import Foundation
 /// 跟读不到一样返回 nil，不崩。
 private typealias MRMediaRemoteGetNowPlayingInfoFn = @convention(c) (
     DispatchQueue,
-    @convention(block) (CFDictionary?) -> Void
+    @escaping (CFDictionary?) -> Void
 ) -> Void
 
 /// 1.0.5 诊断（第 1 项）：MRMediaRemoteRegisterForNowPlayingNotifications
