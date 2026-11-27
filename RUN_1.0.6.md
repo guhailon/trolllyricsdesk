@@ -472,3 +472,70 @@
 - 第 2 笔（本节）：RUN 补 build 26 一节（只改文档，触发的 run 不用跟）。
 - 头 run：45957727157（head f3dceac）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build26-newbase.ipa`，1,677,945 B，SHA256 `c6f39e5f…`，验包 94 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个；entitlements 与 build 25 一字不差。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
+
+## §十七 build 27（1.0.6/build 27，解锁重现）
+
+### 为什么只做这一件
+
+- 皇上 **2026-11-27 15:45 点选「继续修：解锁后直接有窗」**（三选一：测第 3 项／看日志确认复核那行／继续修解锁后直接有窗）。
+- 真机证据（iPhone 11／TrollStore，build 26，皇上 2026-11-27 15:39–15:44 实测）：
+  - ① 冷启动后退到主屏幕，悬浮窗在——**可以**（15:42 控制中心截图：窗顶上有歌词「却又为你乱了思绪」，正在跟）。
+  - ② 锁屏→解锁→打开一次 App，窗回不回来——**打开就回来了**（皇上原话「打开就回来了」；只解锁不开 App，主屏幕上还是没窗）。
+  - ③ 锁屏久一点还没测。
+- 皇上 **2026-11-27 15:46 追加验收**：「只有点开歌词桌面才会有显示歌词」——现在歌词只在点开 App 时才显示。验收不只是窗框出现：**锁屏→解锁后主屏幕上就要有窗、窗里就是当前歌词行（跟着歌走），不用开 App**。后台引擎一直在跑（15:04:25／28 都有新歌检测行），内容管线没断，缺的是显示。
+- **不上源已定**（皇上 2026-11-27 10:22），不部署到越狱源；真机验收继续。**未发给皇上**（等上级转）。
+
+### 诊断：为什么后台建的场景从不显示（代码＋日志坐实到哪一步，诚实写）
+
+- **坐实的**：解锁重建的创建路径与首启一字不差——同款 `createFloatingSceneWithIdentifier:`、同款 settings（foreground=YES、level=1）、同款连接顺序、同款窗口属性（windowLevel=10000、alpha=1.00、isHidden=NO、windowScene 非空）。10:53（build 24）与 14:59:44（1.0.5）两次，新场景都连上了、都拿到了 WillEnterForeground、窗口都报「已显示」，主屏幕上却什么都没有。**唯一变量是创建时 App 在前台还是后台**：前台建的可见、退后台后继续可见（①过了）；后台建的本地全通、永不合成，直到 App 回前台（②不开 App 就没窗、开了就回来）。
+- **坐实的**：旧场景锁屏时不断开——全量 1.0.5 日志（三次启动、多轮锁屏）里**一次「悬浮歌词场景断开」都没有**；会话／窗口／binder 都活着。锁屏时系统只把它降级（foreground=NO、窗口隐藏），不是销毁。
+- **坐实的**：解锁重建在解锁后约 0.15 秒就把旧场景销毁了（第一次轮询即触发），比 2 秒看门狗的 reactivate（做的是正确的重现操作：重发 foreground 设置＋重加 binder＋取消隐藏）先到——看门狗从来没机会在旧场景上重现，只能在新场景上白做。
+- **钉不死的（诚实写）**：重现旧场景能不能合成，代码＋日志证明不了——本地状态好≠屏幕可见（老教训）。重现的依据是「旧场景的呈现是前台建立的，锁屏只降级不销毁」，与「后台新建场景从不合成」的不对称吻合，是目前最有希望的修法，但**仍是假设**，真机肉眼才是 verdict。若重现也不行，说明后台什么都恢复不了可见——那要 SpringBoard 侧的路子，不在这次里。
+- **歌词内容不用另推**：悬浮窗控制器 0.25 秒定时器一直在读共享快照、后台也在跑（15:04:25／28 新歌检测行），窗口隐藏时标签照样更新；重现后窗里直接就是当前行。`refresh()` 里 `applyVisibility()` 只看开关＋激活，不看锁屏。
+
+### 改了什么（一笔提交，产品代码＋版本＋自检 §22）
+
+只改 `Overlay/TLDSAppDelegate.h`／`.m`＋版本 4 处＋自检；其余一字未动。
+
+1. **解锁重现（新方法 `unlockRestoreFloatingOverlay`，解锁恢复主力）**：Darwin 锁屏轮询确认解锁后调它，不再直接调 `rebuildFloatingOverlay`。旧场景可用（场景对象非空＋已完成连接＋窗口在，会话在 openSessions 里是佐证、只记日志不进判定）时记「诊断1.0.6 解锁重现：旧场景还在（标识 …，会话在 openSessions：是／否），重发 foreground 设置＋取消隐藏，不重建」，走现成的 `reactivateFloatingOverlayWithTrigger:@"解锁重现"`（重发 foreground 设置、重加 binder、取消隐藏窗口／视图——与 2 秒看门狗同款操作）；不销毁、不新建、不换标识。
+2. **兜底**：旧场景不在时记「诊断1.0.6 解锁重现：旧场景已不在（场景／已连／窗口／会话在 openSessions），走完整重建」，走现成的 `rebuildFloatingOverlay`（先销毁旧会话、只建一个窗，3 秒节流照常）。
+3. **重现后复核**：重现后 2 秒记一次「诊断1.0.6 解锁重现后复核：窗口：已创建，isHidden=…，alpha=…，windowScene=…，frame=…（本地状态≠屏幕可见，见主屏幕为准）」——重现跑没跑、本地状态如何，下次真机好判断；不下「可见」结论。
+4. **幂等**：锁屏瞬间误触发也无害（显示器灭着，重发设置不起作用；解锁通知来了再跑一次）。2 秒看门狗每轮也在做同一件事，现在不重建，它每轮都是重现。
+5. **不动的**：完整重建 `rebuildFloatingOverlay` 原样不动（3 秒节流、未连上跳过销毁、换新标识全在）；build 26 前台复核不动（`foregroundVerifyFloatingWindow`＋触发 foreground-verify）；2 秒看门狗不动；build 25 启动兜底不动；#1 守卫不动；BackgroundKeepAlive 不动；MediaRemote 回调 `@escaping` 不动（build 23 闪退修法）；激活、逐歌偏移、Engine Fix、锁屏（继续不恢复）、entitlements（零新增）、无 TCP 桥、无新 UI、无 LC 主线改动、歌词「·」识别修法**不在这次里**（那是 build 28，皇上 15:01 定先不做，15:45 这次也没批）。
+- **版本**：1.0.6 不变，build 26→27（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处＋`LyricStore.versionTag = "build 27（1.0.6）"`，19 字节 UTF-8，仍进 `__cstring`；build.yml 里没有版本号，不动——与 build 21–26 同）。
+- **diff 规模**：7 个文件（产品代码 3 个文件：TLDSAppDelegate.m +93/-7、TLDSAppDelegate.h +9/-1、LyricStore.swift 版本 1 行；版本 3 个文件各 1 行；自检 `check_1.0.6.py` §22 新加 13 项 checks＋5 项 OPEN，§2／§19 版本断言 26→27，§21 的版本号三处一致移到 §22，§6 附近 pbxproj 断言 26→27；总 +183/-24）。注：Info.plist 改版时先用 plistlib 重写过一次（键重排＋注释丢了），已 revert，改回逐字 sed 只改 CFBundleVersion 一行——以后改 plist 一律逐字改，不要用 plistlib 重写。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**327 PASS，0 FAIL，50 OPEN**（build 26 是 315 PASS／45 OPEN；§22 加 13 项——版本号三处一致、解锁重现方法（.m 实现＋.h 声明）、解锁入口（轮询调 unlockRestore、不再直接调 rebuild）、重现优先（旧场景可用三项＋触发「解锁重现」＋「旧场景还在」行）、兜底（「旧场景已不在」＋走重建）、重现后复核（2 秒＋本地状态≠可见行）、完整重建不动、build 26 前台复核在位、build 25 启动兜底在位、#1 守卫不动、保活不动、@escaping 不动、「·」修法不在这次里，全过；OPEN 加 5 条——build 27 真机验三项＋主页面不闪退＋只建一个窗）。
+
+### 待真机验证（巨魔机 iPhone 11／iOS 16.5／Dopamine rootless／TrollStore）
+
+1. **① 冷启动后退到主屏幕，悬浮窗在不在（歌词当前行在不在）**：build 26 那项已过——冷启动 2 秒后看门狗兜底应已建好窗，退到主屏幕窗应在，歌词应是当前行；日志里应有「启动兜底」或「系统 Shell 注册成功」＋创建行。
+2. **② 锁屏→解锁→主屏幕，悬浮窗和歌词回不回来（核心验收，不开 App）**：解锁后主屏幕上应直接有窗，窗里是当前歌词行（跟着歌走）；日志里应有「解锁重现：旧场景还在」＋「解锁重现后复核」行。**注意：本地状态好≠屏幕可见——以主屏幕肉眼为准，日志只证明重现跑没跑。** 若解锁后主屏幕还是没窗，记下「解锁重现后复核」那行写什么（窗口在不在、isHidden、windowScene）——重现跑没跑、本地状态如何，是下一修的唯一依据。
+3. **③ 锁屏久一点（等进程被杀）→解锁→打开一次 App，窗回不回来**：进程被杀后重启动，2 秒内看门狗兜底建窗，打开 App 再退到主屏幕窗应回来；日志里应有「启动兜底」行，且只建一个窗（回调守卫，不建两个）。
+4. **主页面不闪退**（#1 守卫仍在）：连接窗口（10 秒内）看门狗仍跳过恢复；进主页面不闪、悬浮窗／激活／逐歌偏移照常。
+5. **只建一个窗**：解锁重现不销毁、不新建；旧场景不在走重建时先销毁旧会话、只建一个新窗；日志里活着的悬浮场景数应为 1，悬浮窗控制器初始化次数不应多一次。
+
+### 构建（头 run 45961535492，head e712c10）
+
+- **completed／success，13 步全 success**（job Build 13 步全 success）。轮询读 `status_field`／`conclusion`。
+- **0 次池子取消**，第 1 轮 poll 已 in_progress，第 2 轮 success（约 2 分钟）。
+
+### 验包（编成后下载真 IPA＋dSYM 亲验，不要只信 run 绿）
+
+- **验包 PASS（100 项，`hidden_files/verify_1.0.6_build27.py`，详见 `hidden_files/ipa_verify_1.0.6_build27.log`）**——build 26 是 94 项；新增 6 项：`build 27`／`解锁重现：旧场景还在`／`解锁重现：旧场景已不在`／`解锁重现后复核`／`unlockRestoreFloatingOverlay`／`本地状态≠屏幕可见，见主屏幕为准` 在位，`build 26` 不在位（`build 25`／`build 24`／`build 22`／`build 21`／`build 23` 仍不在位）。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build27-newbase.ipa`（另存，**build 26 的 `桌面歌詞-1.0.6-build26-newbase.ipa` 未动**；文件名继续用繁體「歌詞」），**1,678,588 B，SHA256 `4e7e3659dc869f330ae5332a7daea8355c45605910a20441271e493c806fad36`**（artifact id 15179974910，名 桌面歌词-1.0.6，zip 1,676,965 B；解出与拷本 SHA 一致）。
+- dSYM：artifact id 15180453905，名 `桌面歌词-1.0.6-dSYM`，zip **2,157,791 B**，存档 `hidden_files/artifact-1.0.6-build27/`（连同 IPA zip 与解出的 IPA）。内含 `TrollLyricsDesk.app.dSYM` 与 `TrollLyricsWidget.appex.dSYM`。
+- **dSYM UUID 与 IPA 二进制的 Mach-O UUID 一致（两对都对得上，详见 `hidden_files/dsym_uuid_build27.log`）**：App `eca0c5a604a53de8917c98143e7ce3bd`、Widget `bc1cc20b5a673049a24d6837449392b8`——Widget 的 UUID 与 build 24／25／26 一字不差（Widget 代码没动，合理）；zsign 重签没有改 LC_UUID。
+- **entitlements 与 build 26 一字不差（二进制级核对）**：app（3316B，SHA 前 16 位 `b6a9f77ea2237d00`）与 widget（472B，SHA 前 16 位 `63c0e2c366ea9d85`）均与 build 26 记录一字不差。
+- 版本 1.0.6／build 27、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 27、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0；两二进制均为 thin arm64。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **逃逸检查点仍是 2 个（详见 `hidden_files/escape_check_build27.log`）**：`hidden_files/escape_check_count.py` 数出 2 个点——0xE964／0xE99C，同属函数 0xE8C0（相对 build 26 的 0xE384／0xE3BC／函数 0xE2E0 平移 +0x5E0，是新增 ObjC 代码把 Swift 段往后推的同一函数；**0x44A5C 没有回来**）。注：build 27 没有 Swift 改动（只改 ObjC .m／.h＋版本），逃逸点数不变是预期的。
+
+### 提交链（build 27）
+
+- 第 1 笔 `e712c10`：解锁重现＋版本 1.0.6/27＋自检 §22（7 个文件，+183/-24）。
+- 第 2 笔（本节）：RUN 补 build 27 一节（只改文档，触发的 run 不用跟）。
+- 头 run：45961535492（head e712c10）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build27-newbase.ipa`，1,678,588 B，SHA256 `4e7e3659…`，验包 100 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个；entitlements 与 build 26 一字不差。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
