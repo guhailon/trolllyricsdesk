@@ -781,7 +781,7 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         }];
         [self log:[NSString stringWithFormat:@"锁屏恢复：已请求销毁旧场景会话（标识 %@）", oldIdentifier]];
     } else if (oldSession) {
-        [self log:[NSString stringWithFormat:@"锁屏恢复：跳过销毁旧场景会话（标识 %@）：旧场景尚未完成连接（build 21 竞态修），只摘 binder＋藏窗口，让它自然完成或被放弃", oldIdentifier]];
+        [self log:[NSString stringWithFormat:@"锁屏恢复：跳过销毁旧场景会话（标识 %@）：旧场景尚未完成连接（竞态修），只摘 binder＋藏窗口，让它自然完成或被放弃", oldIdentifier]];
     } else {
         [self log:[NSString stringWithFormat:@"锁屏恢复：未找到旧场景会话（标识 %@，可能已由系统回收）", oldIdentifier]];
     }

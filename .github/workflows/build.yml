@@ -4,6 +4,10 @@
 # 先 xcodebuild 不签名导出（archive），再按 entitlements 签名，
 # 最后打成 .ipa。推代码就自动跑；跑完在该次运行的 Artifacts 里下载
 # 桌面歌词-1.0.6.ipa。
+# build 24 起同时上传 dSYM（与 IPA 同一个 run 的产物）：archive 是
+# dwarf-with-dsym，xcarchive/dSYMs 里有 App 与 Widget 的 dSYM；以后定位
+# 崩溃不用再靠 offset 猜，拿 dSYM 直接符号化（验包时核对 dSYM 的 UUID
+# 与 IPA 二进制的 Mach-O UUID 一致）。
 # 签名工具：zsign（Homebrew 1.1.3）。ldid 走不通了——
 # procursus7（2023 年）和 procursus8（2026-11-17 最新版）都读不懂
 # Xcode 26.6 编出的 Mach-O（Unknown header magic；run 45535776981、
@@ -74,8 +78,25 @@ jobs:
           ls -la 桌面歌词-1.0.6.ipa
           unzip -l 桌面歌词-1.0.6.ipa
 
+      - name: Package dSYM
+        # build 24：CI 同时上传 dSYM（与 IPA 同一个 run 的产物）。
+        # ls 先验 dSYMs 在不在——archive 是 dwarf-with-dsym，没有就是构建
+        # 配置被动过，这一步要响亮地失败，不要悄悄传个空包上去。
+        run: |
+          ls -la build/TrollLyricsDesk.xcarchive/dSYMs/
+          rm -f 桌面歌词-1.0.6-dSYM.zip
+          zip -qr 桌面歌词-1.0.6-dSYM.zip build/TrollLyricsDesk.xcarchive/dSYMs
+          ls -la 桌面歌词-1.0.6-dSYM.zip
+          unzip -l 桌面歌词-1.0.6-dSYM.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: 桌面歌词-1.0.6
           path: 桌面歌词-1.0.6.ipa
+
+      - name: Upload dSYM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 桌面歌词-1.0.6-dSYM
+          path: 桌面歌词-1.0.6-dSYM.zip

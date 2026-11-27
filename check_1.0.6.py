@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.6 build 23 (LiveContainer 专项兼容修复版):
+"""Verify TrollLyricsDesk 1.0.6 build 24 (LiveContainer 专项兼容修复版):
 
 base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
   + build 21（2026-11-27 02:18 令，只修最可疑一处——启动时重建竞态）：
@@ -18,6 +18,18 @@ base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
     （task、key、CFErrorRef *error），调用补 nil；2 参数版是真隐患
     （哪个键查不到就真崩），但 7 个键在 entitlements 里全都有、查都会成功，
     且它跑在主页面出现之前，所以这次「主页面立刻闪」很可能不是它。
+  + build 24（2026-11-27 10:20 令，巨魔主线修复版——LC 宿主研究暂停，
+    巨魔版 iPhone 11 是正式开发主线；皇上 10:22 定不上源，不部署到越狱源）：
+    只做五件——(1) LC 环境识别修复：LC_HOME_PATH 环境变量排第一
+    （旧统一版信号一，commit 893f066）＋包路径 /Documents/Applications/
+    （旧线信号二），检测时把进程名／Home／bundle／argv[0]／各信号值写进日志；
+    (2) 诊断日志版本标记：写死的 "build 22" 改走 LyricStore.versionTag
+    统一常量（build 24），TLDSAppDelegate.m:784 运行时字串里的 "build 21"
+    也去掉；(3) dSYM：build.yml 同时上传 dSYM 产物（与 IPA 同一个 run）；
+    (4) 完整诊断日志保留：OverlayDiagnostics.logSummary() 接到
+    setRunMode（全树无调用者是 1.0.5 的教训重演）；(5) 权限不足安全降级：
+    只审计，确有真实 trap 风险才最小修法——审计结论是无真实风险处，
+    不改代码；@escaping 修法不动，逃逸检查点保持 2 个。
   + 皇上 10 项（2026-11-26 22:59 令）：
     1. RuntimeEnvironment 重写：禁止「非 LC 就当 TrollStore」；
        TrollStore 必须用正面证据判（EffectiveEntitlements 实测）。
@@ -48,7 +60,7 @@ base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
     诊断页诚实文案、版本 1.0.6／build 20。
     不在 ZIP 里的继续按 10 项做：14:59:44 第二个悬浮窗（重建先销毁旧窗）、
     LC 实际有效权限测量（第 5 项）、后台保活专项、PiP 渲染优化（第 8／9 项）。
-  + 版本 1.0.6, build 21, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
+  + 版本 1.0.6, build 24, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
     独立客户端／双 IPA；不恢复锁屏歌词；不修改现有 UI。
   + 1.0.5 的功能（五件／激活／三档／三渲染器／PiP 实验／Engine Fix／
     同步修正）全部保留，只做加法诊断与判定分离。
@@ -190,7 +202,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 23", pl.get("CFBundleVersion") == "23",
+    check(f"{rel}: build 24", pl.get("CFBundleVersion") == "24",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -421,9 +433,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 23（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 23;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 23;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 24（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 24;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 24;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -1016,14 +1028,17 @@ check("build 21：SecTask 7 个探针键仍在 entitlements 文件里（查都�
                     "com.apple.backboard.client", "get-task-allow"]))
 print("\n== 17. build 22 只禁 isPlaying 探针（决定性实验，皇上 2026-11-27 09:22 定） ==")
 mra22 = read("MusicProviders/MediaRemoteAdapter.swift")
-check("build 22：禁用标记字串在源码里在位",
-      "诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用" in mra22)
+# build 24：禁用标记字串改走 LyricStore.versionTag 插值，不再写死 "build 22"
+#（build 23 的日志写 build 22 就是写死字串的教训）；探针本身仍禁用。
+check("build 22：禁用标记字串在源码里在位（build 24 起走 versionTag 插值）",
+      'LyricLogger.log("诊断1.0.6 MediaRemote：\\(LyricStore.versionTag)：isPlaying 探针已禁用")' in mra22
+      and "build 22：isPlaying 探针已禁用" not in mra22)
 check("build 22：queryIsPlayingIfNeeded() 在 5 秒节流检查后记日志＋return",
       "timeIntervalSince(last) < 5" in mra22
-      and 'LyricLogger.log("诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用")' in mra22
+      and 'LyricLogger.log("诊断1.0.6 MediaRemote：\\(LyricStore.versionTag)：isPlaying 探针已禁用")' in mra22
       and "\n    return\n    guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)" in mra22)
 _i_throttle = mra22.index("timeIntervalSince(last) < 5")
-_i_log = mra22.index("build 22：isPlaying 探针已禁用")
+_i_log = mra22.index("isPlaying 探针已禁用")
 _i_sym = mra22.index("bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)")
 _i_cast = mra22.index("unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingFn.self)")
 check("build 22：return 在 bridge.symbol／dlsym 之前——探针调用代码仍在但不可达",
@@ -1067,8 +1082,8 @@ check("build 23：没有用 withoutActuallyEscaping 包起来，也没有删回�
       "withoutActuallyEscaping" not in mra23
       and "getNowPlayingInfo(" in mra23
       and "MediaRemoteDiagnostics.recordRequest()" in mra23)
-check("build 23：isPlaying 探针仍禁用（build 22 标记＋return 仍在）",
-      "诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用" in mra23
+check("build 23：isPlaying 探针仍禁用（build 24 起标记走 versionTag＋return 仍在）",
+      'LyricLogger.log("诊断1.0.6 MediaRemote：\\(LyricStore.versionTag)：isPlaying 探针已禁用")' in mra23
       and "\n    return\n    guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)" in mra23)
 check("build 23：其余不动——#1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements 均未碰",
       "floatingSceneEverConnected" in read("Overlay/TLDSAppDelegate.m")
@@ -1077,6 +1092,89 @@ check("build 23：其余不动——#1 守卫、SecTask 三参数、native-candi
       and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
       and "https://guhailong-repo.pages.dev/api/verify" in ls
       and "timeOffset" in ls)
+
+
+print("\n== 19. build 24 五件修（巨魔主线修复版，皇上 2026-11-27 10:20 定） ==")
+ls24 = read("Lyrics/LyricStore.swift")
+ta24 = read("App/TrollLyricsDeskApp.swift")
+mra24 = read("MusicProviders/MediaRemoteAdapter.swift")
+td24 = read("Overlay/TLDSAppDelegate.m")
+by24 = read(".github/workflows/build.yml")
+_vt = re.search(r'static let versionTag = "([^"]+)"', ls24)
+check("build 24（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 24",
+      _vt is not None and _vt.group(1).startswith("build 24"),
+      _vt.group(1) if _vt else "无 versionTag")
+check("build 24（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 24）",
+      _vt is not None and len(_vt.group(1).encode("utf-8")) > 15,
+      f"{len(_vt.group(1).encode('utf-8'))} bytes" if _vt else "无 versionTag")
+check("build 24（第 2 项）：探针日志走 versionTag 插值，写死的 build 22 字串不在源码运行时串里",
+      'LyricLogger.log("诊断1.0.6 MediaRemote：\\(LyricStore.versionTag)：isPlaying 探针已禁用")' in mra24
+      and '"build 22' not in mra24
+      and "build 22：isPlaying 探针已禁用" not in mra24)
+check("build 24（第 2 项）：@escaping 闭包里显式 self. 仍在（build 23 编译强制那词没弄丢）",
+      "self.queryIsPlayingIfNeeded()" in mra24)
+check("build 24（第 2 项）：全树核查——TLDSAppDelegate.m 运行时字串里的 build 21 已去掉（只剩注释里的历史引用）",
+      "（build 21 竞态修）" not in td24
+      and "（竞态修）" in td24
+      and "跳过销毁旧场景会话" in td24)
+check("build 24（第 1 项）：LC_HOME_PATH 环境变量排第一——在 plist 键／路径信号之前判",
+      'environment["LC_HOME_PATH"]' in ls24
+      and ls24.index('if ProcessInfo.processInfo.environment["LC_HOME_PATH"]') < ls24.index('if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer")')
+      and ls24.index('if ProcessInfo.processInfo.environment["LC_HOME_PATH"]') < ls24.index('lower.contains("livecontainer")'))
+check("build 24（第 1 项）：包路径 /Documents/Applications/ 信号在（旧线信号二）",
+      'contains("/documents/applications/")' in ls24)
+check("build 24（第 1 项）：信号明细写清 LC_HOME_PATH 与 /Documents/Applications/ 命中情况",
+      "环境变量 LC_HOME_PATH 已设" in ls24
+      and "包路径含 /Documents/Applications/" in ls24)
+check("build 24（第 1 项）：检测时把实测值写进日志——logEnvironmentDetection 在 detectInstallEnvironment 里调",
+      "func logEnvironmentDetection()" in ta24
+      and "logEnvironmentDetection()" in ta24
+      and ta24.index("func logEnvironmentDetection()") > ta24.index("func detectInstallEnvironment()"))
+check("build 24（第 1 项）：环境检测日志含进程名／Home／bundle／argv[0]／LC_HOME_PATH",
+      "processName" in ta24 and "NSHomeDirectory()" in ta24
+      and "Bundle.main.bundlePath" in ta24
+      and "arguments.first" in ta24
+      and 'environment["LC_HOME_PATH"]' in ta24)
+check("build 24（第 2 项）：启动时版本对账行——versionTag 与 CFBundleVersion 并排记进日志",
+      "诊断1.0.6 版本：" in ta24
+      and "LyricStore.versionTag" in ta24
+      and 'CFBundleVersion' in ta24)
+check("build 24（第 1 项）：TrollStore 检测不动——SecTask 正面证据仍在 detectInstallEnvironment 之前判 LC",
+      "LyricStore.isLiveContainer" in read("Compatibility/RuntimeEnvironment.swift")
+      and "trollStoreEvidence()" in read("Compatibility/RuntimeEnvironment.swift")
+      and read("Compatibility/RuntimeEnvironment.swift").index("LyricStore.isLiveContainer") < read("Compatibility/RuntimeEnvironment.swift").index("trollStoreEvidence()"))
+check("build 24（第 4 项）：OverlayDiagnostics.logSummary() 有调用者——setRunMode 里调",
+      "OverlayDiagnostics.logSummary()" in ta24
+      and ta24.index("func setRunMode") < ta24.index("OverlayDiagnostics.logSummary()"))
+check("build 24（第 4 项）：诊断摘要字串在源码里在位（setRunMode 调了它，整模块优化裁不掉）",
+      "悬浮窗复核摘要" in read("Diagnostics/OverlayDiagnostics.swift"))
+check("build 24（第 3 项）：build.yml 同时上传 dSYM（Package dSYM 步＋Upload dSYM artifact）",
+      "Package dSYM" in by24
+      and "build/TrollLyricsDesk.xcarchive/dSYMs" in by24
+      and "桌面歌词-1.0.6-dSYM" in by24
+      and "Upload dSYM artifact" in by24)
+check("build 24（第 3 项）：IPA 产物不变（名与上传步仍在，dSYM 是另加的产物）",
+      "桌面歌词-1.0.6.ipa" in by24
+      and "name: 桌面歌词-1.0.6\n" in by24)
+check("build 24（第 5 项）：@escaping 修法不动——GetNowPlayingInfo 回调仍是 @escaping，isPlaying 仍是 block",
+      "@escaping (CFDictionary?) -> Void" in mra24
+      and "@convention(block) (CFDictionary?) -> Void" not in mra24
+      and "@convention(block) (UInt8) -> Void" in mra24
+      and "withoutActuallyEscaping" not in mra24)
+check("build 24（第 5 项）：审计结论——全树 Swift 无 as!／fatalError；try! 只剩 LyricParser 两行静态正则（字面量 pattern，不可能失败）",
+      not any("as!" in ln or "fatalError" in ln
+              for f in all_swift_files for ln in read(f).splitlines()
+              if not ln.strip().startswith("//") and not ln.strip().startswith("///"))
+      and sum(ln.count("try!") for f in all_swift_files
+              for ln in read(f).splitlines()) == 2)
+check("build 24（第 5 项）：其余不动——#1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements、包名、MinOS 均未碰",
+      "floatingSceneEverConnected" in td24
+      and "(UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?)" in read("Compatibility/EffectiveEntitlements.swift")
+      and "native-candidate" in td24
+      and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
+      and "https://guhailong-repo.pages.dev/api/verify" in ls24
+      and "timeOffset" in ls24
+      and "com.ycwl.Lyrics" in read("TrollLyricsDesk/Info.plist"))
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
@@ -1184,6 +1282,25 @@ open_item("build 23 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页
           "只改 GetNowPlayingInfo 回调回 @escaping：病根修复实验——若不闪了，逃逸检查就是崩点；"
           "若还闪，#2／回调签名都排除，下一处查 #4 场景创建时序；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"
           "日志里仍应有「build 22：isPlaying 探针已禁用」行（探针仍禁着）")
+open_item("build 24 真机验（主线：巨魔机 iPhone 11／iOS 16.5／Dopamine rootless／TrollStore）——五项核心功能",
+          "皇上 2026-11-27 10:20 定巨魔版是正式开发主线：(1) MediaRemote 实际权限"
+          "（SecTask 实测 platform-application／no-sandbox 是不是 YES）；"
+          "(2) 三大音乐平台读歌（QQ 音乐／酷我／网易云，放着歌看歌名读不读得到）；"
+          "(3) 歌词同步（逐歌偏移、LRCLIB 跟随）；(4) 跨 App 悬浮窗"
+          "（退到桌面／别的 App 上方有没有歌词窗）；(5) 后台稳定性"
+          "（后台保活、回前台不丢窗、不闪退）")
+open_item("build 24 真机验（LC 机复核：iPhone 13 Pro／iOS 27.0.1／LiveContainer 3.8.12）——环境识别修完后的复核",
+          "安装环境应判 livecontainer（LC_HOME_PATH 信号命中），不再是「普通签名（沙盒内）」；"
+          "日志里应有「诊断1.0.6 环境检测」两行（进程名／Home 目录／bundle 路径／argv[0]／"
+          "LC_HOME_PATH 值／各信号结果）＋「诊断1.0.6 版本」对账行；探针日志应写 build 24，"
+          "不再是 build 22；每次定档后应有「诊断1.0.6 悬浮窗复核摘要」行")
+open_item("build 24：dSYM 产物在且 UUID 对得上（验包时核对，不进自检）",
+          "CI 同一个 run 应有两个产物（桌面歌词-1.0.6 IPA＋桌面歌词-1.0.6-dSYM）；"
+          "下载 dSYM 后核对它的 UUID 与 IPA 二进制的 Mach-O UUID 一致（App 与 Widget 各一对）；"
+          "zsign 重签不应改 LC_UUID，若对不上，先查是不是 zsign 改了 UUID")
+open_item("不上源已定（皇上 2026-11-27 10:22）：TrollLyricsDesk 不部署到越狱源",
+          "现在就定了，不用等验收；真机验收照常继续；RUN §十四按已定版写，"
+          "不要再写「等验收通过再定上源」")
 open_item("build 21 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
           "只修重建竞态：主页面出现那一刻 DidBecomeActive／2 秒看门狗在连接窗口里跳过恢复，"
           "rebuild 不销毁未连上的会话；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"

@@ -84,7 +84,9 @@ private func queryIsPlayingIfNeeded() {
     lastIsPlayingQueryAt = Date()
     // build 22 决定性实验：只禁 isPlaying 探针——不调 dlsym 到的符号。
     // 探针代码（typealias／dlsym／unsafeBitCast／query 调用）一字不动留着，以后能恢复。
-    LyricLogger.log("诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用")
+    // build 24：日志里的 build 号走 LyricStore.versionTag 插值，不再写死
+    // build 22 字串（build 23 的日志写 build 22 就是写死字串的教训）。
+    LyricLogger.log("诊断1.0.6 MediaRemote：\(LyricStore.versionTag)：isPlaying 探针已禁用")
     return
     guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying) else {
         MediaRemoteDiagnostics.recordIsPlaying(nil)

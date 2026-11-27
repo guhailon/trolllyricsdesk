@@ -113,6 +113,13 @@ final class TrollLyricsRuntime: NSObject {
         LyricStore.runMode = mode
         LyricStore.runModeReason = reason
         LyricLogger.log("诊断1.0.6 运行模式：写入 \(mode)（\(reason)）")
+        // build 24（第 4 项）：OverlayDiagnostics.logSummary() 在 1.0.6 里
+        // 全树无调用者——1.0.5 的教训重演（无调用者就被整模块优化裁掉，
+        // 字串不在包里）。setRunMode 是每条定档路径都调的入口（巨魔／待探测／
+        // 兼容／原生候选／复核结论），复核结论路径里它在 setDisplayCapability
+        // 之后，读到的 runMode 是刚写的新值；在这里调一次，摘要行每次定档
+        // 都进日志，二进制里也留得住。
+        OverlayDiagnostics.logSummary()
     }
 
     /// 1.0.6 第 1／2 项：安装环境写入口——启动时定一次，之后永不改写。
@@ -131,12 +138,26 @@ final class TrollLyricsRuntime: NSObject {
     }
 
     /// 1.0.6 第 1 项：安装环境判定（启动时 ObjC 侧调一次）。
-    /// 先记实测权限表，再按正面证据定档并写库、记日志，返回安装环境原值。
+    /// 先记版本对账与环境检测实测值，再记实测权限表，最后按正面证据定档
+    /// 并写库、记日志，返回安装环境原值。
     @objc func detectInstallEnvironment() -> String {
+        // build 24（第 2 项）：版本对账——统一常量 versionTag 与两处 plist
+        // 的实际值并排记进日志；以后升版漏改任何一处，日志里当场看得见。
+        LyricLogger.log("诊断1.0.6 版本：\(LyricStore.versionTag)，CFBundleVersion=\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "？")，CFBundleShortVersionString=\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "？")")
+        logEnvironmentDetection()
         EffectiveEntitlements.logReport()
         let result = RuntimeEnvironment.detectInstallEnvironment()
         setInstallEnvironment(result.env.rawValue, reason: result.reason)
         return result.env.rawValue
+    }
+
+    /// build 24（第 1 项）：环境检测实测值打进日志——build 23 在 LC 3.8.12
+    /// 里误判成「普通签名（沙盒内）」，当时日志里没有这些值，查不清是哪路
+    /// 信号漏了。进程名、Home 目录、bundle 路径、argv[0]、LC_HOME_PATH、
+    /// 各信号结果——下次日志能看清为什么这样判。只读证据，不改判定。
+    private func logEnvironmentDetection() {
+        LyricLogger.log("诊断1.0.6 环境检测：进程名=\(ProcessInfo.processInfo.processName)，Home 目录=\(NSHomeDirectory())，bundle 路径=\(Bundle.main.bundlePath)，argv[0]=\(ProcessInfo.processInfo.arguments.first ?? "（无）")")
+        LyricLogger.log("诊断1.0.6 环境检测：LC_HOME_PATH=\(ProcessInfo.processInfo.environment["LC_HOME_PATH"] ?? "（未设）")；plist 键 TLDSLiveContainer=\(Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool ?? false)；包路径含 /Documents/Applications/=\(Bundle.main.bundlePath.lowercased().contains("/documents/applications/") ? "是" : "否")；类 LCAppDelegate=\(NSClassFromString("LCAppDelegate") != nil ? "存在" : "不存在")；信号明细：\(LyricStore.liveContainerSignalDetail)")
     }
 
     /// 1.0.6：读当前安装环境（诊断页／ObjC 侧复核分支用）。

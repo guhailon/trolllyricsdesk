@@ -23,14 +23,33 @@ enum LyricStore {
 
     static let dataKey = "lyric.snapshot"
 
+    /// build 24：日志里的 build 号只从这里取（统一常量）——升版时改这一处＋
+    /// 两处 Info.plist 的 CFBundleVersion＋pbxproj 的 CURRENT_PROJECT_VERSION。
+    /// 自检 §19 核对它与三处版本号一致；MediaRemoteAdapter 的探针日志用它插值，
+    /// 不再写死 "build 22"（build 23 的日志写 build 22 就是写死字串的教训）。
+    /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
+    /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
+    /// 验包能直接搜到 "build 24"。
+    static let versionTag = "build 24（1.0.6）"
+
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
-    /// Info.plist 键 TLDSLiveContainer 为 true，或包路径／可执行路径／argv[0]／
-    /// 进程名／Home 目录含 livecontainer 或 /lcapps/，或类 LCAppDelegate 存在，
-    /// 都算宿主。进程名与 Home 目录是并入 ChatGPT 1.0.6 加的信号（皇上 23:18 批并）。
+    /// 信号（按优先级）：
+    /// 1. 环境变量 LC_HOME_PATH（宿主起客人 App 前 setenv；旧统一版 1.0.6
+    ///    build 18 的信号一，commit 893f066；hideLiveContainer 不动环境变量，
+    ///    最可靠）——build 23 在 LC 3.8.12 里漏判成「普通签名（沙盒内）」，
+    ///    就是因为 newbase 重写时丢了这一路。
+    /// 2. Info.plist 键 TLDSLiveContainer 为 true。
+    /// 3. 包路径含 /Documents/Applications/（旧线信号二：客人包体在宿主
+    ///    Documents/Applications/ 下；巨魔包在 /var/containers/Bundle/Application/
+    ///    下，不会误中）。
+    /// 4. 包路径／可执行路径／argv[0]／进程名／Home 目录含 livecontainer 或
+    ///    /lcapps/，或类 LCAppDelegate 存在。
     /// 宿主模式下 defaults 走 .standard（不用 App Group），悬浮窗／锁屏／
     /// 保活／小组件刷新一律不走，只做应用内歌词。
     static var isLiveContainer: Bool {
+        if ProcessInfo.processInfo.environment["LC_HOME_PATH"] != nil { return true }
         if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true { return true }
+        if Bundle.main.bundlePath.lowercased().contains("/documents/applications/") { return true }
         let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? "", ProcessInfo.processInfo.processName, NSHomeDirectory()]
         return paths.contains { path in
             let lower = path.lowercased()
@@ -461,10 +480,18 @@ extension LyricStore {
     /// 注意：Info.plist 键 TLDSLiveContainer 在本工程里从来没设过值，
     /// 所以 plist 这一路信号在单 IPA 里永远不命中（不是 bug，是设计：
     /// 单 IPA 不能把这个键写死 true，否则巨魔机也会被判成宿主）。
+    /// build 24：环境变量 LC_HOME_PATH 排第一（旧线信号一，最可靠），
+    /// 包路径 /Documents/Applications/ 是旧线信号二。
     static var liveContainerSignalDetail: String {
         var hit: [String] = []
+        if ProcessInfo.processInfo.environment["LC_HOME_PATH"] != nil {
+            hit.append("环境变量 LC_HOME_PATH 已设")
+        }
         if Bundle.main.object(forInfoDictionaryKey: "TLDSLiveContainer") as? Bool == true {
             hit.append("plist 键 TLDSLiveContainer=true")
+        }
+        if Bundle.main.bundlePath.lowercased().contains("/documents/applications/") {
+            hit.append("包路径含 /Documents/Applications/")
         }
         let paths = [Bundle.main.bundlePath, Bundle.main.executablePath ?? "", ProcessInfo.processInfo.arguments.first ?? "", ProcessInfo.processInfo.processName, NSHomeDirectory()]
         if paths.contains(where: { $0.lowercased().contains("livecontainer") }) {
@@ -476,7 +503,7 @@ extension LyricStore {
         if NSClassFromString("LCAppDelegate") != nil {
             hit.append("类 LCAppDelegate 存在")
         }
-        return hit.isEmpty ? "均无（plist 键未设、路径无信号、类不存在）" : hit.joined(separator: "、")
+        return hit.isEmpty ? "均无（环境变量未设、plist 键未设、路径无信号、类不存在）" : hit.joined(separator: "、")
     }
 
     static var runMode: String {
