@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.6 build 21 (LiveContainer 专项兼容修复版):
+"""Verify TrollLyricsDesk 1.0.6 build 22 (LiveContainer 专项兼容修复版):
 
 base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
   + build 21（2026-11-27 02:18 令，只修最可疑一处——启动时重建竞态）：
@@ -190,7 +190,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 21", pl.get("CFBundleVersion") == "21",
+    check(f"{rel}: build 22", pl.get("CFBundleVersion") == "22",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -421,9 +421,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 21（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 21;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 21;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 22（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 22;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 22;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -1010,6 +1010,36 @@ check("build 21：SecTask 7 个探针键仍在 entitlements 文件里（查都�
                     "com.apple.mediaremote.now-playing-read-access",
                     "com.apple.mediaremote.full-now-playing-read-access",
                     "com.apple.backboard.client", "get-task-allow"]))
+print("\n== 17. build 22 只禁 isPlaying 探针（决定性实验，皇上 2026-11-27 09:22 定） ==")
+mra22 = read("MusicProviders/MediaRemoteAdapter.swift")
+check("build 22：禁用标记字串在源码里在位",
+      "诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用" in mra22)
+check("build 22：queryIsPlayingIfNeeded() 在 5 秒节流检查后记日志＋return",
+      "timeIntervalSince(last) < 5" in mra22
+      and 'LyricLogger.log("诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用")' in mra22
+      and "\n    return\n    guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)" in mra22)
+_i_throttle = mra22.index("timeIntervalSince(last) < 5")
+_i_log = mra22.index("build 22：isPlaying 探针已禁用")
+_i_sym = mra22.index("bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)")
+_i_cast = mra22.index("unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingFn.self)")
+check("build 22：return 在 bridge.symbol／dlsym 之前——探针调用代码仍在但不可达",
+      _i_throttle < _i_log < _i_sym < _i_cast,
+      f"throttle={_i_throttle} log={_i_log} symbol={_i_sym} bitcast={_i_cast}")
+check("build 22：探针代码一字未动留着（typealias／dlsym／unsafeBitCast／query 调用都在）",
+      "MRMediaRemoteGetNowPlayingApplicationIsPlayingFn" in mra22
+      and "bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying)" in mra22
+      and "unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingApplicationIsPlayingFn.self)" in mra22
+      and "query(DispatchQueue.main) { playing in" in mra22
+      and "MediaRemoteDiagnostics.recordIsPlayingQuery()" in mra22)
+check("build 22：调用点未动——info==nil 时仍调 queryIsPlayingIfNeeded()（函数内直接返回）",
+      "if info == nil {" in mra22 and "queryIsPlayingIfNeeded()" in mra22)
+check("build 22：其余不动——#1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements 均未碰",
+      "floatingSceneEverConnected" in read("Overlay/TLDSAppDelegate.m")
+      and "(UnsafeMutableRawPointer, CFString, UnsafeMutablePointer<Unmanaged<CFError>?>?)" in read("Compatibility/EffectiveEntitlements.swift")
+      and "native-candidate" in read("Overlay/TLDSAppDelegate.m")
+      and '"tlds.pipTestStage"' in read("Renderer/PiPLyricsRenderer.swift")
+      and "https://guhailong-repo.pages.dev/api/verify" in ls
+      and "timeOffset" in ls)
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
@@ -1109,6 +1139,10 @@ open_item("PiP 是实验引擎，真机只验到哪一步以实测为准（RUN_1
 open_item("三档模式的复核时序未验证",
           "复核在创建后 2 秒跑、场景未连上时 3 秒后再跑一次；真机上场景连接若慢于 5 秒，"
           "会误判兼容——日志里「复核推迟」出现几次、最终进了哪档，以真机为准")
+open_item("build 22 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
+          "只禁 isPlaying 探针：决定性实验——若不闪了，#2 就是崩点（或崩点之一）；"
+          "若还闪，#2 排除，下一处查 #4 场景创建时序；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"
+          "日志里应有「build 22：isPlaying 探针已禁用」行")
 open_item("build 21 真机验（LC 机 iPhone 13 Pro／iOS 27.0.1）：进主页面不再闪退",
           "只修重建竞态：主页面出现那一刻 DidBecomeActive／2 秒看门狗在连接窗口里跳过恢复，"
           "rebuild 不销毁未连上的会话；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常、"

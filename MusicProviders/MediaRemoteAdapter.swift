@@ -82,6 +82,10 @@ private func registerForNowPlayingNotifications() {
 private func queryIsPlayingIfNeeded() {
     if let last = lastIsPlayingQueryAt, Date().timeIntervalSince(last) < 5 { return }
     lastIsPlayingQueryAt = Date()
+    // build 22 决定性实验：只禁 isPlaying 探针——不调 dlsym 到的符号。
+    // 探针代码（typealias／dlsym／unsafeBitCast／query 调用）一字不动留着，以后能恢复。
+    LyricLogger.log("诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用")
+    return
     guard let sym = bridge.symbol(MediaRemoteSymbols.getNowPlayingApplicationIsPlaying) else {
         MediaRemoteDiagnostics.recordIsPlaying(nil)
         return
