@@ -539,3 +539,68 @@
 - 第 2 笔（本节）：RUN 补 build 27 一节（只改文档，触发的 run 不用跟）。
 - 头 run：45961535492（head e712c10）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build27-newbase.ipa`，1,678,588 B，SHA256 `4e7e3659…`，验包 100 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个；entitlements 与 build 26 一字不差。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
+
+## §十八 build 28（1.0.6/build 28，「·」歌词识别修法＋锁屏诊断日志两行）
+
+### 为什么只做这两件
+
+- 皇上 **2026-11-27 21:05 定：停止现有后台 Scene 重发、重建、重现的修复路线**。Build 28 只保留「·」歌词修复及必要诊断日志，**不再盲目延长轮询**。立即启动巨魔悬浮 HUD 架构专项修复（另立专项：深度对照 TrollSpeed 官方源码、审查窗口注册／系统托管／进程生命周期、排查解锁后 9 秒内进程终止原因、建独立 HUD 最小测试工程、先解决窗口宿主和进程生命周期再继续正式版本开发）。**正式版本开发在 build 28 之后等 HUD 专项；build 28 是过渡桥。**
+- 「·」修法是皇上 2026-11-27 15:01 就定的（先不做，等 build 25 窗口验完再说），诊断日志是 2026-11-27 18:39 源码审计备好的三件里只取了「补日志」那一件——**不加事件监听、不拉长轮询、不改任何解锁／重建／复核逻辑**。
+- **不上源已定**（皇上 2026-11-27 10:22），不部署到越狱源；真机验收继续。**未发给皇上**（等上级转）。
+
+### 病根（2026-11-27 14:59 钉死，真机多次复现）
+
+- 某些播放器（汽水音乐已证实）把**当前歌词行塞进 MediaRemote title 字段**，把「真歌名 · 真歌手」塞进 artist 字段（如 `为你等天晴 · 桃枝渡晚`、`血染江山的画怎敌你眉间 一点朱砂 · 清越`）。
+- `Lyrics/LyricStore.swift` 的 `songIdentityParts`（:213）只认分隔符 `[" — ", " – ", " - ", "—", "–"]`，**不认 " · "**；`stableSongIdentity`（:291）两边都解析不出就退回 title（歌词行）→ `trackKey` 每句都变 → 换歌分支每句触发 → `LRCLibClient.search` 用 track_name=歌词行、artist_name=「真歌名 · 真歌手」整串去搜，永远搜不到。日志表现：每 2–5 秒一次「检测到新歌曲：〈歌词行〉」＋「没有找到匹配的同步歌词：〈歌词行〉」。
+- 已有的 `artistCarriesLyric`（:177）处理的是镜像情况（artist 塞歌词、title 是「歌名 — 歌手」），不覆盖这次的格式。
+- 注意：这只是搜词／换歌判定的 bug——**悬浮窗显示本身没错**：`lyricLocation` 认出标识串后，title 歌词行照常显示在上面（15:42 控制中心截图：窗顶上「却又为你乱了思绪」正在跟）。
+
+### 改了什么（一笔提交，产品代码＋版本＋自检 §23）
+
+只改 `Lyrics/LyricStore.swift`、`PlaybackEngine/PlaybackCoordinator.swift`、`Overlay/TLDSAppDelegate.m`＋版本 4 处＋自检；其余一字未动。
+
+1. **「·」识别（`LyricStore.swift`）**：
+   - `songIdentityParts` 分隔符加 `" · "`（六种）；`artistCarriesLyric` 的本地分隔符同样加 `" · "`（镜像：title = "真歌名 · 真歌手"、artist = 歌词行）。
+   - 新函数 `searchTerms(title:artist:) -> (track: String, artist: String)`：只拆 `" · "`，head=歌名、tail=歌手；先看 artist、再看 title；两边都没有 `" · "` 原样返回。**「 — 」型歌名/歌手顺序不明（两种都出现过），不猜**——那是已知局限，不在这次里。
+   - 效果：`stableSongIdentity` 对「·」型返回 artist 字段（整首固定）→ `trackKey` 整首不变 → 换歌分支只在切歌时走一次；`lyricLocation` 认出 artist 是标识串 → 返回 `.title` → title 歌词行继续显示在上面；`syncLiveLyricsAndProgress` 的稳定标识比对两边一致 → 同首歌持续同步不再每句被跳过。
+2. **搜词／匹配／缓存全用解析后的字段（`PlaybackCoordinator.swift` `loadLyrics`）**：先算 `searchTrack = MusicTrack(title: 解析出的歌名, artist: 解析出的歌手, album/duration/platform 原样保留)`，再 `LRCLibClient.shared.search(track: searchTrack)`、`LyricMatcher.bestMatch(records: searchTrack)`、`cacheLyrics(title: searchTrack.title, artist: searchTrack.artist)`；搜词提示／「没有找到匹配」／「歌词匹配成功」三处日志改用真歌名。代次守卫（`lastTrackKey == trackKey(track)`、最新状态比对）仍用原 track——那是标识比对，不是搜词，不动。
+3. **缓存查键同步改（两处）**：新歌分支与 `publishImmediately` 里 `cachedLyrics` 的键都改走 `searchTerms` 解析后——存取同一把键，不然存了也查不到。快照显示仍用原字段（悬浮窗靠 `lyricLocation` 认歌词行），只改查缓存的键。无 `" · "` 时 `searchTerms` 原样返回，普通播放器行为一字不变；以前版本存下的旧键（歌词行当 title）查不到就重新搜一次、无害。
+4. **锁屏诊断日志两行（`TLDSAppDelegate.m` `TLDSLockStateChanged`，只加日志不改逻辑）**：
+   - 收到 Darwin 通知记一行：「诊断1.0.6 解锁：收到 Darwin 通知 〈名〉，开始轮询确认解锁」。
+   - 16 次轮询过期仍未确认解锁记一行：「诊断1.0.6 解锁：16 次轮询过期，未确认解锁（可能密码输入慢），本次不重现」——只在最后一轮（`i == attempts - 1`）且仍未确认时记；已重现过的不记。
+   - **轮询窗口不动**（`attempts = 16`、`delay = 0.15 + i * 0.25` 原样）；**不加 `UIApplicationProtectedDataDidBecomeAvailableNotification`**（全树 0 处）；解锁重现／重建／前台复核逻辑一字未改。
+5. **不动的**：MediaRemote 回调 `@escaping` 不动（build 23 闪退修法）；#1 守卫不动；BackgroundKeepAlive 不动；解锁重现 `unlockRestoreFloatingOverlay` 不动；完整重建不动；build 26 前台复核不动；build 25 启动兜底不动；激活、逐歌偏移（`[offset:]` 叠加关系不动，以前调过的偏移不必重调）、Engine Fix、锁屏（继续不恢复）、entitlements（零新增）、无 TCP 桥、无新 UI、无 LC 主线改动。
+- **版本**：1.0.6 不变，build 27→28（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处＋`LyricStore.versionTag = "build 28（1.0.6）"`；build.yml 里没有版本号，不动——与 build 21–27 同）。注：plist 只用逐字 sed 改 CFBundleVersion 一行，**没有用 plistlib 重写**（build 27 的教训）。
+- **diff 规模**：7 个文件（产品代码 3 个文件：LyricStore.swift +31/-3、PlaybackCoordinator.swift +34/-12、TLDSAppDelegate.m +7/-0；版本 3 个文件：pbxproj +4/-4、两 plist 各 +1/-1；自检 `check_1.0.6.py` §23 新加 14 项 checks＋5 项 OPEN，§2／§19／§22 的版本号断言 27→28，§22 末尾「·」不在这次里的断言改为「build 28 已加入（见 §23）」，+95/-13；总 +173/-34）。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**341 PASS，0 FAIL，55 OPEN**（build 27 是 327 PASS／50 OPEN；§23 加 14 项——版本号三处一致、songIdentityParts 认 " · "（两处）、searchTerms 存在（只拆 " · "＋例歌在注释里）、loadLyrics 用 searchTrack 搜词＋匹配＋缓存、两处缓存查键走 searchTerms、换歌键仍走 stableSongIdentity、诊断①收到通知记一行、诊断②轮询过期记一行、轮询窗口不拉长、全树无事件监听、解锁／重建／复核逻辑不动、@escaping 不动、#1 守卫＋保活不动、锁屏不恢复，全过；OPEN 加 5 条——build 28 真机验四项＋主页面不闪退）。
+
+### 待真机验证（巨魔机 iPhone 11／iOS 16.5／Dopamine rootless／TrollStore）
+
+1. **① 放「·」型歌（汽水音乐放《为你等天晴》）——「检测到新歌曲」整首只跳一次，不再每句一跳**：放歌后看日志：换歌行只在切歌时出现一次；接着几句歌词不应再出现「检测到新歌曲」；trackKey 不再每句变，`syncLiveLyricsAndProgress` 应正常走（进度不跳变）。
+2. **② 搜词用真歌名/真歌手——《为你等天晴》应搜到同步歌词（LRCLIB 有这首就命中）**：搜到则悬浮窗显示同步歌词行（按进度走）；搜不到则看日志「没有找到匹配的同步歌词：为你等天晴」——搜词名必须是真歌名，不再是歌词行；第二次放同一首歌应走本地缓存（「本地歌词命中」），不再联网。
+3. **③ 普通播放器（Apple Music 等）不受影响——换歌、搜词、缓存照常**：「·」修法只在字段含 " · " 时才改行为，无 " · " 原样返回；逐歌偏移（[offset:] 叠加）不动，以前调过的偏移不必重调。
+4. **④ 锁屏→解锁，看两行新诊断日志**：锁屏→解锁后日志里应有「解锁：收到 Darwin 通知 …，开始轮询确认解锁」；若密码输得慢（4 秒轮询过期），应有「16 次轮询过期，未确认解锁」行；这两行只是诊断，不改行为——窗的恢复仍按 build 27（重现跑了但贴不上是已知限度，等 HUD 专项）。
+5. **主页面不闪退、只建一个窗、激活／逐歌偏移照常**：只改搜词＋两行日志；进主页面不闪、悬浮窗／激活／逐歌偏移照常；解锁重现、重建、前台复核、保活全没动。
+
+### 构建（头 run 46005221875，head 67ff346）
+
+- 头 run **46005221875**（head 67ff346）：completed／**success**，job Build 13 步全 success，**0 次池子取消**（push 后直接 in_progress，第 2 轮轮询即 completed；12 轮一腿，未用完）。
+
+### 验包（编成后下载真 IPA＋dSYM 亲验，不要只信 run 绿）
+
+- **IPA**（奴才亲验）：`~/workspace/your_files/桌面歌詞-1.0.6-build28-newbase.ipa`，**1,680,073 B，SHA256 `07818833f6db70cddb3d7256f2c8221f31aea0e8c8c55b6d6135edf06d315175`**；App＋Widget 均 1.0.6/build 28、com.ycwl.Lyrics（Widget.TrollLyricsWidget）、MinOS 15.0、thin arm64、zsign。产物：IPA artifact 1,678,344 B＋dSYM artifact 2,156,942 B（run 46005221875，未过期；dSYM 存档 `hidden_files/artifact-1.0.6-build28/`）。
+- **自检**：`python3 check_1.0.6.py`：**341 PASS，0 FAIL，55 OPEN**（§23 14 项全过）。
+- **验包脚本** `hidden_files/verify_1.0.6_build28.py`：**103 PASS，FAILED: none**（仿 build 27 版：版本 28、PRESENT 加两行新日志「解锁：收到 Darwin 通知」「16 次轮询过期，未确认解锁」、ABSENT 加 "build 27"；**注：初版脚本有两个比较字面量漏改（"27" 未改 "28"）致两项 FAIL，IPA 本身是对的（两 plist 都是 1.0.6/28），修脚本后重跑全过**）。
+- **逃逸检查点**（`hidden_files/escape_check_count.py`，记录 `hidden_files/escape_check_build28.log`）：**2 个**（0xEA08／0xEA40，函数 0xE964；build 27 是 0xE964／0xE99C，函数 0xE8C0——地址微移是新代码所致，个数不变）；**0x44A5C（build 22 崩点）没有回来**。
+- **entitlements 与 build 27 字节级一致**（`hidden_files/dsym_ent_check.py`，记录 `hidden_files/dsym_uuid_build28.log`）：app 3316B `b6a9f77ea2237d00`、widget 472B `63c0e2c366ea9d85`，与 build 27 一字不差。
+- **dSYM UUID 对得上**：App `38f00f2e94f9311da7eaeb20e66cc5fc`、Widget `24d000bc2f29311ebddf5b8d184170f3`，与 IPA 二进制 LC_UUID 一字不差。
+- **二进制字串**：「build 28」在位、「build 27／26／25／24／23／22／21」全不在位；两行新日志在位（ObjC UTF-16 双编码查）；「·」Swift 侧无可靠二进制标记（分隔符是 ≤15 字节 small-string 字面量、searchTerms 方法名 Release 下被 strip——见验包脚本注释），源码级由自检 §23 断言，真机由歌词验收验证。
+
+### 提交链（build 28）
+
+- 第 1 笔（`67ff346`）：「·」识别修法＋锁屏诊断日志两行＋版本 1.0.6/28＋自检 §23。
+- 第 2 笔（本节）：RUN 补 build 28 一节（只改文档，触发的 run 不用跟）。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
