@@ -340,9 +340,9 @@ struct SettingsView: View {
                             hudBusy = true
                             hudStatusText = "正在启用…"
                             DispatchQueue.global(qos: .userInitiated).async {
-                                TLDHUDLog("main: enable requested")
+                                TLDHUDLogMessage("main: enable requested")
                                 TLDHUDSetEnabled(true)
-                                TLDHUDLog("main: enable done")
+                                TLDHUDLogMessage("main: enable done")
                                 DispatchQueue.main.async {
                                     hudBusy = false
                                     refreshHUDStatus()
@@ -355,9 +355,9 @@ struct SettingsView: View {
                             hudBusy = true
                             hudStatusText = "正在停用…"
                             DispatchQueue.global(qos: .userInitiated).async {
-                                TLDHUDLog("main: disable requested")
+                                TLDHUDLogMessage("main: disable requested")
                                 TLDHUDSetEnabled(false)
-                                TLDHUDLog("main: disable done")
+                                TLDHUDLogMessage("main: disable done")
                                 DispatchQueue.main.async {
                                     hudBusy = false
                                     refreshHUDStatus()

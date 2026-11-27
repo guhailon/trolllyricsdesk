@@ -15,4 +15,10 @@ OBJC_EXTERN NSString *TLDHUDLogFilePath(void);
 /// root daemon and the mobile main app can write it).
 OBJC_EXTERN void TLDHUDLog(NSString *format, ...) NS_FORMAT_FUNCTION(1, 2);
 
+/// Same log, but with a fixed message (no varargs) so Swift can call it:
+/// Swift cannot call C variadic functions, so SettingsView calls this
+/// instead of TLDHUDLog (run 46053945402: "'TLDHUDLog' is unavailable:
+/// Variadic function is unavailable").
+OBJC_EXTERN void TLDHUDLogMessage(NSString *message);
+
 NS_ASSUME_NONNULL_END

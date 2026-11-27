@@ -284,6 +284,19 @@ check("Settings：Enable／Disable 走后台队列",
 check("Settings：状态读 TLDHUDIsEnabled＋PID",
       "TLDHUDIsEnabled()" in sv and "TLDHUDPIDPath()" in sv)
 check("Settings：日志入口在位", "HUDLogView()" in sv)
+check("Swift 调日志走非变参 wrapper（run 46053945402 教训）",
+      "TLDHUDLogMessage" in read("HUD/TLDHUDLog.h")
+      and "TLDHUDLogMessage" in read("HUD/TLDHUDLog.mm")
+      and sv.count("TLDHUDLogMessage(") == 4)
+swift_variadic = []
+for dirpath, _, files in os.walk(os.path.join(ROOT, "App")):
+    for fn in files:
+        if fn.endswith(".swift"):
+            c = open(os.path.join(dirpath, fn), encoding="utf-8").read()
+            if re.search(r"TLDHUDLog\(", c):
+                swift_variadic.append(fn)
+check("Swift 里无变参 TLDHUDLog( 调用（Swift 调不了 C 变参）",
+      not swift_variadic, str(swift_variadic))
 hv = read("App/HUDLogView.swift")
 check("HUDLogView：读 TLDHUDLogFilePath，末 120 行",
       "TLDHUDLogFilePath()" in hv and "120" in hv)

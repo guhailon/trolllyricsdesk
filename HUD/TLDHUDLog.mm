@@ -10,6 +10,11 @@ NSString *TLDHUDLogFilePath(void)
     return @"/var/mobile/Library/Caches/com.ycwl.Lyrics.hud.log";
 }
 
+void TLDHUDLogMessage(NSString *message)
+{
+    TLDHUDLog(@"%@", message);
+}
+
 void TLDHUDLog(NSString *format, ...)
 {
     va_list args;
