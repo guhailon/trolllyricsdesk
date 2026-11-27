@@ -372,7 +372,7 @@
 3. **兜底二：卡住超时 10 秒**：新 `floatingSceneCreatedTime`（`createFloatingSceneWithIdentifier` 里记）；#1 守卫的跳过只在「创建不到 10 秒」时生效，超过 10 秒还没连上就记「场景创建已超过 10 秒仍未连接（触发：…），判定卡住，走重建」，往下走 `rebuildFloatingOverlay`——rebuild 本身对未连上的场景跳过销毁（只摘 binder＋藏窗口），不会撞车。build 21 的闪退保护（连接窗口内跳过）一字未动。
 4. **不动的**：解锁重建 `rebuildFloatingOverlay` 原样不动（3 秒节流、未连上跳过销毁、换新标识全在）；`startFloatingOverlayRecreate`（无调用方）不动；BackgroundKeepAlive（静音保活）不动——它本来就在巨魔模式下启动，进程还是被杀了，保活保证不了活，这次不加保活；MediaRemote 回调 `@escaping` 不动（build 23 闪退修法）；激活、逐歌偏移、Engine Fix、锁屏（继续不恢复）、entitlements（零新增）、无 TCP 桥、无新 UI、无 LC 主线改动、compatMode 跳过逻辑照旧。
 - **版本**：1.0.6 不变，build 24→25（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处＋`LyricStore.versionTag = "build 25（1.0.6）"`，19 字节 UTF-8，仍进 `__cstring`）。
-- **diff 规模**：7 个文件（产品代码 3 个文件：TLDSAppDelegate.m +48/-…、TLDSAppDelegate.h +8、LyricStore.swift 版本 1 行＋注释；版本 3 个文件各 1 行；自检 `check_1.0.6.py` §20 新加 9 项 checks＋5 项 OPEN，§2／§8／§19 版本断言 24→25）。
+- **diff 规模**：7 个文件（产品代码 3 个文件：TLDSAppDelegate.m +41/-7、TLDSAppDelegate.h +8、LyricStore.swift 版本 1 行＋注释；版本 3 个文件各 1 行；自检 `check_1.0.6.py` §20 新加 9 项 checks＋5 项 OPEN，§2／§8／§19 版本断言 24→25；总 +133/-26）。
 
 ### 自检
 
@@ -386,9 +386,27 @@
 4. **主页面不闪退**（#1 守卫仍在）：连接窗口（10 秒内）看门狗仍跳过恢复；进主页面不闪、悬浮窗／激活／逐歌偏移照常。
 5. **只建一个窗**：兜底建窗＋Shell 回调晚到、解锁重建＋旧窗残留两种情况都不应出现两个窗；日志里活着的悬浮场景数应为 1。
 
+### 构建（头 run 45952881898，head 4955361）
+
+- **completed／success，13 步全 success**（job Build 13 步全 success）。轮询读 `status_field`／`conclusion`。
+- **0 次池子取消**，第 2 轮 poll 已 success（约 2 分钟）。轮询脚本第一版读错字段（读了 HTTP `status` 200）已当场杀掉修正——`status_field` 才是 run 状态（2026-11-23 的教训重演，脚本 `hidden_files/poll_build25.py` 已改对）。
+- 文档笔 e645695 的 run（45952904753）不用跟。
+
+### 验包（编成后下载真 IPA＋dSYM 亲验，不要只信 run 绿）
+
+- **验包 PASS（87 项，`hidden_files/verify_1.0.6_build25.py`，详见 `hidden_files/ipa_verify_1.0.6_build25.log`）**——build 24 是 82 项；新增 5 项：`build 25`／`启动兜底：Shell 回调未到，直接建悬浮场景`／`Shell 回调到了，悬浮场景已由兜底建好，跳过`／`场景创建已超过 10 秒仍未连接`／`判定卡住，走重建` 在位，`build 24`／`build 22`／`build 21`／`build 23` 不在位。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build25-newbase.ipa`（另存，**build 24 的 `桌面歌詞-1.0.6-build24-newbase.ipa` 未动**；文件名继续用繁體「歌詞」），**1,676,974 B，SHA256 `b04125b3f12db06b46e480ddcae7d9ad94c5f2217ec2988438432bfdad5eb412`**（artifact id 15177701953，名 桌面歌词-1.0.6，zip 1,675,183 B；解出与拷本 SHA 一致）。
+- dSYM：artifact id 15177965318，名 `桌面歌词-1.0.6-dSYM`，zip **2,154,425 B**（内层 zip 2,164,386 B），存档 `hidden_files/artifact-1.0.6-build25/`（连同 IPA zip 与解出的 IPA）。内含 `TrollLyricsDesk.app.dSYM` 与 `TrollLyricsWidget.appex.dSYM`。
+- **dSYM UUID 与 IPA 二进制的 Mach-O UUID 一致（两对都对得上，详见 `hidden_files/dsym_uuid_build25.log`）**：App `d554035b2ac43ab5a6796dff6639fa28`、Widget `bc1cc20b5a673049a24d6837449392b8`——Widget 的 UUID 与 build 24 一字不差（Widget 代码没动，合理）；zsign 重签没有改 LC_UUID。方法：新脚本 `hidden_files/dsym_ent_check.py`（LC_UUID cmd 0x1b；entitlements blob 口径与 build 24 一致——含 8 字节头，第一版写成只取 XML 体、尺寸少 8 字节，已修正，数字以修正后的为准）。
+- **entitlements 与 build 24 一字不差（二进制级核对）**：app（3316B，SHA 前 16 位 `b6a9f77ea2237d00`）与 widget（472B，SHA 前 16 位 `63c0e2c366ea9d85`）均与 build 24 记录一字不差。
+- 版本 1.0.6／build 25、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 25、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **逃逸检查点仍是 2 个（详见 `hidden_files/escape_check_build25.log`）**：`hidden_files/escape_check_count.py` 数出 2 个点——0xDC6C／0xDCA4，同属函数 0xDBC8（地址相对 build 24 平移，同一函数）；**MediaRemote 函数里的 0x44A5C 没有回来**。注：跑脚本时 capstone 模块没了（`pip3 install --break-system-packages capstone` 重装 5.0.9 才跑起来；这台机 Python 模块会丢，部署／验包前要先确认）。
+
 ### 提交链（build 25）
 
-- 第 1 笔（产品＋自检 §20，待填）：兜底两件＋版本 1.0.6/25。
-- 第 2 笔（本节）：RUN 补 build 25 一节（只改文档，触发的 run 不用跟）。
-- 头 run：（待填）——IPA `桌面歌詞-1.0.6-build25-newbase.ipa`，dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个。
+- 第 1 笔 `4955361`：兜底两件＋版本 1.0.6/25＋自检 §20（7 个文件，+133/-26）。
+- 第 2 笔 `e645695`：RUN 补 build 25 一节（只改文档，触发的 run 不用跟）。
+- 第 3 笔（本节补填）：RUN §十五补构建＋验包实数（只改文档）。
+- 头 run：45952881898（head 4955361）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build25-newbase.ipa`，1,676,974 B，SHA256 `b04125b3…`，验包 87 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个；entitlements 与 build 24 一字不差。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定，不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
