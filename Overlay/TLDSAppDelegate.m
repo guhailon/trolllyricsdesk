@@ -40,7 +40,7 @@ static void TLDSInstallNativeWindowFix(void) {
 
 // 锁屏 / 解锁的 Darwin 通知回调。
 // 关键：lockstate / lockcomplete 在锁定和解锁时都会触发，必须确认「已解锁」
-// 才重建，否则锁屏那一刻重建的新 scene 会被 SpringBoard 拒绝、白费一次节流窗口。
+// 才重现，否则锁屏那一刻重现的新 scene 会被 SpringBoard 拒绝、白费一次节流窗口。
 // 用公开 API isProtectedDataAvailable 判断：锁定=NO，解锁=YES。
 // 解锁过程分阶段，延迟多次轮询直到确认解锁。
 static void TLDSLockStateChanged(CFNotificationCenterRef center,
@@ -49,8 +49,8 @@ static void TLDSLockStateChanged(CFNotificationCenterRef center,
                                  const void *object,
                                  CFDictionaryRef userInfo) {
     TLDSAppDelegate *appDelegate = (__bridge TLDSAppDelegate *)observer;
-    // 通知当天先标记「经历过锁屏」，解锁后由轮询确认并重建。
-    // 不在这里立即重建：lockcomplete 在锁屏瞬间也会来，那时重建会被系统拒绝。
+    // 通知当天先标记「经历过锁屏」，解锁后由轮询确认并重现。
+    // 不在这里立即重现：lockcomplete 在锁屏瞬间也会来，那时重现会被系统拒绝。
     dispatch_async(dispatch_get_main_queue(), ^{
         appDelegate.needsRebuildOnUnlock = YES;
     });
@@ -63,7 +63,7 @@ static void TLDSLockStateChanged(CFNotificationCenterRef center,
             if (appDelegate.needsRebuildOnUnlock &&
                 [UIApplication sharedApplication].isProtectedDataAvailable) {
                 appDelegate.needsRebuildOnUnlock = NO;
-                [appDelegate rebuildFloatingOverlay];
+                [appDelegate unlockRestoreFloatingOverlay];
             }
         });
     }
@@ -873,6 +873,91 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                                     (long)self.floatingSceneSeq];
     self.floatingBinder = [self createFloatingSceneWithIdentifier:self.floatingSceneIdentifier];
     [self log:[NSString stringWithFormat:@"锁屏恢复：悬浮场景已重建 (%@)", self.floatingSceneIdentifier]];
+}
+
+#pragma mark - 1.0.6/build 27 解锁重现（解锁恢复主力，优先于完整重建）
+
+/// 解锁后调用：旧场景还在就重现，不重建；旧场景真不在了才走完整重建。
+/// 病根（代码＋真机日志坐实）：解锁重建在后台销毁旧场景、建新场景；后台建的
+/// 场景本地全通（连接／激活／窗口已创建，10:53 与 14:59:44 两次都这样），却
+/// 从不被合成到屏幕上，直到 App 回前台。旧场景是前台建的、锁屏前可见，锁屏时
+/// 系统只把它降级（foreground=NO、窗口隐藏），会话／窗口／binder 都还在——
+/// 全量日志里从无「悬浮歌词场景断开」行。重现它（重发 foreground 设置＋取消
+/// 隐藏），不销毁、不新建。歌词内容不用另推：悬浮窗控制器 0.25 秒定时器一直在
+/// 读共享快照、后台也在跑（15:04:25／28 都有新歌检测行），重现后窗口里直接就
+/// 是当前行。
+/// 诚实说明：重现能不能合成，代码＋日志钉不死——本地状态好≠屏幕可见（老教训）。
+/// 重现后 2 秒记一次「解锁重现后复核」行（窗口在不在、isHidden、windowScene、
+/// frame），下次真机以主屏幕为准；若重现也不行，说明后台什么都恢复不了可见，
+/// 那是下一件（SpringBoard 侧），不在这次里。
+/// 幂等：锁屏瞬间误触发也无害（显示器灭着，重发设置不起作用；解锁通知来了再跑一次）。
+- (void)unlockRestoreFloatingOverlay {
+    // 1.0.5：普通签名兼容模式下不重现悬浮窗（只记一次，不让看门狗刷屏）。
+    if (self.compatMode) {
+        if (!self.compatSkipLogged) {
+            self.compatSkipLogged = YES;
+            [self log:@"诊断1.0.6 降级：普通签名兼容模式，跳过悬浮窗解锁重现（只走应用内歌词）"];
+        }
+        return;
+    }
+    // 用户关掉了悬浮窗：不恢复（尊重开关，与 rebuild 同款）。
+    NSUserDefaults *prefs = [TLDSRuntime sharedDefaults];  // 1.0.5 bug 2：走 LyricStore.defaults
+    BOOL enabled = [prefs objectForKey:@"floatingLyric.enabled"] == nil
+                 ? YES : [prefs boolForKey:@"floatingLyric.enabled"];
+    if (!enabled) {
+        return;
+    }
+    if (!self.shellInitialized || !self.floatingSceneEverCreated) {
+        // 场景一次都没建过：没有旧场景可重现；创建归 build 25 启动兜底管，
+        // 这里不抢建（与 build 26 复核同款：只处理已建好的，不直接建）。
+        [self log:@"诊断1.0.6 解锁重现：场景一次都没建过，无旧场景可重现（创建归启动兜底）"];
+        return;
+    }
+    // 旧场景可用 = 场景对象在＋已完成连接＋窗口在。会话还在 openSessions 里是
+    // 佐证（系统没回收），只记日志、不进判定——判定只认上面三项（连接过的
+    // 场景，会话一定还在；反过来会话在、场景没连上，不能当可用）。
+    BOOL sessionAlive = NO;
+    for (UISceneSession *session in [UIApplication sharedApplication].openSessions) {
+        if ([session.persistentIdentifier isEqualToString:self.floatingSceneIdentifier]) {
+            sessionAlive = YES;
+            break;
+        }
+    }
+    if (self.floatingScene && self.floatingSceneCreated && self.floatingWindow) {
+        [self log:[NSString stringWithFormat:@"诊断1.0.6 解锁重现：旧场景还在（标识 %@，会话在 openSessions：%@），重发 foreground 设置＋取消隐藏，不重建",
+                   self.floatingSceneIdentifier ?: @"?",
+                   sessionAlive ? @"是" : @"否"]];
+        // 重现就是现成的 reactivate「场景还在」分支：重发 foreground 设置、
+        // 重加 binder、取消隐藏窗口／视图。2 秒看门狗每轮也在做同一件事，
+        // 重建以前是它先把旧场景销毁了才轮不到它；现在不重建，它每轮都是重现。
+        [self reactivateFloatingOverlayWithTrigger:@"解锁重现"];
+        // 重现后 2 秒记一次窗口状态：重现跑没跑、本地状态如何，下次真机好判断。
+        // 本地状态好≠屏幕可见（老教训），只记事实，不下「可见」结论。
+        __weak TLDSAppDelegate *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            UIWindow *w = strongSelf.floatingWindow;
+            NSString *state;
+            if (!w) {
+                state = @"窗口：未创建（重现后窗口丢了）";
+            } else {
+                state = [NSString stringWithFormat:@"窗口：已创建，isHidden=%@，alpha=%.2f，windowScene=%@，frame=%@",
+                         w.isHidden ? @"YES" : @"NO", w.alpha,
+                         w.windowScene ? @"非空" : @"空",
+                         NSStringFromCGRect(w.frame)];
+            }
+            [strongSelf log:[NSString stringWithFormat:@"诊断1.0.6 解锁重现后复核：%@（本地状态≠屏幕可见，见主屏幕为准）", state]];
+        });
+        return;
+    }
+    [self log:[NSString stringWithFormat:@"诊断1.0.6 解锁重现：旧场景已不在（场景：%@，已连：%@，窗口：%@，会话在 openSessions：%@），走完整重建",
+               self.floatingScene ? @"非空" : @"空",
+               self.floatingSceneCreated ? @"YES" : @"NO",
+               self.floatingWindow ? @"非空" : @"空",
+               sessionAlive ? @"是" : @"否"]];
+    [self rebuildFloatingOverlay];
 }
 
 #pragma mark - 完整重建（解锁恢复主力）

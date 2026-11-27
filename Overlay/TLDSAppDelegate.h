@@ -52,7 +52,7 @@
 @property (nonatomic, assign) double lastConnectingSkipLogTime;
 /// 重建时的场景序号（用新标识避免与残留旧场景冲突）
 @property (nonatomic, assign) NSInteger floatingSceneSeq;
-/// 经历过锁屏：解锁后必须完整重建（sceneDidDisconnect 未必触发，不能只靠状态位）
+/// 经历过锁屏：解锁后重现旧场景（不在了才重建；sceneDidDisconnect 未必触发，不能只靠状态位）
 @property (nonatomic, assign) BOOL needsRebuildOnUnlock;
 
 /// 1.0.6 三项判定分离：安装环境（trollstore／livecontainer／signature／unknown）
@@ -83,6 +83,13 @@
 
 /// 完整重建悬浮场景（丢弃旧 scene / binder / window，走首启同款创建路径）
 - (void)rebuildFloatingOverlay;
+
+/// 1.0.6/build 27：解锁重现——旧场景还在就重发 foreground 设置＋取消隐藏，
+/// 不销毁、不新建；旧场景真不在了才走完整重建。锁屏时系统只降级旧场景
+/// （foreground=NO、窗口隐藏），会话／窗口／binder 都还在；后台新建的场景
+/// 本地全通却从不被合成到屏幕上——这就是解锁后主屏幕没窗的原因。
+/// 重现后 2 秒记一次「解锁重现后复核」行（本地状态≠屏幕可见，见主屏幕为准）。
+- (void)unlockRestoreFloatingOverlay;
 
 /// 1.0.6/build 26：前台复核——回前台 1.5 秒后验悬浮窗真在不在。
 /// 场景连着≠窗口真在：解锁重建在后台跑完，App 自查都通过、主屏幕上却没窗，

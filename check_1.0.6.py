@@ -220,7 +220,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 26", pl.get("CFBundleVersion") == "26",
+    check(f"{rel}: build 27", pl.get("CFBundleVersion") == "27",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -451,9 +451,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 26（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 26;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 26;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 27（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 27;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 27;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -1119,10 +1119,10 @@ mra24 = read("MusicProviders/MediaRemoteAdapter.swift")
 td24 = read("Overlay/TLDSAppDelegate.m")
 by24 = read(".github/workflows/build.yml")
 _vt = re.search(r'static let versionTag = "([^"]+)"', ls24)
-check("build 26（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 26",
-      _vt is not None and _vt.group(1).startswith("build 26"),
+check("build 27（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 27",
+      _vt is not None and _vt.group(1).startswith("build 27"),
       _vt.group(1) if _vt else "无 versionTag")
-check("build 26（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 26）",
+check("build 27（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 27）",
       _vt is not None and len(_vt.group(1).encode("utf-8")) > 15,
       f"{len(_vt.group(1).encode('utf-8'))} bytes" if _vt else "无 versionTag")
 check("build 24（第 2 项）：探针日志走 versionTag 插值，写死的 build 22 字串不在源码运行时串里",
@@ -1255,11 +1255,6 @@ _pl26 = [plistlib.loads(open(os.path.join(ROOT, r), "rb").read())
          for r in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]]
 _pbx26 = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
 _vt26 = re.search(r'static let versionTag = "([^"]+)"', ls26)
-check("build 26：版本号三处一致——两 plist CFBundleVersion=26、pbxproj 4 处、versionTag 是 build 26",
-      all(p.get("CFBundleVersion") == "26" for p in _pl26)
-      and _pbx26.count("CURRENT_PROJECT_VERSION = 26;") == 4
-      and _vt26 is not None and _vt26.group(1).startswith("build 26"),
-      _vt26.group(1) if _vt26 else "无 versionTag")
 check("build 26（复核入口）：回到前台通知里排 1.5 秒复核，同一次回前台只排一次（scheduled 守卫）",
       "foregroundVerifyFloatingWindow" in td26
       and "if (!self.foregroundVerifyScheduled)" in td26
@@ -1325,6 +1320,78 @@ open_item("build 26 真机验：主页面不闪退（#1 守卫仍在）",
 open_item("build 26 真机验：只建一个窗",
           "前台复核走重建时先销毁旧会话（连上过才销毁）、只建一个新窗；"
           "日志里活着的悬浮场景数应为 1")
+
+
+print("\n== 22. build 27 解锁重现（皇上 2026-11-27 15:45 定「继续修：解锁后直接有窗」） ==")
+td27 = read("Overlay/TLDSAppDelegate.m")
+th27 = read("Overlay/TLDSAppDelegate.h")
+ls27 = read("Lyrics/LyricStore.swift")
+ta27 = read("App/TrollLyricsDeskApp.swift")
+mra27 = read("MusicProviders/MediaRemoteAdapter.swift")
+_pl27 = [plistlib.loads(open(os.path.join(ROOT, r), "rb").read())
+         for r in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]]
+_pbx27 = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
+_vt27 = re.search(r'static let versionTag = "([^"]+)"', ls27)
+check("build 27：版本号三处一致——两 plist CFBundleVersion=27、pbxproj 4 处、versionTag 是 build 27",
+      all(p.get("CFBundleVersion") == "27" for p in _pl27)
+      and _pbx27.count("CURRENT_PROJECT_VERSION = 27;") == 4
+      and _vt27 is not None and _vt27.group(1).startswith("build 27"),
+      _vt27.group(1) if _vt27 else "无 versionTag")
+check("build 27（解锁重现方法）：unlockRestoreFloatingOverlay 在 .m 实现、.h 声明",
+      "- (void)unlockRestoreFloatingOverlay {" in td27
+      and "- (void)unlockRestoreFloatingOverlay;" in th27)
+check("build 27（解锁入口）：Darwin 锁屏轮询确认解锁后调 unlockRestoreFloatingOverlay，不再直接调 rebuildFloatingOverlay",
+      "[appDelegate unlockRestoreFloatingOverlay];" in td27
+      and "[appDelegate rebuildFloatingOverlay];" not in td27)
+check("build 27（重现优先）：旧场景可用（场景非空＋已连＋窗口在）时走 reactivate「解锁重现」，不销毁、不新建",
+      "self.floatingScene && self.floatingSceneCreated && self.floatingWindow" in td27
+      and '[self reactivateFloatingOverlayWithTrigger:@"解锁重现"]' in td27
+      and "诊断1.0.6 解锁重现：旧场景还在" in td27)
+check("build 27（兜底）：旧场景不在时记「旧场景已不在」并走完整重建 rebuildFloatingOverlay",
+      "诊断1.0.6 解锁重现：旧场景已不在" in td27
+      and "[self rebuildFloatingOverlay];" in td27)
+check("build 27（重现后复核）：重现后 2 秒记「解锁重现后复核」行（窗口状态，本地状态≠屏幕可见）",
+      "诊断1.0.6 解锁重现后复核：" in td27
+      and "2.0 * NSEC_PER_SEC" in td27
+      and "本地状态≠屏幕可见，见主屏幕为准" in td27)
+check("build 27（不动）：完整重建 rebuildFloatingOverlay 原样在位——3 秒节流、未连上跳过销毁、换新标识都在",
+      "锁屏恢复：完整重建悬浮场景" in td27
+      and "now - self.lastRebuildTime < 3.0" in td27
+      and "跳过销毁旧场景会话" in td27)
+check("build 27（不动）：build 26 前台复核在位——foregroundVerifyFloatingWindow＋触发 foreground-verify",
+      "foregroundVerifyFloatingWindow" in td27
+      and "foreground-verify" in td27)
+check("build 27（不动）：build 25 启动兜底在位——Shell 回调守卫＋看门狗／回前台直接建＋启动 2 秒门槛",
+      "启动兜底：Shell 回调未到，直接建悬浮场景" in td27
+      and "Shell 回调到了，悬浮场景已由兜底建好，跳过" in td27
+      and "now25 - self.launchTime < 2.0" in td27)
+check("build 27（不动）：#1 守卫不动——连接窗口（10 秒内）仍跳过恢复，build 21 闪退保护在",
+      "场景正在连接中，跳过这次恢复" in td27
+      and "floatingSceneEverConnected" in td27)
+check("build 27（不动）：保活不动——BackgroundKeepAlive 仍在巨魔模式下启动，一字未改",
+      "BackgroundKeepAlive.shared.start()" in ta27
+      and "if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }" in ta27)
+check("build 27（不动）：@escaping 不动——GetNowPlayingInfo 回调仍是 @escaping（build 23 闪退修法，逃逸检查点保持 2 个的源码依据）",
+      "@escaping (CFDictionary?) -> Void" in mra27
+      and "@convention(block) (CFDictionary?) -> Void" not in mra27
+      and "withoutActuallyEscaping" not in mra27)
+check("build 27（不动）：歌词「·」识别修法不在这次里——songIdentityParts 分隔符仍是原来五种",
+      '" — ", " – ", " - ", "—", "–"' in ls27)
+open_item("build 27 真机验①：冷启动后退到主屏幕，悬浮窗在不在（歌词当前行在不在）",
+          "build 26 那项已过——冷启动 2 秒后看门狗兜底应已建好窗，退到主屏幕窗应在，"
+          "歌词应是当前行；日志里应有「启动兜底」或「系统 Shell 注册成功」＋创建行")
+open_item("build 27 真机验②：锁屏→解锁→主屏幕，悬浮窗和歌词回不回来（核心验收，不开 App）",
+          "解锁后主屏幕上应直接有窗，窗里是当前歌词行（跟着歌走）；"
+          "日志里应有「解锁重现：旧场景还在」＋「解锁重现后复核」行；"
+          "注意：本地状态好≠屏幕可见——以主屏幕肉眼为准，日志只证明重现跑没跑")
+open_item("build 27 真机验③：锁屏久一点（等进程被杀）→解锁→打开一次 App，窗回不回来",
+          "进程被杀后重启动，2 秒内看门狗兜底建窗，打开 App 再退到主屏幕窗应回来；"
+          "日志里应有「启动兜底」行，且只建一个窗（回调守卫，不建两个）")
+open_item("build 27 真机验：主页面不闪退（#1 守卫仍在）",
+          "连接窗口（10 秒内）看门狗仍跳过恢复；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常")
+open_item("build 27 真机验：只建一个窗",
+          "解锁重现不销毁、不新建；旧场景不在走重建时先销毁旧会话、只建一个新窗；"
+          "日志里活着的悬浮场景数应为 1，悬浮窗控制器初始化次数不应多一次")
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")
