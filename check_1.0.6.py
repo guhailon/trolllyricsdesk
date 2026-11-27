@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify TrollLyricsDesk 1.0.6 build 24 (LiveContainer 专项兼容修复版):
+"""Verify TrollLyricsDesk 1.0.6 build 25 (启动＋回前台重建兜底):
 
 base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
   + build 21（2026-11-27 02:18 令，只修最可疑一处——启动时重建竞态）：
@@ -60,7 +60,14 @@ base = newbase HEAD 4f43991 (1.0.5 源码，build 19)
     诊断页诚实文案、版本 1.0.6／build 20。
     不在 ZIP 里的继续按 10 项做：14:59:44 第二个悬浮窗（重建先销毁旧窗）、
     LC 实际有效权限测量（第 5 项）、后台保活专项、PiP 渲染优化（第 8／9 项）。
-  + 版本 1.0.6, build 24, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
+  + build 25（2026-11-27 14:30 令，皇上点选「做 build 25：启动＋回前台重建兜底」）：
+    只修悬浮窗一定回来——(1) Shell 回调没来、场景一次都没建过时，2 秒看门狗／
+    回到前台直接建一次（与回调同款入口；回调晚到时有守卫，不建第二个窗；
+    启动 2 秒内不抢建，给回调先到的机会）；(2) 场景建了 10 秒还没连上判卡住，
+    不再无限跳过，走重建（rebuild 本身对未连上的场景跳过销毁，不撞车）；
+    #1 守卫（连接窗口内跳过）不动，解锁重建原样不动，保活不动，@escaping 不动，
+    逃逸检查点保持 2 个。版本 1.0.6／build 25。
+  + 版本 1.0.6, build 25, 包名 com.ycwl.Lyrics；不加权限、不加 TCP 桥／
     独立客户端／双 IPA；不恢复锁屏歌词；不修改现有 UI。
   + 1.0.5 的功能（五件／激活／三档／三渲染器／PiP 实验／Engine Fix／
     同步修正）全部保留，只做加法诊断与判定分离。
@@ -202,7 +209,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 24", pl.get("CFBundleVersion") == "24",
+    check(f"{rel}: build 25", pl.get("CFBundleVersion") == "25",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -433,9 +440,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 24（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 24;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 24;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 25（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 25;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 25;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -1101,10 +1108,10 @@ mra24 = read("MusicProviders/MediaRemoteAdapter.swift")
 td24 = read("Overlay/TLDSAppDelegate.m")
 by24 = read(".github/workflows/build.yml")
 _vt = re.search(r'static let versionTag = "([^"]+)"', ls24)
-check("build 24（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 24",
-      _vt is not None and _vt.group(1).startswith("build 24"),
+check("build 25（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 25",
+      _vt is not None and _vt.group(1).startswith("build 25"),
       _vt.group(1) if _vt else "无 versionTag")
-check("build 24（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 24）",
+check("build 25（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 25）",
       _vt is not None and len(_vt.group(1).encode("utf-8")) > 15,
       f"{len(_vt.group(1).encode('utf-8'))} bytes" if _vt else "无 versionTag")
 check("build 24（第 2 项）：探针日志走 versionTag 插值，写死的 build 22 字串不在源码运行时串里",
@@ -1175,6 +1182,64 @@ check("build 24（第 5 项）：其余不动——#1 守卫、SecTask 三参数
       and "https://guhailong-repo.pages.dev/api/verify" in ls24
       and "timeOffset" in ls24
       and "com.ycwl.Lyrics" in read("TrollLyricsDesk/Info.plist"))
+
+print("\n== 20. build 25 启动＋回前台重建兜底（皇上 2026-11-27 14:30 定） ==")
+td25 = read("Overlay/TLDSAppDelegate.m")
+th25 = read("Overlay/TLDSAppDelegate.h")
+ls25 = read("Lyrics/LyricStore.swift")
+ta25 = read("App/TrollLyricsDeskApp.swift")
+mra25 = read("MusicProviders/MediaRemoteAdapter.swift")
+_pl25 = [plistlib.loads(open(os.path.join(ROOT, r), "rb").read())
+         for r in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]]
+_pbx25 = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
+_vt25 = re.search(r'static let versionTag = "([^"]+)"', ls25)
+check("build 25：版本号三处一致——两 plist CFBundleVersion=25、pbxproj 4 处、versionTag 是 build 25",
+      all(p.get("CFBundleVersion") == "25" for p in _pl25)
+      and _pbx25.count("CURRENT_PROJECT_VERSION = 25;") == 4
+      and _vt25 is not None and _vt25.group(1).startswith("build 25"),
+      _vt25.group(1) if _vt25 else "无 versionTag")
+check("build 25（兜底一）：Shell 回调里有守卫——场景已由兜底建好就跳过，不建第二个窗",
+      "Shell 回调到了，悬浮场景已由兜底建好，跳过" in td25)
+check("build 25（兜底一）：看门狗／回前台直接建场景——reactivate 里调同款 createFloatingSceneWithIdentifier",
+      "启动兜底：Shell 回调未到，直接建悬浮场景" in td25
+      and td25.index("启动兜底：Shell 回调未到，直接建悬浮场景") > td25.index("reactivateFloatingOverlayWithTrigger"))
+check("build 25（兜底一）：启动 2 秒内不抢建——launchTime 在 didFinishLaunching 里记，直接建要过 2.0 秒门槛",
+      "self.launchTime = CFAbsoluteTimeGetCurrent();" in td25
+      and "now25 - self.launchTime < 2.0" in td25
+      and "double launchTime" in th25)
+check("build 25（兜底二）：卡住超时 10 秒——floatingSceneCreatedTime 在创建时记，超 10 秒未连上走重建",
+      "self.floatingSceneCreatedTime = CFAbsoluteTimeGetCurrent();" in td25
+      and "now - self.floatingSceneCreatedTime < 10.0" in td25
+      and "判定卡住，走重建" in td25
+      and "double floatingSceneCreatedTime" in th25)
+check("build 25：#1 守卫不动——连接窗口（10 秒内）仍跳过恢复，build 21 闪退保护在",
+      "场景正在连接中，跳过这次恢复" in td25
+      and "floatingSceneEverConnected" in td25)
+check("build 25：解锁重建原样不动——rebuildFloatingOverlay 仍在，3 秒节流与未连上跳过销毁都在",
+      "锁屏恢复：完整重建悬浮场景" in td25
+      and "now - self.lastRebuildTime < 3.0" in td25
+      and "跳过销毁旧场景会话" in td25)
+check("build 25：保活不动——BackgroundKeepAlive 仍在巨魔模式下启动，一字未改",
+      "BackgroundKeepAlive.shared.start()" in ta25
+      and "if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }" in ta25)
+check("build 25：@escaping 不动——GetNowPlayingInfo 回调仍是 @escaping（build 23 闪退修法，逃逸检查点保持 2 个的源码依据）",
+      "@escaping (CFDictionary?) -> Void" in mra25
+      and "@convention(block) (CFDictionary?) -> Void" not in mra25
+      and "withoutActuallyEscaping" not in mra25)
+open_item("build 25 真机验①：冷启动后退到主屏幕，悬浮窗在不在",
+          "11:05 那次重启动后退出来没有窗——修完冷启动 2 秒后看门狗兜底应已建好窗，"
+          "退到主屏幕窗应在；日志里应有「启动兜底」或「系统 Shell 注册成功」＋创建行")
+open_item("build 25 真机验②：锁屏→解锁，悬浮窗在不在",
+          "10:56 那次解锁后主屏幕没窗——修完解锁重建照常跑；若进程还活着，窗应直接在；"
+          "若进程被杀，解锁时没人重建，看第③项")
+open_item("build 25 真机验③：锁屏久一点（等进程被杀）→解锁→打开一次 App，窗回不回来",
+          "核心验收：进程被杀后重启动，2 秒内看门狗兜底建窗，打开 App 再退到主屏幕窗应回来；"
+          "日志里应有「启动兜底」行，且只建一个窗（回调守卫，不建两个）")
+open_item("build 25 真机验：主页面不闪退（#1 守卫仍在）",
+          "连接窗口（10 秒内）看门狗仍跳过恢复；验：进主页面不闪、悬浮窗／激活／逐歌偏移照常")
+open_item("build 25 真机验：只建一个窗",
+          "兜底建窗＋Shell 回调晚到、解锁重建＋旧窗残留两种情况都不应出现两个窗；"
+          "日志里活着的悬浮场景数应为 1")
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")

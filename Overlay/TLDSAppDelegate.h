@@ -32,6 +32,14 @@
 @property (nonatomic, strong) NSTimer *visibilityWatchdog;
 /// 重建 / 日志节流时间戳（CFAbsoluteTime）
 @property (nonatomic, assign) double lastRebuildTime;
+/// 1.0.6/build 25：本次进程启动时刻（CFAbsoluteTime，didFinishLaunching 里记）。
+/// 启动兜底只在启动 2 秒后才直接建场景——给 Shell 回调先到的机会，
+/// 启动那一刻的 DidBecomeActive 不抢建。
+@property (nonatomic, assign) double launchTime;
+/// 1.0.6/build 25：当前悬浮场景的创建时间（CFAbsoluteTime，
+/// createFloatingSceneWithIdentifier 里记）。连接窗口只给 10 秒——
+/// 超过 10 秒还没连上就是卡住了，看门狗不再无限跳过，走重建。
+@property (nonatomic, assign) double floatingSceneCreatedTime;
 @property (nonatomic, assign) double lastRestoreLogTime;
 /// 1.0.6/build 21：「场景连接中，跳过恢复」日志的节流时间戳（CFAbsoluteTime）。
 @property (nonatomic, assign) double lastConnectingSkipLogTime;

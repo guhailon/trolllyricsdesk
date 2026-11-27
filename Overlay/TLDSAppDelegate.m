@@ -107,6 +107,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // 启动宽限：初始化重建节流时间戳，避免 watchdog 在首启 scene 尚未连上时
     // 误判为断开、立刻重建导致刚建好的场景被拆掉而闪退。
     self.lastRebuildTime = CFAbsoluteTimeGetCurrent();
+    // 1.0.6/build 25：记启动时刻——启动兜底只在启动 2 秒后才直接建场景。
+    self.launchTime = CFAbsoluteTimeGetCurrent();
 
     // 启动 Swift 播放检测引擎（自动跟随所有播放器）
     [[TLDSRuntime shared] start];
@@ -308,6 +310,13 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
                 return;
             }
             [strongSelf log:@"系统 Shell 注册成功"];
+            // 1.0.6/build 25：看门狗兜底可能已直接建好场景——回调晚到时不再建
+            // 第二个（11:05 真机：Shell 回调丢了就永远没窗；兜底建了、回调又建，
+            // 就是两个窗）。场景已建过就跳过，只记一行。
+            if (strongSelf.floatingSceneEverCreated) {
+                [strongSelf log:@"诊断1.0.6 启动：Shell 回调到了，悬浮场景已由兜底建好，跳过（不建第二个窗）"];
+                return;
+            }
             strongSelf.floatingBinder =
                 [strongSelf createFloatingSceneWithIdentifier:strongSelf.floatingSceneIdentifier];
             [strongSelf log:@"全局悬浮歌词场景已创建"];
@@ -355,6 +364,8 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // 强引用场景本体：锁屏解锁后要靠它重新下发 foreground 设置
     self.floatingScene = scene;
     self.floatingSceneEverCreated = YES;
+    // 1.0.6/build 25：记当前场景创建时间——连接窗口超 10 秒未连上即判卡住。
+    self.floatingSceneCreatedTime = CFAbsoluteTimeGetCurrent();
     // 1.0.6/build 21：新场景对象刚创建、尚未连接——重建竞态守卫的锚点。
     // willConnectToSession 跑过才置 YES；此前的窗口里，任何触发都不得
     // rebuild／销毁它（对正在连接的会话请求销毁会和 UIKit 连接流程撞车而闪退）。
@@ -608,8 +619,24 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         }
         return;
     }
-    // 悬浮窗还没真正建起来（启动竞态）：无需恢复
-    if (!self.shellInitialized || !self.floatingSceneEverCreated) {
+    // 1.0.6/build 25：Shell 回调没来、场景一次都没建过——不能直接 return，
+    // 否则启动创建丢一次就永远没窗（11:05 真机：重启动也没回来，窗只有启动
+    // App 那一下才来）。2 秒看门狗／回到前台到这里时，直接建一次（与 Shell
+    // 回调同款入口 createFloatingSceneWithIdentifier；回调晚到时有守卫，
+    // 不会建两个）。启动那一刻的 DidBecomeActive 不抢——给 Shell 回调 2 秒
+    // 机会（看门狗本来就是 2 秒一轮，首轮正好 2 秒后）。
+    // 建完就 return：下一次看门狗／回前台再走正常恢复流程。
+    if (!self.shellInitialized) {
+        return;
+    }
+    if (!self.floatingSceneEverCreated) {
+        double now25 = CFAbsoluteTimeGetCurrent();
+        if (now25 - self.launchTime < 2.0) {
+            return;
+        }
+        [self log:[NSString stringWithFormat:@"诊断1.0.6 启动兜底：Shell 回调未到，直接建悬浮场景（触发：%@，启动已过 %.0f 秒）",
+                   trigger ?: @"未知", now25 - self.launchTime]];
+        self.floatingBinder = [self createFloatingSceneWithIdentifier:self.floatingSceneIdentifier];
         return;
     }
 
@@ -618,14 +645,21 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // rebuild 会对一个正在连接的会话请求销毁，和 UIKit 连接流程撞车而闪退
     //（2026-11-27 02:19 皇上证实：主页面一出现就闪）。
     // 等连接完成，下一次看门狗／回到前台再恢复。日志 20 秒节流，不让看门狗刷屏。
+    // 1.0.6/build 25：连接窗口只给 10 秒——刚建好正在连时跳过（build 21 的
+    // 闪退保护不动）；超过 10 秒还没连上就是卡住了，不再无限等，往下走重建
+    //（rebuild 本身对未连上的场景跳过销毁，只摘 binder＋藏窗口，不会撞车）。
     if (self.floatingScene && !self.floatingSceneCreated && !self.floatingSceneEverConnected) {
         double now = CFAbsoluteTimeGetCurrent();
-        if (now - self.lastConnectingSkipLogTime > 20.0) {
-            self.lastConnectingSkipLogTime = now;
-            [self log:[NSString stringWithFormat:@"诊断1.0.6 悬浮窗恢复：场景正在连接中，跳过这次恢复（触发：%@，等连接完成后再说）",
-                       trigger ?: @"未知"]];
+        if (now - self.floatingSceneCreatedTime < 10.0) {
+            if (now - self.lastConnectingSkipLogTime > 20.0) {
+                self.lastConnectingSkipLogTime = now;
+                [self log:[NSString stringWithFormat:@"诊断1.0.6 悬浮窗恢复：场景正在连接中，跳过这次恢复（触发：%@，等连接完成后再说）",
+                           trigger ?: @"未知"]];
+            }
+            return;
         }
-        return;
+        [self log:[NSString stringWithFormat:@"诊断1.0.6 悬浮窗恢复：场景创建已超过 10 秒仍未连接（触发：%@），判定卡住，走重建",
+                   trigger ?: @"未知"]];
     }
 
     // 用户关掉了悬浮窗：不恢复
