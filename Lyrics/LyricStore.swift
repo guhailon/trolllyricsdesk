@@ -30,7 +30,7 @@ enum LyricStore {
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 27（1.0.6）"
+    static let versionTag = "build 28（1.0.6）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -175,7 +175,9 @@ enum LyricStore {
     /// 把歌词翻到下面——这正是「本来正常，突然乱识别」的原因。
     /// 正常播放器（artist 就是尾段歌手本人）返回 false。
     static func artistCarriesLyric(title: String, artist: String) -> Bool {
-        let separators = [" — ", " – ", " - ", "—", "–"]
+        // build 28：「·」型镜像（title = "真歌名 · 真歌手"，artist = 歌词行）
+        // 同样认 " · "——与 songIdentityParts 的分隔符保持一致。
+        let separators = [" — ", " – ", " - ", " · ", "—", "–"]
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedArtist.isEmpty else { return false }
 
@@ -210,10 +212,13 @@ enum LyricStore {
     }
 
     /// 拆出 "A — B" 型「歌曲标识串」的两段；不是这种格式返回 nil。
+    /// build 28：加 " · "——「·」型播放器（汽水音乐实测）把
+    /// "真歌名 · 真歌手" 放进 artist 字段、当前歌词行放进 title 字段；
+    /// 不认 " · "，stableSongIdentity 会退回歌词行当标识，每句都当成换歌。
     private static func songIdentityParts(
         _ text: String
     ) -> (head: String, tail: String)? {
-        let separators = [" — ", " – ", " - ", "—", "–"]
+        let separators = [" — ", " – ", " - ", " · ", "—", "–"]
         for sep in separators {
             guard let range = text.range(of: sep) else { continue }
             let head = String(text[..<range.lowerBound])
@@ -292,6 +297,29 @@ enum LyricStore {
         if songIdentityParts(title) != nil { return title }
         if songIdentityParts(artist) != nil { return artist }
         return title
+    }
+
+    /// 取真正用于搜词的「歌名 / 歌手」。
+    /// 「·」型播放器（汽水音乐实测）：title 是当前歌词行、artist 是
+    /// "真歌名 · 真歌手"（如 "为你等天晴 · 桃枝渡晚"、
+    /// "血染江山的画怎敌你眉间 一点朱砂 · 清越"）。拿原字段去搜词，
+    /// track_name 是歌词行、artist_name 是整串，永远搜不到；
+    /// 要先解析出真歌名/真歌手再搜、再匹配、再缓存。
+    /// 镜像（title = "真歌名 · 真歌手"，artist = 歌词行）同样处理。
+    /// 只认 " · "：实测格式固定是「歌名 · 歌手」；
+    /// 「 — 」型歌名/歌手顺序不明（两种都出现过），不猜，原样返回。
+    static func searchTerms(title: String, artist: String) -> (track: String, artist: String) {
+        for field in [artist, title] {
+            guard let range = field.range(of: " · ") else { continue }
+            let head = String(field[..<range.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let tail = String(field[range.upperBound...])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !head.isEmpty, !tail.isEmpty {
+                return (head, tail)
+            }
+        }
+        return (title, artist)
     }
 
     // MARK: - 歌词本地缓存

@@ -53,6 +53,9 @@ static void TLDSLockStateChanged(CFNotificationCenterRef center,
     // 不在这里立即重现：lockcomplete 在锁屏瞬间也会来，那时重现会被系统拒绝。
     dispatch_async(dispatch_get_main_queue(), ^{
         appDelegate.needsRebuildOnUnlock = YES;
+        // build 28：收到通知就记一行——下次测试日志里没「解锁重现」行时，
+        // 能分清是「通知没到／进程死了」还是「轮询过期了」（之前两种情况日志里完全一样）。
+        [appDelegate log:[NSString stringWithFormat:@"诊断1.0.6 解锁：收到 Darwin 通知 %@，开始轮询确认解锁", (__bridge NSString *)name]];
     });
     // 解锁过程分阶段，延迟多次轮询直到确认 isProtectedDataAvailable=YES（已解锁）
     int attempts = 16;
@@ -64,6 +67,10 @@ static void TLDSLockStateChanged(CFNotificationCenterRef center,
                 [UIApplication sharedApplication].isProtectedDataAvailable) {
                 appDelegate.needsRebuildOnUnlock = NO;
                 [appDelegate unlockRestoreFloatingOverlay];
+            } else if (i == attempts - 1 && appDelegate.needsRebuildOnUnlock) {
+                // build 28：16 次轮询过期仍未确认解锁——记一行（轮询窗口本身不动，
+                // 不拉长、不加事件监听；只补诊断，下次测试直接能分清触发支）。
+                [appDelegate log:@"诊断1.0.6 解锁：16 次轮询过期，未确认解锁（可能密码输入慢），本次不重现"];
             }
         });
     }

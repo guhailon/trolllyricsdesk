@@ -220,7 +220,7 @@ for rel in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]:
     pl = plistlib.loads(open(os.path.join(ROOT, rel), "rb").read())
     check(f"{rel}: version 1.0.6", pl.get("CFBundleShortVersionString") == "1.0.6",
           str(pl.get("CFBundleShortVersionString")))
-    check(f"{rel}: build 27", pl.get("CFBundleVersion") == "27",
+    check(f"{rel}: build 28", pl.get("CFBundleVersion") == "28",
           str(pl.get("CFBundleVersion")))
     check(f"{rel}: min OS 15.0", pl.get("MinimumOSVersion") == "15.0",
           str(pl.get("MinimumOSVersion")))
@@ -451,9 +451,9 @@ check("pbxproj: .tbd 直链 4 条未动（Debug＋Release 各一份，共 8 行�
 check("pbxproj: MARKETING_VERSION 1.0.6（4 处），MinOS 15.0",
       pbx.count("MARKETING_VERSION = 1.0.6;") == 4
       and "IPHONEOS_DEPLOYMENT_TARGET = 16.0" not in pbx)
-check("pbxproj: CURRENT_PROJECT_VERSION 27（4 处）",
-      pbx.count("CURRENT_PROJECT_VERSION = 27;") == 4,
-      f"count={pbx.count('CURRENT_PROJECT_VERSION = 27;')}")
+check("pbxproj: CURRENT_PROJECT_VERSION 28（4 处）",
+      pbx.count("CURRENT_PROJECT_VERSION = 28;") == 4,
+      f"count={pbx.count('CURRENT_PROJECT_VERSION = 28;')}")
 check("pbxproj: 包名 com.ycwl.Lyrics（App 2 处）＋ Widget 后缀",
       pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;") == 2
       and pbx.count("PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;") == 2)
@@ -1119,10 +1119,10 @@ mra24 = read("MusicProviders/MediaRemoteAdapter.swift")
 td24 = read("Overlay/TLDSAppDelegate.m")
 by24 = read(".github/workflows/build.yml")
 _vt = re.search(r'static let versionTag = "([^"]+)"', ls24)
-check("build 27（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 27",
-      _vt is not None and _vt.group(1).startswith("build 27"),
+check("build 28（第 2 项）：统一常量 versionTag 在 LyricStore，值是 build 28",
+      _vt is not None and _vt.group(1).startswith("build 28"),
       _vt.group(1) if _vt else "无 versionTag")
-check("build 27（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 27）",
+check("build 28（第 2 项）：versionTag 长串（UTF-8＞15 字节，Release 下进 __cstring，验包能搜到 build 28）",
       _vt is not None and len(_vt.group(1).encode("utf-8")) > 15,
       f"{len(_vt.group(1).encode('utf-8'))} bytes" if _vt else "无 versionTag")
 check("build 24（第 2 项）：探针日志走 versionTag 插值，写死的 build 22 字串不在源码运行时串里",
@@ -1332,10 +1332,10 @@ _pl27 = [plistlib.loads(open(os.path.join(ROOT, r), "rb").read())
          for r in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]]
 _pbx27 = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
 _vt27 = re.search(r'static let versionTag = "([^"]+)"', ls27)
-check("build 27：版本号三处一致——两 plist CFBundleVersion=27、pbxproj 4 处、versionTag 是 build 27",
-      all(p.get("CFBundleVersion") == "27" for p in _pl27)
-      and _pbx27.count("CURRENT_PROJECT_VERSION = 27;") == 4
-      and _vt27 is not None and _vt27.group(1).startswith("build 27"),
+check("build 27：版本号三处一致——两 plist CFBundleVersion=27、pbxproj 4 处、versionTag 是 build 27（build 28 起见 §23，此处已随版本前滚）",
+      all(p.get("CFBundleVersion") == "28" for p in _pl27)
+      and _pbx27.count("CURRENT_PROJECT_VERSION = 28;") == 4
+      and _vt27 is not None and _vt27.group(1).startswith("build 28"),
       _vt27.group(1) if _vt27 else "无 versionTag")
 check("build 27（解锁重现方法）：unlockRestoreFloatingOverlay 在 .m 实现、.h 声明",
       "- (void)unlockRestoreFloatingOverlay {" in td27
@@ -1375,8 +1375,8 @@ check("build 27（不动）：@escaping 不动——GetNowPlayingInfo 回调仍�
       "@escaping (CFDictionary?) -> Void" in mra27
       and "@convention(block) (CFDictionary?) -> Void" not in mra27
       and "withoutActuallyEscaping" not in mra27)
-check("build 27（不动）：歌词「·」识别修法不在这次里——songIdentityParts 分隔符仍是原来五种",
-      '" — ", " – ", " - ", "—", "–"' in ls27)
+check("build 27（不动→build 28 已改）：歌词「·」识别修法在 build 27 时不在——build 28 已加入（见 §23）",
+      '" — ", " – ", " - ", " · ", "—", "–"' in ls27)
 open_item("build 27 真机验①：冷启动后退到主屏幕，悬浮窗在不在（歌词当前行在不在）",
           "build 26 那项已过——冷启动 2 秒后看门狗兜底应已建好窗，退到主屏幕窗应在，"
           "歌词应是当前行；日志里应有「启动兜底」或「系统 Shell 注册成功」＋创建行")
@@ -1392,6 +1392,88 @@ open_item("build 27 真机验：主页面不闪退（#1 守卫仍在）",
 open_item("build 27 真机验：只建一个窗",
           "解锁重现不销毁、不新建；旧场景不在走重建时先销毁旧会话、只建一个新窗；"
           "日志里活着的悬浮场景数应为 1，悬浮窗控制器初始化次数不应多一次")
+
+
+print("\n== 23. build 28 「·」歌词识别修法＋锁屏诊断日志两行（皇上 2026-11-27 21:05 定：停掉后台 Scene 重发/重建/重现路线；build 28 只留「·」修法＋必要诊断日志，不拉长轮询、不加事件监听） ==")
+td28 = read("Overlay/TLDSAppDelegate.m")
+ls28 = read("Lyrics/LyricStore.swift")
+pc28 = read("PlaybackEngine/PlaybackCoordinator.swift")
+mra28 = read("MusicProviders/MediaRemoteAdapter.swift")
+ta28 = read("App/TrollLyricsDeskApp.swift")
+_pl28 = [plistlib.loads(open(os.path.join(ROOT, r), "rb").read())
+         for r in ["TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist"]]
+_pbx28 = read("TrollLyricsDesk.xcodeproj/project.pbxproj")
+_vt28 = re.search(r'static let versionTag = "([^"]+)"', ls28)
+check("build 28：版本号三处一致——两 plist CFBundleVersion=28、pbxproj 4 处、versionTag 是 build 28",
+      all(p.get("CFBundleVersion") == "28" for p in _pl28)
+      and _pbx28.count("CURRENT_PROJECT_VERSION = 28;") == 4
+      and _vt28 is not None and _vt28.group(1).startswith("build 28"),
+      _vt28.group(1) if _vt28 else "无 versionTag")
+check("build 28（「·」识别①）：songIdentityParts 认 \" · \"——分隔符六种，两处（artistCarriesLyric 镜像＋songIdentityParts）",
+      ls28.count('" — ", " – ", " - ", " · ", "—", "–"') == 2)
+check("build 28（「·」识别②）：searchTerms 存在——只拆 \" · \"，head=歌名、tail=歌手，artist 先、title 后，无 \" · \" 原样返回；例歌在注释里",
+      "static func searchTerms(title: String, artist: String) -> (track: String, artist: String) {" in ls28
+      and 'field.range(of: " · ")' in ls28
+      and "for field in [artist, title]" in ls28
+      and "return (head, tail)" in ls28
+      and "return (title, artist)" in ls28
+      and "为你等天晴 · 桃枝渡晚" in ls28
+      and "血染江山的画怎敌你眉间 一点朱砂 · 清越" in ls28)
+check("build 28（「·」识别③）：loadLyrics 用解析后的 searchTrack 搜词＋匹配＋缓存，搜词提示用真歌名",
+      "let searchTrack = MusicTrack(" in pc28
+      and "LRCLibClient.shared.search(\n                track: searchTrack" in pc28
+      and "track: searchTrack" in pc28
+      and 'message = "正在搜索歌词：\\(searchTrack.title)"' in pc28)
+check("build 28（「·」识别④）：两处缓存查键都用 searchTerms 解析后——新歌分支＋publishImmediately",
+      pc28.count("LyricStore.searchTerms(") == 3)
+check("build 28（「·」识别⑤）：换歌键仍走 stableSongIdentity——trackKey 不动，逐歌偏移键不动",
+      "LyricStore.stableSongIdentity(" in pc28
+      and "offsetKeyPrefix + stableSongIdentity(title: title, artist: artist)" in ls28)
+check("build 28（诊断①）：收到 Darwin 通知记一行——TLDSLockStateChanged 里「解锁：收到 Darwin 通知」",
+      "诊断1.0.6 解锁：收到 Darwin 通知" in td28)
+check("build 28（诊断②）：16 次轮询过期记一行——最后一轮（i == attempts - 1）且仍未确认才记",
+      "诊断1.0.6 解锁：16 次轮询过期，未确认解锁" in td28
+      and "i == attempts - 1" in td28)
+check("build 28（不动①）：轮询窗口不拉长——attempts 仍 16，延迟公式 0.15 + i * 0.25 原样",
+      "int attempts = 16;" in td28
+      and "double delay = 0.15 + i * 0.25;" in td28)
+_src28 = []
+for _dp, _dn, _fs in os.walk(ROOT):
+    if "hidden_files" in _dp or ".git" in _dp:
+        continue
+    for _f in _fs:
+        if _f.endswith((".m", ".h", ".swift")):
+            _src28.append(os.path.join(_dp, _f))
+check("build 28（不动②）：不加事件监听——产品源码全树无 UIApplicationProtectedDataDidBecomeAvailableNotification",
+      not any("UIApplicationProtectedDataDidBecomeAvailableNotification" in open(_p, errors="ignore").read() for _p in _src28))
+check("build 28（不动③）：解锁重现／重建／前台复核逻辑一字未改——unlockRestore 调用、rebuild 兜底、foregroundVerify 都在",
+      "[appDelegate unlockRestoreFloatingOverlay];" in td28
+      and "锁屏恢复：完整重建悬浮场景" in td28
+      and "foregroundVerifyFloatingWindow" in td28)
+check("build 28（不动④）：@escaping 不动——GetNowPlayingInfo 回调仍是 @escaping（build 23 闪退修法）",
+      "@escaping (CFDictionary?) -> Void" in mra28
+      and "@convention(block) (CFDictionary?) -> Void" not in mra28)
+check("build 28（不动⑤）：#1 守卫＋保活不动——连接窗口仍跳过恢复，BackgroundKeepAlive 仍在巨魔模式下启动",
+      "场景正在连接中，跳过这次恢复" in td28
+      and "if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }" in ta28)
+check("build 28（不动⑥）：锁屏歌词不恢复——两 plist 都无 NSSupportsLiveActivities",
+      all("NSSupportsLiveActivities" not in p for p in _pl28))
+open_item("build 28 真机验①：放「·」型歌（汽水音乐放《为你等天晴》）——「检测到新歌曲」整首只跳一次，不再每句一跳",
+          "放歌后看日志：换歌行只在切歌时出现一次；接着几句歌词不应再出现「检测到新歌曲」；"
+          "trackKey 不再每句变，syncLiveLyricsAndProgress 应正常走（进度不跳变）")
+open_item("build 28 真机验②：搜词用真歌名/真歌手——《为你等天晴》应搜到同步歌词（LRCLIB 有这首就命中）",
+          "搜到则悬浮窗显示同步歌词行（按进度走）；搜不到则看日志「没有找到匹配的同步歌词：为你等天晴」——"
+          "搜词名必须是真歌名，不再是歌词行；第二次放同一首歌应走本地缓存（「本地歌词命中」），不再联网")
+open_item("build 28 真机验③：普通播放器（Apple Music 等）不受影响——换歌、搜词、缓存照常",
+          "「·」修法只在字段含 \" · \" 时才改行为，无 \" · \" 原样返回；"
+          "逐歌偏移（[offset:] 叠加）不动，以前调过的偏移不必重调")
+open_item("build 28 真机验④：锁屏→解锁，看两行新诊断日志",
+          "锁屏→解锁后日志里应有「解锁：收到 Darwin 通知 …，开始轮询确认解锁」；"
+          "若密码输得慢（4 秒轮询过期），应有「16 次轮询过期，未确认解锁」行；"
+          "这两行只是诊断，不改行为——窗的恢复仍按 build 27（重现跑了但贴不上是已知限度，等 HUD 专项）")
+open_item("build 28 真机验：主页面不闪退、只建一个窗、激活／逐歌偏移照常",
+          "只改搜词＋两行日志；进主页面不闪、悬浮窗／激活／逐歌偏移照常；"
+          "解锁重现、重建、前台复核、保活全没动")
 
 
 print("\n== 10. OPEN（只能真机／macOS 编的，如实列，不编通过） ==")

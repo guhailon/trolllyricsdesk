@@ -133,7 +133,13 @@ final class PlaybackCoordinator: ObservableObject {
             // 命中本地缓存则直接带歌词 -> 桌面歌词与播放同时出现。
             publishImmediately(newState)
 
-            if LyricStore.cachedLyrics(title: newState.track.title, artist: newState.track.artist) == nil {
+            // build 28：缓存键用解析后的真歌名/真歌手（见 loadLyrics）——
+            // 「·」型播放器原字段是歌词行＋"歌名 · 歌手"整串，拿原字段查，
+            // 存的缓存永远命中不了。
+            let cacheTerms = LyricStore.searchTerms(
+                title: newState.track.title, artist: newState.track.artist
+            )
+            if LyricStore.cachedLyrics(title: cacheTerms.track, artist: cacheTerms.artist) == nil {
                 searchTask = Task {
                     await loadLyrics(for: newState.track, generation: generation)
                 }
@@ -251,9 +257,12 @@ final class PlaybackCoordinator: ObservableObject {
         let title = newState.track.title
         let artist = newState.track.artist
 
+        // build 28：缓存键用解析后的真歌名/真歌手——快照显示仍用原字段
+        // （悬浮窗靠 lyricLocation 认歌词行），只改查缓存的键。
+        let cacheTerms = LyricStore.searchTerms(title: title, artist: artist)
         let cached = LyricStore.cachedLyrics(
-            title: title,
-            artist: artist
+            title: cacheTerms.track,
+            artist: cacheTerms.artist
         )
 
         // 保留用户在设置里调过的外观
@@ -346,12 +355,25 @@ final class PlaybackCoordinator: ObservableObject {
         // 换歌后旧任务即使没被 cancel 停住，回来也写不进。
         guard !Task.isCancelled, generation == searchGeneration else { return }
 
-        message = "正在搜索歌词：\(track.title)"
+        // build 28：先解析出真歌名/真歌手再搜词——「·」型播放器 title 是
+        // 歌词行、artist 是 "真歌名 · 真歌手"，拿原字段搜永远搜不到；
+        // 匹配打分和缓存键也用解析后的字段，不然搜到了也匹配不上、存了也查不到。
+        // platform / duration 原样保留（打分里的时长分还要用）。
+        let terms = LyricStore.searchTerms(title: track.title, artist: track.artist)
+        let searchTrack = MusicTrack(
+            title: terms.track,
+            artist: terms.artist,
+            album: track.album,
+            duration: track.duration,
+            platform: track.platform
+        )
+
+        message = "正在搜索歌词：\(searchTrack.title)"
 
         do {
 
             let records = try await LRCLibClient.shared.search(
-                track: track
+                track: searchTrack
             )
 
             try Task.checkCancellation()
@@ -360,13 +382,13 @@ final class PlaybackCoordinator: ObservableObject {
             guard
                 let result = LyricMatcher.bestMatch(
                     records: records,
-                    track: track
+                    track: searchTrack
                 ),
                 let lrc = result.syncedLyrics
             else {
 
                 message = "没有找到匹配的同步歌词"
-                LyricLogger.log("没有找到匹配的同步歌词：\(track.title)")
+                LyricLogger.log("没有找到匹配的同步歌词：\(searchTrack.title)")
 
                 return
             }
@@ -376,7 +398,7 @@ final class PlaybackCoordinator: ObservableObject {
             guard !lines.isEmpty else {
 
                 message = "歌词解析失败"
-                LyricLogger.log("歌词解析失败：\(track.title)")
+                LyricLogger.log("歌词解析失败：\(searchTrack.title)")
 
                 return
             }
@@ -386,18 +408,18 @@ final class PlaybackCoordinator: ObservableObject {
                 return
             }
 
-            // 缓存，下次同曲即播即显
+            // 缓存，下次同曲即播即显（键用解析后的真歌名/真歌手，见上）
             LyricStore.cacheLyrics(
                 lines,
-                title: track.title,
-                artist: track.artist
+                title: searchTrack.title,
+                artist: searchTrack.artist
             )
 
             // 用「此刻」最新进度做基准，歌词从当前进度开始显示
             syncLyrics(lines, at: current)
 
             message = "歌词匹配成功"
-            LyricLogger.log("歌词匹配成功：\(track.title)")
+            LyricLogger.log("歌词匹配成功：\(searchTrack.title)")
 
         } catch is CancellationError {
 
