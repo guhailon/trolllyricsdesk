@@ -223,3 +223,56 @@
 - 第 2 笔（本节）：RUN 补 build 22 一节（只改文档，触发的 run 不用跟）。
 - 头 run：45922505795（head 6741c13）completed／success；IPA `桌面歌詞-1.0.6-build22-newbase.ipa`，1,674,367 B，SHA256 `e7de009e…`，验包 73 项全过。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。
+
+## §十三 build 23（1.0.6/build 23，只改回调回 @escaping：病根修复实验）
+
+### 为什么只改这一处
+
+- **build 22 在 LC 机（硬件 iPhone 13 Pro，iOS 27.0.1）上进主页面还是立刻闪**（皇上 2026-11-27 09:33 报）；#2 isPlaying 探针已禁仍闪，排除。第三次审计 2026-11-27 09:58 把病根钉到指令级：**1.0.6 把 `MRMediaRemoteGetNowPlayingInfo` 回调从 @escaping 改成 `@convention(block)`，编译器在调用点后插入 `swift_isEscapingClosureAtFileLocation` 逃逸检查，MediaRemote（异步 XPC）调用返回后仍持有 block，检查为真 → brk #1（build 22 二进制 0x44A5C，主线程，启动后 0.698s）**。1.0.5 的 @escaping 才是对的。`assumeIsolated` 已排除（它的 trap 在 0xDBF4，另一处 brk；调用栈里没有 ObjC 帧）；#4 场景创建时序、#3 队列改动也已排除。
+- 皇上 **2026-11-27 09:59 定：做 build 23，改回 @escaping 试试**。这是病根修复实验：若 build 23 不闪了，逃逸检查就是崩点；若还闪，#2／回调签名都排除，下一处查 **#4 场景创建时序**。
+
+### 改了什么（两笔提交，只动这一处＋版本＋自检）
+
+- **第 1 笔 `ad6eb22`**：`MusicProviders/MediaRemoteAdapter.swift`（产品代码只动 1 行）：`MRMediaRemoteGetNowPlayingInfoFn` 的回调参数 `@convention(block) (CFDictionary?) -> Void` 改 `@escaping (CFDictionary?) -> Void`。第 36 行 isPlaying 探针的 `@convention(block) (UInt8) -> Void` **绝对未动**，探针保持禁用；不用 `withoutActuallyEscaping` 包起来，也不删回调。
+- **版本**：1.0.6 不变，build 22→23（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处；MARKETING_VERSION 仍 1.0.6；build.yml 不动）。其余全部不动：不碰 #1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements、包名、MinOS 15.0。
+- **diff 规模（第 1 笔）**：5 个文件（+54/-15）——产品代码 1 个文件（1 行）、版本 3 个文件（各 1 行改 22→23）、自检 `check_1.0.6.py`（§2／§8 版本断言改 23，新增 §18 7 项，OPEN 加 1 条 build 23 真机验；旧「回调改 block」断言翻转为 @escaping 断言——旧断言的假定已被第三次审计推翻，注释里写明了机制）。
+- **第 2 笔 `4e408f3`（编译强制的一词补丁，行为不变）**：第 1 笔的头 run 编译失败（见下），唯一错误是 `MediaRemoteAdapter.swift:210:5: error: implicit use of 'self' in closure`——@escaping 让回调闭包变成 escaping，Swift 要求显式 `self.`，原来 @convention(block) 时隐式 self 能过。只把第 210 行 `queryIsPlayingIfNeeded()` 改 `self.queryIsPlayingIfNeeded()`（＋1 行注释）；闭包已 `[weak self]`，内层 Task 已 `guard let self`，行为与原来隐式 self 相同。自检 §18 因此多 1 项（显式 self 断言）。diff：2 个文件（+4/-1）。
+
+### 构建（两轮头 run；第一轮真失败，第二轮成功）
+
+- **第一轮头 run 45925893663（head ad6eb22）：completed／failure**——job Build 11 步，Archive (unsigned) 失败，其余 9 步 success、Verify／Sign／Package／Upload skipped。**不是池子取消**（job 跑了 11 步，不是 cancelled＋0 步），不重跑。job 日志（`hidden_files/job-45925893663.log`，220,139 B）唯一错误就是上面那行 implicit self；其余编译全过。这是 @escaping 改动的直接后果，不是机器失败。
+- **第二轮头 run 45926144366（head 4e408f3）：completed／success，11 步全 success**（Set up job／Checkout／Xcode version／Install zsign／Archive (unsigned)／Verify archive layout／Sign with zsign (TrollStore)／Package IPA／Upload artifact／Post Checkout／Complete job）。轮询读 `status_field`／`conclusion`。**0 次池子取消**，第 1 轮 poll 已 in_progress，第 3 轮 success（约 2 分钟）。
+
+### 验包（编成后下载真 IPA 亲验，不要只信 run 绿）
+
+- **验包 PASS（73 项，`hidden_files/verify_1.0.6.py`，详见 `hidden_files/ipa_verify_1.0.6_build23.log`）**——与 build 22 同数（71 项原有＋2 项 build 22 新增：禁用标记字串「build 22：isPlaying 探针已禁用」仍在位；readStatus 的「P0：放着歌还读不到」全角冒号版在位）。验包脚本本地改到 build 23（只改版本断言 22→23；探针标记串保留，因为探针仍禁着；不进仓库）。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build23-newbase.ipa`（另存，**build 22 的 `桌面歌詞-1.0.6-build22-newbase.ipa` 未动**；文件名继续用繁體「歌詞」，与 build 22 同写法），**1,674,848 B，SHA256 `47e4de0c37627288f37de349b77358f705f1089250a3b5ca7c9a0b7f9e90ce80`**（artifact id 15165894845，名 桌面歌词-1.0.6，1,672,993 B；解出与拷本 SHA 一致）。
+- 版本 1.0.6／build 23、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 23、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **entitlements 与 build 22 一字不差（二进制级核对）**：从两二进制的 code signature 槽（slot 5）抽出 entitlements blob 逐字节比对——app（3,308 B）与 build 22 一字不差，widget（464 B）也一字不差。
+- 同步修正、激活、五件、三档、三渲染器、PiP 实验标记、诊断串（1.0.6 前缀）、Engine Fix 串全在位；第 6 项新结论「托管结构检查通过；实际屏幕可见性未确认」在位，「已确认可见」0 命中；第 1 项 native-candidate 在位；第 9 项 PiP 两段键在位；#1 守卫字串「floatingSceneEverConnected」在位。
+
+### 关键断言：逃逸检查点计数（亲手数的，不是只信审计数字）
+
+- **方法**（`hidden_files/escape_check_count.py`，capstone 5.0.7 反汇编；计数逻辑：解析 LC_SYMTAB＋LC_DYSYMTAB 间接符号表找 `_swift_isEscapingClosureAtFileLocation` 的 `__stubs` 入口，再在 `__text` 里数所有 `bl` 到该 stub 的调用点；函数归属按 LC_FUNCTION_STARTS 的 ULEB128 增量相对 `__TEXT` 段 vmaddr 算）：
+- **先在 build 22 二进制上验证方法**：数出 **3 个点**，第 3 个正在 **0x44A5C**——与第三次审计的数字一字不差（详见 `hidden_files/escape_check_build22.log`）。另两个点在 0xDAE4／0xDB1C，同属函数 0xDA40。
+- **build 23 二进制：2 个点**（详见 `hidden_files/escape_check_build23.log`）——0xDAE4／0xDB1C，仍在函数 0xDA40，地址与 build 22 完全相同；**MediaRemote 那个点消失了，总数回到 1.0.5 的 2 个**。
+- **再单独核 MediaRemote 调用点所在的函数**：build 22 里含 0x44A5C 检查点的函数起于 **0x444FC**（有真实函数序言 `stp d9, d8, [sp, #-0x70]!`；下一函数起于 0x44ABC）；build 23 里**同一函数仍在同一地址 0x444FC、同一序言**，函数体内 `bl` 到逃逸检查 stub 的次数为 **0**（build 22 里是 1 次，正好是 0x44A5C）。附记：审计写的函数起址 0x42F60 与 LC_FUNCTION_STARTS 不符——0x42F60 处无函数序言，是另一函数中部；站点地址 0x44A5C 本身与审计完全一致，结论不受影响。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**275 PASS，0 FAIL，31 OPEN**（build 22 是 267 PASS／30 OPEN；§18 加 8 项——@escaping 在 typealias 里在位、@escaping 就在该 typealias 里、block 版 CFDictionary 回调不在、isPlaying typealias 未动、无 withoutActuallyEscaping／回调未删、显式 self.、探针仍禁用、其余不动，全过；旧「回调改 block」断言翻转后也过；OPEN 加 1 条 build 23 真机验）。
+
+### 待真机验证（LC 机 iPhone 13 Pro／iOS 27.0.1 为主线）
+
+1. **进主页面还闪不闪（第一项，病根修复实验的判据）**：若不闪了，逃逸检查就是崩点；若还闪，#2／回调签名都排除，下一处查 **#4 场景创建时序**。日志里仍应有「build 22：isPlaying 探针已禁用」行（探针仍禁着）。
+2. **P0 仍是 info=nil 待查，不受这次改动影响**：QQ 音乐在播、回调 info 仍 nil 的问题（诊断页「疑似 P0」）与回调签名无关，这次改动只修闪退，不修跟随读不到；P0 仍按 build 20 的清单验（§七 A）。
+3. 其余照 build 20 清单 §七验：悬浮窗／激活／逐歌偏移照常；解锁重建仍只建一个窗；PiP 两段照常；巨魔机 iPhone 11／TrollStore 回归照 §七 B。
+
+### 提交链（build 23）
+
+- 第 1 笔 `ad6eb22`：回调改回 @escaping＋版本 1.0.6/23＋自检 §18（5 个文件，+54/-15）。头 run 45925893663 失败（implicit self，见上）。
+- 第 2 笔 `4e408f3`：补显式 self. 一词＋自检 1 项（2 个文件，+4/-1）。头 run 45926144366 成功。
+- 第 3 笔（本节）：RUN 补 build 23 一节（只改文档，触发的 run 不用跟）。
+- 头 run：45926144366（head 4e408f3）completed／success；IPA `桌面歌詞-1.0.6-build23-newbase.ipa`，1,674,848 B，SHA256 `47e4de0c…`，验包 73 项全过；逃逸检查点 3→2，MediaRemote 函数里 1→0。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。**未发给皇上**（等上级转）。
