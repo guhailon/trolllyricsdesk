@@ -908,6 +908,7 @@
 				95AB7473D9026BBF26F4BC27 /* InAppLyricsRenderer.swift in Sources */,
 				D77C7CCE0E54161D7CD33843 /* MediaRemoteDiagnostics.swift in Sources */,
 				B23A5512378E5CA3C274146B /* OverlayDiagnostics.swift in Sources */,
+				EA9DD372B71F2540C91A1F6A /* DiagnosticsView.swift in Sources */,
 				2172AF9E476A2FEA1A5BC9EA /* TLDHUDHelper.mm in Sources */,
 				1005515C4C612BB6B16EAA91 /* TLDHUDPaths.mm in Sources */,
 				0711872937F70DDEE05DEDB4 /* TLDHUDLog.mm in Sources */,

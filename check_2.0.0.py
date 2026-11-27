@@ -357,6 +357,46 @@ check("Embed HUD Daemon phase 在位（含 cp＋test -f）",
       and 'test -f' in pbx)
 check("App target 依赖 daemon target",
       "PBXTargetDependency" in pbx and "TLDHUDDaemon" in pbx)
+print("\n== 7b. pbxproj：phase 文件集与 HEAD 对照（run 46052617013 教训："
+      "手术曾吃掉 DiagnosticsView.swift 一行，导致 Swift 编译失败） ==")
+try:
+    head_pbx = git_out(["show", BASE + ":TrollLyricsDesk.xcodeproj/project.pbxproj"])
+
+    def phase_ids(text, pid, kind):
+        m = re.search(re.escape(pid) + r" /\* " + kind + r" \*/ = \{(.*?)\n\t\t\};",
+                      text, re.S)
+        return set(re.findall(r"\b([0-9A-F]{24})\b", m.group(1))) if m else set()
+
+    app_src_now = phase_ids(pbx, "4821909E9BF9E73E471FEA84", "PBXSourcesBuildPhase")
+    app_src_head = phase_ids(head_pbx, "4821909E9BF9E73E471FEA84", "PBXSourcesBuildPhase")
+    check("App Sources：HEAD 24 个全在（一个不能少）",
+          not (app_src_head - app_src_now),
+          str(sorted(app_src_head - app_src_now)))
+    check("App Sources：只多了 4 个新文件",
+          app_src_now - app_src_head
+          == {"2172AF9E476A2FEA1A5BC9EA", "1005515C4C612BB6B16EAA91",
+              "0711872937F70DDEE05DEDB4", "5D69FC280E7563936870A5C5"},
+          str(sorted(app_src_now - app_src_head)))
+    res_now = phase_ids(pbx, "F667297ED3AB90EAC07798D4", "PBXResourcesBuildPhase")
+    res_head = phase_ids(head_pbx, "F667297ED3AB90EAC07798D4", "PBXResourcesBuildPhase")
+    check("App Resources：HEAD 的 Assets.xcassets 全在",
+          not (res_head - res_now), str(sorted(res_head - res_now)))
+    check("App Resources：只多了 daemon plist 模板",
+          res_now - res_head == {"968DBE9282B383BF6BDE7C88"},
+          str(sorted(res_now - res_head)))
+    # 其他 phase（Widget／daemon 除外）一个文件都不能少
+    other_lost = []
+    for kind in ["PBXSourcesBuildPhase", "PBXResourcesBuildPhase",
+                 "PBXFrameworksBuildPhase", "PBXCopyFilesBuildPhase"]:
+        for m in re.finditer(r"\t\t([0-9A-F]{24}) /\* " + kind + r" \*/ = \{",
+                             head_pbx):
+            pid = m.group(1)
+            lost = phase_ids(head_pbx, pid, kind) - phase_ids(pbx, pid, kind)
+            if lost:
+                other_lost.append((kind, pid, sorted(lost)))
+    check("其余 phase：无文件丢失", not other_lost, str(other_lost))
+except subprocess.CalledProcessError as e:
+    open_item("git show HEAD pbxproj 读不到，phase 对照跳过", str(e))
 sch = read("TrollLyricsDesk.xcodeproj/xcshareddata/xcschemes/TrollLyricsDesk.xcscheme")
 check("scheme 含 daemon BuildActionEntry",
       "TLDHUDDaemon" in sch and sch.count("<BuildActionEntry") == 3,
