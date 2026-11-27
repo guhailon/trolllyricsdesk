@@ -177,3 +177,49 @@
 - 第 3 笔（本节）：RUN 补 build 21 一节。
 - 头 run：45876153085（head e062657）completed／success；IPA `桌面歌詞-1.0.6-build21-newbase.ipa`，1,675,821 B，SHA256 `8fe421aa…`，验包 71 项全过。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。
+
+## §十二 build 22（1.0.6/build 22，只禁 isPlaying 探针：决定性实验）
+
+### 为什么只禁这一处
+
+- **build 21 在 LC 机（硬件 iPhone 13 Pro，iOS 27.0.1）上进主页面还是立刻闪**（皇上 2026-11-27 09:16 报）；#1 守卫已逐行核过没洞、SecTask 三参数已修，两个都被真机排除。审计的时机表里剩下的最可疑就是 **#2 isPlaying 探针**——第一次轮询 → GetNowPlayingInfo 回调 info==nil → `queryIsPlayingIfNeeded()` 里 `dlsym` 到的 `MRMediaRemoteGetNowPlayingApplicationIsPlaying` 符号，其假定签名（`(dispatch_queue_t, completion(Boolean))`，completion 为 block）只按 2013–2014 年公开头文件推测，iOS 27 可能已改（SecTask 已有先例）；时机也对得上（探针在主页面出现后约 1 秒内跑，正是闪的时刻）；且它只在 info==nil 时跑，LC 机上每次启动都 info==nil（P0），iPhone 11 上从不——正好对上「只在 LC 机上、每次都闪」。
+- 皇上 **2026-11-27 09:22 定：先出 build 22，禁掉探针试试**。这是决定性实验：若 build 22 不闪了，#2 就是崩点（或崩点之一）；若还闪，#2 排除，下一处查 #4 场景创建时序。
+
+### 改了什么（一笔提交 `6741c13`，只动这一处＋版本＋自检）
+
+- **`MusicProviders/MediaRemoteAdapter.swift`（+4 行，唯一的产品代码改动）**：`queryIsPlayingIfNeeded()` 开头、5 秒节流检查之后（`lastIsPlayingQueryAt = Date()` 之后，节流戳照常更新，日志不刷屏），记一行 `LyricLogger.log("诊断1.0.6 MediaRemote：build 22：isPlaying 探针已禁用")` 然后直接 `return`，不调 `dlsym` 到的符号。探针代码（typealias、dlsym、`unsafeBitCast`、query 调用）一字不动留着，以后能恢复；调用点（GetNowPlayingInfo 回调里 info==nil 时调）未动——函数内直接返回。
+- **版本**：1.0.6 不变，build 21→22（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处；MARKETING_VERSION 仍 1.0.6；build.yml 不动）。其余全部不动：不碰 #1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements、包名、MinOS 15.0。
+- **diff 规模**：5 个文件（+49/-11）——产品代码 1 个文件（+4）、版本 3 个文件（各 1 行）、自检 `check_1.0.6.py`（§2／§8 版本断言改 22，新增 §17 6 项，OPEN 加 1 条 build 22 真机验）。
+- **一个小插曲（已如实处理，不是绕过）**：第一次用 Python `plistlib.dump` 改 App 的 Info.plist 时，它把键按字母重排、还吞了注释，diff 一下多了 87 行——已恢复原文件，改用正则只改 CFBundleVersion 后面那一行，两处 plist 最终各只有 1 行 diff。
+
+### 构建（头 run 45922505795，head 6741c13）
+
+- **completed／success，11 步全 success**（job Build：Set up job／Checkout／Xcode version／Install zsign／Archive (unsigned)／Verify archive layout／Sign with zsign (TrollStore)／Package IPA／Upload artifact／Post Checkout／Complete job）。轮询读 `status_field`／`conclusion`。
+- 这次很顺：**0 次池子取消**，第 1 轮 poll 已 in_progress，第 3 轮 success（约 2 分钟）；build 21 那次取消了 4 次、接力了 9 轮。晚间池子这次没堵。
+
+### 验包（编成后下载真 IPA 亲验，不要只信 run 绿）
+
+- **验包 PASS（73 项，`hidden_files/verify_1.0.6.py`，详见 `hidden_files/ipa_verify_1.0.6_build22.log`）**——71 项原有＋2 项 build 22 新增（禁用标记字串「build 22：isPlaying 探针已禁用」在二进制里在位；readStatus 的「P0：放着歌还读不到」全角冒号版在位）。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build22-newbase.ipa`（另存，**build 21 的 `桌面歌詞-1.0.6-build21-newbase.ipa` 未动**；文件名继续用繁體「歌詞」，与 build 21 同写法），**1,674,367 B，SHA256 `e7de009ebe17f8e0fbf833527bcd3bd766d9fbb9c50fa89e3da36d1720c88eea`**（artifact id 15165735680，名 桌面歌词-1.0.6，1,672,406 B；解出与拷本 SHA 一致）。
+- 版本 1.0.6／build 22、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 22、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **entitlements 与 build 21 一致（零新增，二进制级核对）**：从两二进制的 code signature 槽（slot 5）抽出 entitlements blob 逐字节比对——app（3,308 B）与 build 21 一字不差，widget（464 B，仅 application-groups）也一字不差；自检 §9 另查 entitlements 文件与 4f43991 一字未动。
+- 同步修正、激活、五件、三档、三渲染器、PiP 实验标记、诊断串（1.0.6 前缀）、Engine Fix 串全在位；第 6 项新结论「托管结构检查通过；实际屏幕可见性未确认」在位，「已确认可见」0 命中；第 1 项 native-candidate 在位；第 9 项 PiP 两段键在位；#1 守卫字串「floatingSceneEverConnected」在位。
+- **验包里唯一一次 FAIL 及处理（已查明机制，不是放水）**：第一遍验包 71 PASS／1 FAIL——「在位：P0——放着歌还读不到」（破折号版）不在二进制里。逐字节核对确认：build 21 二进制里它在位，build 22 里不在位；同时 `recordIsPlaying`／`MRMediaRemoteGetNowPlayingApplicationIsPlaying` 字串在 build 22 里也不在位，而 readStatus 的「P0：放着歌还读不到」（全角冒号版）和「疑似 P0」仍在位。机制：early return 让 `recordIsPlaying` 的三个调用点全不可达，Whole-Module 优化把这个函数连同它那行唯一日志串、以及只被死代码引用的符号名字串一起裁掉了——这是禁掉探针的直接后果，源码里那行仍在（`MediaRemoteDiagnostics.swift:130`，自检 §15 断言），readStatus 的 P0 状态路径（DiagnosticsView 还在调）也没断。处理：验包脚本把破折号版 P0 串从「在位」移到「不在位（build 22 预期）」并写明机制，另加全角冒号版 P0 串为在位对照；重跑 **73 项全过**。产品代码一字未动，改的只是验包脚本的期望（`hidden_files/verify_1.0.6.py`，不进仓库）。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**267 PASS，0 FAIL，30 OPEN**（build 21 是 261 PASS／29 OPEN；§17 加 6 项——禁用标记在位、节流后 return、return 在 bridge.symbol／dlsym 之前、探针代码仍在但不可达、调用点未动、其余不动，全过；OPEN 加 1 条 build 22 真机验）。
+
+### 待真机验证（LC 机 iPhone 13 Pro／iOS 27.0.1 为主线）
+
+1. **进主页面还闪不闪（第一项，决定性实验的判据）**：若不闪了，#2 就是崩点（或崩点之一）——探针以后可以删掉或改签名重做；若还闪，#2 排除，下一处查 **#4 场景创建时序**。日志里应有「build 22：isPlaying 探针已禁用」行（5 秒节流，首次进主页面时记一次）。
+2. 其余照 build 20 清单 §七验：悬浮窗／激活／逐歌偏移照常；解锁重建仍只建一个窗；PiP 两段、P0 仍按 build 20 的清单验（§七 A）——注意：build 22 里 P0 的「放着歌还读不到」状态行不会再出现（探针已禁，`isPlaying` 永远未知），诊断页的 MediaRemote 状态应是「疑似 P0」而不是 P0，这是禁探针后的预期变化，不是新故障。
+3. 巨魔机 iPhone 11／TrollStore 回归照 §七 B（巨魔原生模式、无复核行、检测引擎计数恒为 1、悬浮窗／激活／逐歌偏移照常）。
+
+### 提交链（build 22）
+
+- 第 1 笔 `6741c13`：只禁 isPlaying 探针＋版本 1.0.6/22＋自检 §17（5 个文件，+49/-11）。
+- 第 2 笔（本节）：RUN 补 build 22 一节（只改文档，触发的 run 不用跟）。
+- 头 run：45922505795（head 6741c13）completed／success；IPA `桌面歌詞-1.0.6-build22-newbase.ipa`，1,674,367 B，SHA256 `e7de009e…`，验包 73 项全过。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。
