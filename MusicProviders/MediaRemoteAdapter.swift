@@ -207,7 +207,8 @@ MediaRemoteDiagnostics.recordInfoCallback(isNil: info == nil, title: title)
 if info == nil {
     // 1.0.6 第 4 项 P0：回调回来了但没数据——问系统到底有没有 App 在放歌。
     // （23:24 坐实：LC 机上 QQ 音乐在播，info 仍 nil。）
-    queryIsPlayingIfNeeded()
+    // build 23：@escaping 闭包须显式 self.（编译强制；行为与原来隐式 self 相同）。
+    self.queryIsPlayingIfNeeded()
 }
 if info != nil && title?.isEmpty != false {
     // 1.0.6 第 4 项：字典非空缺标题——「解析失败」的证据（计数进 diagnostics）。

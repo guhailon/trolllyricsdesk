@@ -1061,6 +1061,8 @@ check("build 23：GetNowPlayingInfo 回调不再是 @convention(block)（CFDicti
 check("build 23：isPlaying 探针的 typealias 绝对未动——仍是 @convention(block) (UInt8)",
       "@convention(block) (UInt8) -> Void" in mra23
       and "MRMediaRemoteGetNowPlayingApplicationIsPlayingFn" in mra23)
+check("build 23：@escaping 闭包里显式 self.（编译强制，行为不变——闭包已 [weak self]，内层 Task 已 guard let self）",
+      "self.queryIsPlayingIfNeeded()" in mra23)
 check("build 23：没有用 withoutActuallyEscaping 包起来，也没有删回调",
       "withoutActuallyEscaping" not in mra23
       and "getNowPlayingInfo(" in mra23
