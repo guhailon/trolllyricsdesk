@@ -608,6 +608,128 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
 /// 回到前台通知的恢复入口（触发写清是回到前台）。
 - (void)tlds_reactivateFromForegroundNotification {
     [self reactivateFloatingOverlayWithTrigger:@"回到前台"];
+    // 1.0.6/build 26：前台复核——回前台 1.5 秒后验悬浮窗真在不在。
+    // reactivate 只管「场景还在就重发设置／取消隐藏」，不管「窗口到底在不在」；
+    // 解锁重建在后台跑完后，窗口可能根本没建出来（floatingWindow 为空）或没挂上，
+    // 这时 reactivate 的「场景还在」分支什么都不做——这就是锁屏→解锁后主屏幕没窗、
+    // 只有打开 App 主页面才回来的原因。复核是兜底，不是替代：解锁重建、看门狗、
+    // build 25 的启动兜底全都不动。
+    // WillEnterForeground 与 DidBecomeActive 同一次回前台各调一次这里，
+    // scheduled 守卫保证只排一次复核；1.5 秒是宽限——解锁重建刚建好的场景
+    // 可能还在连接，复核里再看，不到 2 秒不判「不在」。
+    if (!self.foregroundVerifyScheduled) {
+        self.foregroundVerifyScheduled = YES;
+        self.foregroundVerifyRetries = 0;
+        __weak TLDSAppDelegate *weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            __strong TLDSAppDelegate *strongSelf = weakSelf;
+            if (strongSelf) {
+                strongSelf.foregroundVerifyScheduled = NO;
+                [strongSelf foregroundVerifyFloatingWindow];
+            }
+        });
+    }
+}
+
+/// 1.0.6/build 26：前台复核——回前台时验悬浮窗真在不在。
+/// 判据只认窗口本身（与 verifyFloatingVisibility 的窗口判据同款）：
+/// floatingWindow 非空、isHidden=NO、alpha>0、windowScene 非空、
+/// rootView 的 window 就是它。场景连着不算数——场景连着、窗没了，
+/// 正是 reactivate「场景还在」分支的盲区（只重发设置、不重建）。
+/// 只验、不直接建场景——创建归 build 25 的启动兜底管；窗不在就走现成的
+/// rebuildFloatingOverlay（先销毁旧会话、只建一个窗，3 秒节流照常）。
+- (void)foregroundVerifyFloatingWindow {
+    self.foregroundVerifyScheduled = NO;
+    // 普通签名兼容模式：不建窗、不重建（与 reactivate 同款守卫）。
+    if (self.compatMode) {
+        return;
+    }
+    // 场景一次都没建过：创建归 build 25 的启动兜底管，这里只验已建好的窗。
+    if (!self.shellInitialized || !self.floatingSceneEverCreated) {
+        return;
+    }
+    // 用户关掉了悬浮窗：不恢复（尊重开关，与 reactivate／rebuild 同款）。
+    NSUserDefaults *prefs = [TLDSRuntime sharedDefaults];
+    BOOL enabled = [prefs objectForKey:@"floatingLyric.enabled"] == nil
+                 ? YES : [prefs boolForKey:@"floatingLyric.enabled"];
+    if (!enabled) {
+        return;
+    }
+
+    // 宽限：场景刚建好、还在连接——不到 2 秒不判「不在」（build 21 的教训：
+    // 对正在连接的会话重建会和 UIKit 连接流程撞车而闪退）。
+    // 2 秒内：最多再排一次（1.5 秒后），给它连上的时间；2 秒后仍未连上
+    // 但不到 10 秒：先不动（看门狗的 build 25 卡住逻辑 10 秒后会判卡住走重建，
+    // 下一次回前台也会再验）；10 秒以上：判卡住，往下走重建。
+    if (self.floatingScene && !self.floatingSceneCreated && !self.floatingSceneEverConnected) {
+        double now = CFAbsoluteTimeGetCurrent();
+        double age = now - self.floatingSceneCreatedTime;
+        if (age < 2.0) {
+            if (self.foregroundVerifyRetries < 2) {
+                self.foregroundVerifyRetries += 1;
+                [self log:[NSString stringWithFormat:@"诊断1.0.6 前台复核：场景正在连接中，先不动（已创建 %.1f 秒，1.5 秒后再验）", age]];
+                self.foregroundVerifyScheduled = YES;
+                __weak TLDSAppDelegate *weakSelf = self;
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+                               dispatch_get_main_queue(), ^{
+                    __strong TLDSAppDelegate *strongSelf = weakSelf;
+                    if (strongSelf) {
+                        strongSelf.foregroundVerifyScheduled = NO;
+                        [strongSelf foregroundVerifyFloatingWindow];
+                    }
+                });
+            } else {
+                [self log:@"诊断1.0.6 前台复核：场景正在连接中，先不动（已重验 2 次，等看门狗／下一次回前台）"];
+            }
+            return;
+        }
+        if (age < 10.0) {
+            [self log:[NSString stringWithFormat:@"诊断1.0.6 前台复核：场景正在连接中，先不动（已创建 %.1f 秒，未到 10 秒卡住线）", age]];
+            return;
+        }
+        [self log:[NSString stringWithFormat:@"诊断1.0.6 前台复核：场景创建已超过 10 秒仍未连接，判定卡住，走重建（触发：foreground-verify，已创建 %.1f 秒）", age]];
+        // 往下走重建：窗肯定不在（场景都没连上）；rebuild 对未连上的场景
+        // 跳过销毁（只摘 binder＋藏窗口），不撞车。
+        [self rebuildFloatingOverlay];
+        return;
+    }
+
+    // 验窗真在不在（只认窗口本身）。
+    UIWindow *w = self.floatingWindow;
+    BOOL windowPresent = w != nil && !w.isHidden && w.alpha > 0 && w.windowScene != nil
+        && w.rootViewController != nil && w.rootViewController.view.window == w;
+    if (windowPresent) {
+        [self log:@"诊断1.0.6 前台复核：悬浮窗在，不动"];
+        return;
+    }
+    // 窗不在：走重建（触发：foreground-verify）。重建有 3 秒节流——
+    // 节流内被拦住时 3.5 秒后再验一次（最多再排一次），不让这次回前台白跑。
+    double now = CFAbsoluteTimeGetCurrent();
+    if (now - self.lastRebuildTime < 3.0) {
+        if (self.foregroundVerifyRetries < 2) {
+            self.foregroundVerifyRetries += 1;
+            [self log:@"诊断1.0.6 前台复核：悬浮窗不在，但 3 秒节流内，3.5 秒后再验一次"];
+            self.foregroundVerifyScheduled = YES;
+            __weak TLDSAppDelegate *weakSelf = self;
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.5 * NSEC_PER_SEC)),
+                           dispatch_get_main_queue(), ^{
+                __strong TLDSAppDelegate *strongSelf = weakSelf;
+                if (strongSelf) {
+                    strongSelf.foregroundVerifyScheduled = NO;
+                    [strongSelf foregroundVerifyFloatingWindow];
+                }
+            });
+        } else {
+            [self log:@"诊断1.0.6 前台复核：悬浮窗不在，但 3 秒节流内（已重验 2 次，等看门狗／下一次回前台）"];
+        }
+        return;
+    }
+    [self log:[NSString stringWithFormat:@"诊断1.0.6 前台复核：悬浮窗不在，走重建（触发：foreground-verify，窗口：%@，windowScene：%@，场景已连：%@）",
+               w ? (w.isHidden ? @"已创建但隐藏" : @"已创建") : @"未创建",
+               (w && w.windowScene) ? @"非空" : @"空",
+               self.floatingSceneCreated ? @"YES" : @"NO"]];
+    [self rebuildFloatingOverlay];
 }
 
 - (void)reactivateFloatingOverlayWithTrigger:(NSString *)trigger {

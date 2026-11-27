@@ -40,6 +40,13 @@
 /// createFloatingSceneWithIdentifier 里记）。连接窗口只给 10 秒——
 /// 超过 10 秒还没连上就是卡住了，看门狗不再无限跳过，走重建。
 @property (nonatomic, assign) double floatingSceneCreatedTime;
+/// 1.0.6/build 26：前台复核的调度守卫与延后重验次数。
+/// WillEnterForeground 与 DidBecomeActive 同一次回前台各调一次
+/// tlds_reactivateFromForegroundNotification，scheduled 守卫保证
+/// 只排一次复核；场景还在连接／重建 3 秒节流时最多再排两次（retries 上限 2，
+/// 不无限重排）。
+@property (nonatomic, assign) BOOL foregroundVerifyScheduled;
+@property (nonatomic, assign) NSInteger foregroundVerifyRetries;
 @property (nonatomic, assign) double lastRestoreLogTime;
 /// 1.0.6/build 21：「场景连接中，跳过恢复」日志的节流时间戳（CFAbsoluteTime）。
 @property (nonatomic, assign) double lastConnectingSkipLogTime;
@@ -76,6 +83,14 @@
 
 /// 完整重建悬浮场景（丢弃旧 scene / binder / window，走首启同款创建路径）
 - (void)rebuildFloatingOverlay;
+
+/// 1.0.6/build 26：前台复核——回前台 1.5 秒后验悬浮窗真在不在。
+/// 场景连着≠窗口真在：解锁重建在后台跑完，App 自查都通过、主屏幕上却没窗，
+/// 只有打开 App 主页面才回来。窗在就记「在，不动」；窗不在就走重建；
+/// 场景刚建好还在连接时等一等，绝不跟正在连接的会话撞车（build 21 的教训）。
+/// 只验、不直接建场景——创建归 build 25 的启动兜底管；重建走现成的
+/// rebuildFloatingOverlay（先销毁旧会话、只建一个窗）。
+- (void)foregroundVerifyFloatingWindow;
 
 /// 1.0.6（第 7 项）：记一次悬浮窗当前状态（窗口在不在、isHidden、windowScene、frame），
 /// tag 是「激活前」／「激活成功后」。激活成功不应丢窗，两次快照对得上才算。

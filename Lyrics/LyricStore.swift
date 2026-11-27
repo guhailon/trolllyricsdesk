@@ -23,14 +23,14 @@ enum LyricStore {
 
     static let dataKey = "lyric.snapshot"
 
-    /// build 25：日志里的 build 号只从这里取（统一常量）——升版时改这一处＋
+    /// build 26：日志里的 build 号只从这里取（统一常量）——升版时改这一处＋
     /// 两处 Info.plist 的 CFBundleVersion＋pbxproj 的 CURRENT_PROJECT_VERSION。
-    /// 自检 §19／§20 核对它与三处版本号一致；MediaRemoteAdapter 的探针日志用它插值，
+    /// 自检 §19／§21 核对它与三处版本号一致；MediaRemoteAdapter 的探针日志用它插值，
     /// 不再写死 "build 22"（build 23 的日志写 build 22 就是写死字串的教训）。
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
-    /// 验包能直接搜到 "build 25"。
-    static let versionTag = "build 25（1.0.6）"
+    /// 验包能直接搜到 "build 26"。
+    static let versionTag = "build 26（1.0.6）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
