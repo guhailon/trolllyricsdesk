@@ -410,6 +410,10 @@
 				MARKETING_VERSION = 2.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-framework",
+					Foundation,
+					"-framework",
+					UIKit,
 					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
 					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
 					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",
@@ -448,6 +452,10 @@
 				MARKETING_VERSION = 2.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-framework",
+					Foundation,
+					"-framework",
+					UIKit,
 					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
 					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
 					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",

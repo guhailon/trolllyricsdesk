@@ -337,6 +337,10 @@ check("daemon OTHER_LDFLAGS 链 3 个 .tbd",
           '"$(SRCROOT)/HUD/Private/BackBoardServices.tbd"',
           '"$(SRCROOT)/HUD/Private/GraphicsServices.tbd"',
           '"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd"']))
+check("daemon OTHER_LDFLAGS 链 Foundation＋UIKit（run 46037981048 教训："
+      "tool target 不自动链 UIKit，缺了链接报 undefined symbols）",
+      pbx.count('"-framework",\n\t\t\t\t\tFoundation,') == 2
+      and pbx.count('"-framework",\n\t\t\t\t\tUIKit,') == 2)
 check("daemon HEADER_SEARCH_PATHS 含 HUD/headers",
       '"$(SRCROOT)/HUD/headers"' in pbx)
 check("daemon PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.hud",
