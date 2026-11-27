@@ -276,3 +276,76 @@
 - 第 3 笔（本节）：RUN 补 build 23 一节（只改文档，触发的 run 不用跟）。
 - 头 run：45926144366（head 4e408f3）completed／success；IPA `桌面歌詞-1.0.6-build23-newbase.ipa`，1,674,848 B，SHA256 `47e4de0c…`，验包 73 项全过；逃逸检查点 3→2，MediaRemote 函数里 1→0。
 - 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**未部署上源**（部署未批）。**未发给皇上**（等上级转）。
+
+## §十四 build 24（1.0.6/build 24，巨魔主线五件修）
+
+### 为什么只做这五件
+
+- 皇上 **2026-11-27 10:20 定：LC 宿主研究暂停，巨魔版（iPhone 11／iOS 16.5／Dopamine rootless，TrollStore）是正式开发主线**；皇上自己在 iPhone 11 上验 build 23，同时把下面五件修进 build 24。
+- 皇上 **2026-11-27 10:22 定「不上源」：TrollLyricsDesk 不部署到越狱源**——现在就定了，不用等验收；真机验收照常继续。本节关于部署的写法按已定版写，不再写「等验收通过再定上源」。
+- **未部署上源**（已定不上源）。**未发给皇上**（等上级转）。
+
+### 改了什么（一笔提交 `0cef79c`，只做五件＋版本＋自检）
+
+1. **环境识别修复（build 23 的漏判）**：build 23 在 LC 3.8.12 客人里 `isLiveContainer=false`，认成「普通签名（沙盒内）」走 compat，悬浮窗没建——newbase 重写时丢了旧统一版的信号。`Lyrics/LyricStore.swift` 的 `isLiveContainer` 补回两路旧信号（只读参考旧线分支 v1.0.6／工作区 `~/workspace/trolllyricsdesk`，commit 893f066，**旧分支与旧工作区一字未碰**；没有研究 LiveContainer 宿主源码）：
+   - **信号一（排第一）**：环境变量 `LC_HOME_PATH`——宿主起客人 App 前 setenv，hideLiveContainer 不动环境变量，最可靠；
+   - **信号二**：包路径含 `/Documents/Applications/`（客人包体在宿主 Documents/Applications/ 下；巨魔包在 `/var/containers/Bundle/Application/` 下，不会误中）。
+   - 保留现有信号：Info.plist 键 TLDSLiveContainer、路径含 livecontainer 或 /lcapps/、类 LCAppDelegate。`liveContainerSignalDetail` 同步写清新信号的命中情况，「均无」行也改了。
+   - `App/TrollLyricsDeskApp.swift` 新 `logEnvironmentDetection()`（`detectInstallEnvironment()` 里调，启动时记一次）：进程名、Home 目录、bundle 路径、argv[0]、LC_HOME_PATH 值、各信号结果——下次日志能看清为什么这样判。只读证据，不改判定。
+   - **TrollStore 检测不动**：SecTask 正面证据（platform-application＋no-sandbox／沙盒外写探测）一字未动，`RuntimeEnvironment.detectInstallEnvironment()` 里 LC 判断仍在 TrollStore 证据之前。
+2. **诊断日志版本标记**：`Lyrics/LyricStore.swift` 新统一常量 `versionTag = "build 24（1.0.6）"`——日志里的 build 号只从这里取，升版改这一处＋两处 plist＋pbxproj。`MusicProviders/MediaRemoteAdapter.swift` 的探针日志改走插值（`"诊断1.0.6 MediaRemote：\(LyricStore.versionTag)：isPlaying 探针已禁用"`），不再写死 "build 22"（build 23 的日志写 build 22 就是写死字串的教训；`:210` 的显式 `self.` 一字未动）。`Overlay/TLDSAppDelegate.m:784` 运行时字串里的 "build 21" 也去掉（改「竞态修」，历史仍在 :768 的注释里）。全树核查：其余 "build NN" 只剩注释里的历史引用，运行时字串里没有。
+   - **versionTag 故意写成长串（19 字节 UTF-8）**：≤15 字节的字串在 Release 下会被编译器压成 small-string immediate 进代码段，字节扫描不到；长字串进 `__cstring`，验包能直接搜到 "build 24"（见验包节，确实搜到了）。
+   - 启动时新增版本对账行（`detectInstallEnvironment()` 里）：versionTag 与 CFBundleVersion／CFBundleShortVersionString 并排记进日志；以后升版漏改任何一处，日志里当场看得见。
+3. **dSYM**：`.github/workflows/build.yml` 加两步——`Package dSYM`（`ls` 先验 `xcarchive/dSYMs/` 在不在，没有就响亮地失败，不悄悄传空包；zip 打包）＋`Upload dSYM artifact`（产物名 `桌面歌词-1.0.6-dSYM`，与 IPA 同一个 run）。IPA 产物不变。Release 的 `DEBUG_INFORMATION_FORMAT` 本来就是 `dwarf-with-dsym`，archive 里自带 App 与 Widget 的 dSYM。
+4. **完整诊断日志保留**：`Diagnostics/OverlayDiagnostics.swift` 的 `logSummary()` 在 1.0.6 里**全树无调用者**——1.0.5 的教训重演（无调用者就被整模块优化裁掉，字串不在包里）。修法：`TrollLyricsDeskApp.swift` 的 `setRunMode()` 末尾调一次——它是每条定档路径都调的入口（巨魔／待探测／兼容／原生候选／复核结论），复核结论路径里它在 `setDisplayCapability` 之后，读到的 runMode 是刚写的新值；摘要行每次定档都进日志，二进制里也留得住。其余诊断入口核过都有调用者：`RuntimeCapabilities.logSnapshot()`（DiagnosticsView 刷新时）、`EffectiveEntitlements.logReport()`（启动判定）、`EntitlementDiagnostics.logReport()`（DiagnosticsView 刷新时）。
+5. **权限不足安全降级（只审计，不改代码）**：审计了全部四条权限依赖路径——SecTask 实测（`EffectiveEntitlements`：符号缺失回 nil、Create/Copy 规则的 retain/release 都对，三参数已修）、MediaRemote 调用（`MediaRemoteAdapter`：dlsym 找不到就回 nil、回调 `[weak self]`＋Task 内 guard、探针 early return 后代码不可达）、悬浮窗创建（`TLDSAppDelegate.m`：FBSystemShellInitialize 包 @try/@catch、binder 操作先 `respondsToSelector`、销毁有 #1 锚点守卫）、PiP 启动（`PiPLyricsRenderer`：`pipSupported` 先判、控制器 optional 全守卫、队列操作 `first` 有 guard）。陷阱点逐项核过：**全树 Swift 无 `as!`／`fatalError`；`try!` 只剩 `LyricParser.swift` 两行静态正则（字面量 pattern，不可能失败）；数组下标都有守卫**（`components[0..2]` 前有 `count >= 3`、`channel[0]` 是单声道缓冲）；`MainActor.assumeIsolated` 的两个调用方（`start()`←didFinishLaunching、`makeRootViewController()`←willConnect）都在主线程 ObjC 生命周期里，build 23 真机已证实不闪。**结论：无确有真实 trap 风险处，不改代码，不推测性重写。**
+   - **build 23 的 @escaping 修法不动**：GetNowPlayingInfo 回调仍是 `@escaping`，isPlaying 探针仍是 `@convention(block)`，没有 `withoutActuallyEscaping`，回调没删。
+- **版本**：1.0.6 不变，build 23→24（两 Info.plist 的 CFBundleVersion＋pbxproj CURRENT_PROJECT_VERSION 4 处；MARKETING_VERSION 仍 1.0.6）。其余全部不动：不碰 #1 守卫、SecTask 三参数、native-candidate、PiP 两段、激活、逐歌偏移、entitlements、包名、MinOS 15.0。
+- **diff 规模**：9 个文件（+213/-25）——产品代码 5 个文件（LyricStore +35/-9、TrollLyricsDeskApp +23/-1、MediaRemoteAdapter +4/-1、TLDSAppDelegate.m 1 行、build.yml +21）、版本 3 个文件（各 1 行）、自检 `check_1.0.6.py`（§2／§8 版本断言改 24，§17／§18 探针标记断言改动态式，新增 §19 19 项，OPEN 加 4 条）。
+- **自检里修掉的 2 处都是自检脚本断言写错、代码本身没错（已修正后重跑全过）**：①我加的注释里带了 `"build 22` 引号，撞上「写死字串不在源码里」的断言——注释改掉引号；②LC 信号顺序断言用 `index("TLDSLiveContainer")` 撞上文档注释里的先出现——改按代码行（`if ProcessInfo...`／`if Bundle.main.object...`／`lower.contains...`）比顺序。
+
+### 构建（头 run 45928829264，head 0cef79c）
+
+- **completed／success，13 步全 success**（Set up job／Checkout／Xcode version／Install zsign／Archive (unsigned)／Verify archive layout／Sign with zsign (TrollStore)／Package IPA／**Package dSYM**／Upload artifact／**Upload dSYM artifact**／Post Checkout／Complete job）。轮询读 `status_field`／`conclusion`。
+- **0 次池子取消**，第 1 轮 poll 已 in_progress，第 3 轮 success（约 2 分钟）。
+
+### 验包（编成后下载真 IPA＋dSYM 亲验，不要只信 run 绿）
+
+- **验包 PASS（82 项，`hidden_files/verify_1.0.6.py`，详见 `hidden_files/ipa_verify_1.0.6_build24.log`）**——build 23 是 73 项；新增 9 项：`build 24`／`isPlaying 探针已禁用`／`LC_HOME_PATH`／`/Documents/Applications/`／`诊断1.0.6 环境检测`／`诊断1.0.6 版本：`／`悬浮窗复核摘要` 在位，`build 22`／`build 21`／`build 23` 不在位。
+- IPA：`~/workspace/your_files/桌面歌詞-1.0.6-build24-newbase.ipa`（另存，**build 23 的 `桌面歌詞-1.0.6-build23-newbase.ipa` 未动**；文件名继续用繁體「歌詞」），**1,677,719 B，SHA256 `4b27a04388b16a462e19eb50e5f058a2a77b004c973929cfa10afca55d51a933`**（artifact id 15166819692，名 桌面歌词-1.0.6，zip 1,675,808 B；解出与拷本 SHA 一致）。
+- dSYM：artifact id 15167880473，名 `桌面歌词-1.0.6-dSYM`，zip **2,154,058 B**，存档 `hidden_files/artifact-1.0.6-build24/桌面歌词-1.0.6-dSYM.zip`。内含 `TrollLyricsDesk.app.dSYM` 与 `TrollLyricsWidget.appex.dSYM`。
+- **dSYM UUID 与 IPA 二进制的 Mach-O UUID 一致（两对都对得上，详见 `hidden_files/dsym_uuid_build24.log`）**：App `7230dc56f2d3366cbef0eeb09bbc2b99`、Widget `bc1cc20b5a673049a24d6837449392b8`——dSYM 里 DWARF 文件的 LC_UUID 与 IPA 二进制的 LC_UUID 逐字节相同，**zsign 重签没有改 LC_UUID**。方法：Python 直读 Mach-O（LC_UUID cmd 0x1b、LC_CODE_SIGNATURE cmd 0x1d；超块魔数是 0xfade0cc0，索引项是 8 字节 type＋offset，slot 5 是 XML entitlements——第一版核对脚本把魔数写成 0xfade7171、索引写成 12 字节，两处都错过，已修正，数字以修正后的为准）。
+- 版本 1.0.6／build 24、包名 com.ycwl.Lyrics、MinOS 15.0；widget 1.0.6／build 24、com.ycwl.Lyrics.TrollLyricsWidget、MinOS 15.0。
+- 锁屏不在位（NSSupportsLiveActivities／accessoryRectangular／LyricsLiveActivity／LiveLyricKey／publishLiveLyrics 全 0）；无 38473／DualProcessBridge／dynamic_lookup；ActivityKit 两二进制均 NOT LINKED；直链 FrontBoard／FrontBoardServices／RunningBoardServices／AppleAccount 在位；码值扫描 0 命中；BackBoard 仅 1 处对照表标签。
+- **entitlements 与 build 23 一字不差（二进制级核对）**：从两二进制的 code signature 槽（slot 5）抽出 XML entitlements blob 逐字节比对——app（SHA 前 16 位 `b6a9f77ea2237d00`）与 build 23 一字不差，widget（SHA 前 16 位 `63c0e2c366ea9d85`）也一字不差；自检 §9 另查 entitlements 文件与 4f43991 一字未动。
+- 同步修正、激活、五件、三档、三渲染器、PiP 实验标记、诊断串（1.0.6 前缀）、Engine Fix 串全在位；第 6 项新结论「托管结构检查通过；实际屏幕可见性未确认」在位，「已确认可见」0 命中；第 1 项 native-candidate 在位；第 9 项 PiP 两段键在位；#1 守卫字串「floatingSceneEverConnected」在位。
+- **逃逸检查点仍是 2 个（详见 `hidden_files/escape_check_build24.log`）**：`hidden_files/escape_check_count.py` 数出 2 个点——0xDAE4／0xDB1C，同属函数 0xDA40，与 build 23 的地址完全相同；**MediaRemote 函数里的 0x44A5C 没有回来**，总数仍是 1.0.5 的 2 个。
+
+### 自检
+
+- `python3 check_1.0.6.py`：**294 PASS，0 FAIL，35 OPEN**（build 23 是 275 PASS／31 OPEN；§19 加 19 项——versionTag 统一常量（值＋19 字节长串）、探针日志走插值、:784 的 build 21 已去、LC_HOME_PATH 排第一、/Documents/Applications/ 信号、信号明细、环境检测日志（调用点＋五项值）、版本对账行、TrollStore 检测不动、logSummary 调用点＋摘要字串、dSYM 两步＋IPA 产物不变、@escaping 不动、审计结论（无 as!／fatalError，try! 只剩 2 行）、其余不动，全过；OPEN 加 4 条——巨魔五项、LC 复核、dSYM 核对、不上源已定）。
+
+### 待真机验证
+
+#### A. 主线：巨魔机 iPhone 11／iOS 16.5／Dopamine rootless／TrollStore（皇上 10:20 定正式开发主线）
+
+1. **MediaRemote 实际权限**：诊断页／日志里 SecTask 实测 platform-application／no-sandbox 是不是 YES（巨魔机上应是 YES，与 LC 机的「读不到」对照）。
+2. **三大音乐平台读歌**：QQ 音乐／酷我／网易云各放一首，看歌名读不读得到、回调 info 有没有内容。
+3. **歌词同步**：逐歌偏移、LRCLIB 跟随、换歌不串词。
+4. **跨 App 悬浮窗**：退到桌面／别的 App 上方有没有歌词窗；日志应是「巨魔原生模式」，无复核行。
+5. **后台稳定性**：后台保活、回前台不丢窗、不闪退；检测引擎计数恒为 1。
+6. 其余照 build 20 清单 §七 B：悬浮窗／激活／逐歌偏移照常；PiP 两段照常。
+
+#### B. LC 机复核：iPhone 13 Pro／iOS 27.0.1／LiveContainer 3.8.12（环境识别修完后的复核）
+
+1. **安装环境应判 livecontainer**（LC_HOME_PATH 信号命中），不再是「普通签名（沙盒内）」；悬浮窗复核照常跑。
+2. 日志里应有「诊断1.0.6 环境检测」两行（进程名／Home 目录／bundle 路径／argv[0]／LC_HOME_PATH 值／各信号结果）＋「诊断1.0.6 版本」对账行（versionTag 与 CFBundleVersion 并排）。
+3. 探针日志应写 **build 24**，不再是 build 22；每次定档后应有「诊断1.0.6 悬浮窗复核摘要」行。
+4. P0 仍是 info=nil 待查，不受这次改动影响（与 build 23 同）。
+
+### 提交链（build 24）
+
+- 第 1 笔 `0cef79c`：五件修＋版本 1.0.6/24＋自检 §19（9 个文件，+213/-25）。
+- 第 2 笔（本节）：RUN 补 build 24 一节（只改文档，触发的 run 不用跟）。
+- 头 run：45928829264（head 0cef79c）completed／success，13 步全 success，0 次池子取消；IPA `桌面歌詞-1.0.6-build24-newbase.ipa`，1,677,719 B，SHA256 `4b27a043…`，验包 82 项全过；dSYM 产物在且 UUID 两对都对得上；逃逸检查点 2 个。
+- 分支：v1.0.6-lc（绝不从沙盒 git push；每笔先 check 再 gh_push.py 推；不要动 newbase／main／旧 v1.0.6 分支）。**不上源已定（皇上 2026-11-27 10:22），不部署到越狱源；真机验收继续。未发给皇上**（等上级转）。
