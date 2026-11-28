@@ -395,7 +395,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -407,7 +407,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
@@ -436,7 +436,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_OPTIMIZATION_LEVEL = s;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -449,7 +449,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
@@ -1047,7 +1047,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1062,7 +1062,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -1305,7 +1305,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1320,7 +1320,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -1347,7 +1347,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1359,7 +1359,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1460,7 +1460,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1472,7 +1472,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -1,7 +1,9 @@
 import SwiftUI
 import UIKit
 
-// 关于页：日志、当前版本、加入官方群组。
+// 关于页：当前版本、加入官方群组。
+// 2.0.2：日志入口行已删（Lee 定）——只删这一行，LyricLogger 写日志文件
+// 的逻辑不动，主页面「查看守护进程日志」也不动。
 struct AboutView: View {
 
     @State private var showCopied = false
@@ -80,23 +82,6 @@ struct AboutView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                         }
-                    }
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(15)
-
-                    NavigationLink {
-                        LogView()
-                    } label: {
-                        HStack {
-                            Label("日志", systemImage: "doc.text")
-                                .foregroundColor(.white)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(.white.opacity(0.5))
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
                     }
                     .background(.ultraThinMaterial)
                     .cornerRadius(15)

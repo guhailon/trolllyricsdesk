@@ -31,6 +31,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) NSUInteger lineCount;           // 歌詞總行數
 @property (nonatomic, copy) NSString *track;                  // 拆出的真歌名
 @property (nonatomic, copy) NSString *artist;                 // 拆出的真歌手
+// 2.0.2: appearance the daemon applies every tick — the snapshot's lyric
+// opacity (label alpha, multiplies the colour tiers) and font size
+// (current line = fontSize, the other lines scale 11/17). Defaults live
+// in the .mm parser (1.0 / 23.0 when the field is absent).
+@property (nonatomic, assign) double opacity;
+@property (nonatomic, assign) double fontSize;
 @end
 
 @interface TLDHUDLyricsSnapshot : NSObject

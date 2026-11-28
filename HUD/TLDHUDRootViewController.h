@@ -14,6 +14,9 @@ NS_ASSUME_NONNULL_BEGIN
 @interface TLDHUDRootViewController : UIViewController
 - (void)resetLoopTimer;
 - (void)stopLoopTimer;
+/// 2.0.2: pill frame in window coordinates (CGRectZero before layout).
+/// TLDHUDMainWindow hit-testing uses it so only the pill takes touches.
+- (CGRect)pillFrameInWindow;
 @end
 
 NS_ASSUME_NONNULL_END

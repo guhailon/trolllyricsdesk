@@ -30,7 +30,7 @@ enum LyricStore {
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 31（2.0.1）"
+    static let versionTag = "build 32（2.0.2）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -417,7 +417,43 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 2.0.1 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 2.0.2 · \(fmt.string(from: Date()))"
+    }
+}
+
+// MARK: - 2.0.2：歌词简繁显示切换
+//
+// 只转显示层，绝不碰存储／搜索／缓存／身份键：
+// - 开关存在 LyricStore.defaults 里（巨魔走 App Group，宿主走 .standard，
+//   与快照同一份存储，守护进程读的是同一把键）；新键 lyric.displayScript，
+//   值 "Hans"（简体，默认）或 "Hant"（繁体）。
+// - 快照里的 title／artist／lyrics[] 一律存 MediaRemote 原文：
+//   stableSongIdentity（换歌判定）与逐歌偏移键都从原文派生，LRCLIB 搜索与
+//   缓存键也用原文——转了存进去，syncLiveLyricsAndProgress 里快照标识与
+//   实时标识就对不上（字段型播放器歌词会卡住），逐歌偏移也会丢键。
+// - 转换发生在每个显示点：主页面歌名／歌手、应用内歌词行、守护进程药丸
+//   （歌名行＋上下歌词行，见 TLDHUDLyricsSnapshot.mm）。
+// - 引擎是系统 ICU：CFStringTransform "Hant-Hans"（繁→简）与 "Hans-Hant"
+//   （简→繁），零依赖。已在系统 ICU 74.2 上实测：夢→梦、煙→烟、劉→刘
+//   双向都对，" · " 等标点不动，已是目标字体的文本原样返回（幂等）；
+//   iOS 15 真机效果以 Lee 的设备测试为准。
+extension LyricStore {
+
+    static let displayScriptKey = "lyric.displayScript"
+
+    /// 当前目标字体：true = 繁体，false = 简体（默认；键不存在时简体）。
+    static var displayScriptIsTraditional: Bool {
+        defaults?.string(forKey: displayScriptKey) == "Hant"
+    }
+
+    /// 按开关把要显示的文字转成目标字体；不改原文，只返回转换后的副本。
+    /// 目标字体已是原文的字体时 ICU 原样返回（幂等），可反复调用。
+    static func convertForDisplay(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        let transform = (displayScriptIsTraditional ? "Hans-Hant" : "Hant-Hans") as CFString
+        let mutable = NSMutableString(string: text)
+        guard CFStringTransform(mutable, nil, transform, false) else { return text }
+        return mutable as String
     }
 }
 

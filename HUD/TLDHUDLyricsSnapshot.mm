@@ -22,6 +22,9 @@ static NSString * const kOffsetKeyPrefix = @"lyric.timeOffset|";
 // In 1.0.6 this switch fed the FrontBoard window; the daemon reads it now
 // so the Settings toggle still means something after the FrontBoard removal.
 static NSString * const kTestTextKey = @"floatingLyric.testTextEnabled";
+// 2.0.2: lyric display script (LyricStore.displayScriptKey, same suite):
+// "Hans" (simplified, default) or "Hant" (traditional).
+static NSString * const kDisplayScriptKey = @"lyric.displayScript";
 
 // Separator table — LyricStore.songIdentityParts L218-L236, one character
 // different and the whole port is wrong. Order matters: the first separator
@@ -88,6 +91,46 @@ static void TLDHUDSearchTerms(NSString *title, NSString *artist,
     }
     if (outTrack) *outTrack = title;
     if (outArtist) *outArtist = artist;
+}
+
+// 2.0.2: display-layer script conversion (system ICU, same engine as the
+// main app's LyricStore.convertForDisplay). The toggle lives in the shared
+// suite; absent = simplified (Hant-Hans). Only the four DISPLAY strings
+// are converted — title/artist stay raw, so stableSongIdentity, the
+// per-song offset key and the " · " recognition all still see the
+// MediaRemote original. Converting an already-target-script string is a
+// no-op, so this is safe to apply on every tick.
+static NSString *TLDHUDConvertForDisplay(NSString *text)
+{
+    if (!text || text.length == 0) return text;
+    NSUserDefaults *defaults =
+        [[NSUserDefaults alloc] initWithSuiteName:kGroupID];
+    BOOL traditional =
+        [[defaults stringForKey:kDisplayScriptKey] isEqualToString:@"Hant"];
+    CFStringRef transform =
+        traditional ? CFSTR("Hans-Hant") : CFSTR("Hant-Hans");
+    NSMutableString *converted = [text mutableCopy];
+    if (!CFStringTransform((CFMutableStringRef)converted, NULL, transform, false)) {
+        return text;
+    }
+    return [converted copy];
+}
+
+static void TLDHUDApplyScriptToDisplay(TLDHUDLyricsDisplay *display)
+{
+    if (!display) return;
+    if (display.songLine) {
+        display.songLine = TLDHUDConvertForDisplay(display.songLine);
+    }
+    if (display.currentLine) {
+        display.currentLine = TLDHUDConvertForDisplay(display.currentLine);
+    }
+    if (display.previousLine) {
+        display.previousLine = TLDHUDConvertForDisplay(display.previousLine);
+    }
+    if (display.nextLine) {
+        display.nextLine = TLDHUDConvertForDisplay(display.nextLine);
+    }
 }
 
 // lyricLocation helpers (LyricStore.swift L254-L294). `norm` strips spaces;
@@ -193,9 +236,14 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
         testDisplay.track = @"";
         testDisplay.artist = @"";
         testDisplay.songLine = @"";
+        // 2.0.2: the forced test text has no snapshot behind it, so it
+        // carries the appearance defaults (full opacity, 23pt).
+        testDisplay.opacity = 1.0;
+        testDisplay.fontSize = 23.0;
         testDisplay.currentLine = [NSString stringWithFormat:
             @"懸浮測試 · 桌面歌詞 %@ · %@",
             TLDHUD_VERSION_STRING, [testFmt stringFromDate:date]];
+        TLDHUDApplyScriptToDisplay(testDisplay);
         return testDisplay;
     }
 
@@ -277,6 +325,26 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
     TLDHUDLyricsDisplay *display = [[TLDHUDLyricsDisplay alloc] init];
     display.songIdentity = identity;
     display.lineCount = lines.count;
+    // 2.0.2: appearance from the snapshot. Absent / non-number = the
+    // defaults (opacity 1.0, fontSize 23.0); out-of-range values are
+    // clamped to the sliders' ranges (opacity 0–1, fontSize 14–36) so a
+    // stale or hand-edited snapshot can never blow up the pill layout.
+    id opacityRaw = json[@"opacity"];
+    double opacity = 1.0;
+    if ([opacityRaw isKindOfClass:[NSNumber class]]) {
+        opacity = [opacityRaw doubleValue];
+    }
+    if (opacity < 0) opacity = 0;
+    if (opacity > 1) opacity = 1;
+    display.opacity = opacity;
+    id fontSizeRaw = json[@"fontSize"];
+    double fontSize = 23.0;
+    if ([fontSizeRaw isKindOfClass:[NSNumber class]]) {
+        fontSize = [fontSizeRaw doubleValue];
+    }
+    if (fontSize < 14) fontSize = 14;
+    if (fontSize > 36) fontSize = 36;
+    display.fontSize = fontSize;
     NSString *track = nil, *songArtist = nil;
     TLDHUDSearchTerms(title, artist, &track, &songArtist);
     display.track = track ?: title;
@@ -310,6 +378,7 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
                     [NSString stringWithFormat:@"♪ %@", title];
                 break;
         }
+        TLDHUDApplyScriptToDisplay(display);
         return display;
     }
 
@@ -330,6 +399,7 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
     if (currentIndex + 1 < (NSInteger)lines.count) {
         display.nextLine = lines[currentIndex + 1][@"text"];
     }
+    TLDHUDApplyScriptToDisplay(display);
     return display;
 }
 

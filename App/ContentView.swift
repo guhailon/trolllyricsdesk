@@ -116,6 +116,12 @@ struct ContentView: View {
     @AppStorage("floatingLyric.cardOpacity", store: LyricStore.defaults)
     private var cardOpacity = 0.23
 
+    /// 2.0.2：歌词简繁显示（新键 lyric.displayScript，"Hans" 简体／"Hant" 繁体，
+    /// 默认简体）。只转显示层：主页面、应用内歌词区、药丸在渲染时转换；
+    /// 快照里的 title／artist／歌词行一律存原文，搜索／缓存／换歌判定／逐歌偏移不动。
+    @AppStorage("lyric.displayScript", store: LyricStore.defaults)
+    private var displayScript = "Hans"
+
     var body: some View {
 
         ZStack {
@@ -181,6 +187,24 @@ struct ContentView: View {
                                     value: $cardOpacity,
                                     in: 0...1
                                 )
+                            }
+
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("歌词简繁")
+                                        .foregroundColor(.white)
+
+                                    Spacer()
+
+                                    Text(displayScript == "Hant" ? "繁体" : "简体")
+                                        .foregroundColor(.white)
+                                }
+
+                                Picker("歌词简繁", selection: $displayScript) {
+                                    Text("简体").tag("Hans")
+                                    Text("繁体").tag("Hant")
+                                }
+                                .pickerStyle(.segmented)
                             }
 
                         }

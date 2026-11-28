@@ -21,6 +21,12 @@ struct PlaybackDashboardView: View {
     @AppStorage("floatingLyric.positionLocked", store: LyricStore.defaults)
     private var positionLocked = false
 
+    /// 2.0.2：药丸固定位置开关——新键 hudPill.positionLocked（不要复用
+    /// 上面那把已死的 floatingLyric.positionLocked）。开 = 长按拖动不响应，
+    /// 关 = 可以长按拖动；默认关。守护进程每秒 tick 重读。
+    @AppStorage("hudPill.positionLocked", store: LyricStore.defaults)
+    private var hudPillPositionLocked = false
+
     /// 悬浮歌词文字颜色（0xRRGGBB，写进共享存储，悬浮窗每次刷新时读取）。
     @AppStorage("floatingLyric.textColorHex", store: LyricStore.defaults)
     private var lyricTextColorHex: Int = 0xFFFFFF
@@ -128,12 +134,15 @@ struct PlaybackDashboardView: View {
                             let topText = location == .artist ? secondary : title
                             let bottomText = location == .artist ? title : secondary
 
-                            Text(topText)
+                            // 2.0.2：歌名／歌手只在显示时按简繁开关转换——
+                            // state.track 是 MediaRemote 原文，识别／缓存／
+                            // 快照都不动它。
+                            Text(LyricStore.convertForDisplay(topText))
                                 .font(.title2.bold())
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
 
-                            Text(bottomText)
+                            Text(LyricStore.convertForDisplay(bottomText))
                                 .foregroundColor(.white.opacity(0.75))
 
                             Text(
@@ -283,6 +292,17 @@ struct PlaybackDashboardView: View {
                                 .cornerRadius(15)
                             }
                             .disabled(hudBusy)
+
+                            // 2.0.2：药丸固定位置（新键 hudPill.positionLocked，
+                            // 默认关）＋悬浮歌词颜色（复用旧键
+                            // floatingLyric.textColorHex，build 30 只藏了控件，
+                            // 键与 lyricTextColor 互转 helper 都还在）。LC 分支
+                            // 在上面那个 if 里，这里是非 LC 才进得来。
+                            Toggle("固定位置", isOn: $hudPillPositionLocked)
+                                .foregroundColor(.white)
+
+                            ColorPicker("悬浮歌词颜色", selection: lyricTextColor)
+                                .foregroundColor(.white)
 
                             Text("启用后歌词药丸显示在桌面与其它 App 之上，锁屏解锁后仍在跟；停用后药丸消失。每次启用都会重写 daemon 配置（重装后容器路径变了也不怕）。")
                                 .font(.caption)

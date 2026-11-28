@@ -27,14 +27,18 @@ final class InAppLyricsRenderer: LyricsRenderer {
     }
 
     /// 主界面应用内歌词区当前应显示的一行（Dashboard 宿主分支直接用）。
+    /// 2.0.2：显示时按简繁开关转换——快照里的行文本是原文，这里只转返回
+    /// 的这一行，不动快照。
     static func currentDisplayText(at date: Date) -> String {
         if LyricStore.isTestTextEnabled {
-            return LyricStore.testText() + "（应用内显示，非悬浮窗）"
+            return LyricStore.convertForDisplay(
+                LyricStore.testText() + "（应用内显示，非悬浮窗）")
         }
         guard let snapshot = LyricStore.load() else {
-            return "请在设置中搜索或导入歌词"
+            return LyricStore.convertForDisplay("请在设置中搜索或导入歌词")
         }
-        return LyricStore.currentLyric(snapshot, at: date)?.text
-            ?? "等待歌词 / 请到设置导入"
+        return LyricStore.convertForDisplay(
+            LyricStore.currentLyric(snapshot, at: date)?.text
+            ?? "等待歌词 / 请到设置导入")
     }
 }
