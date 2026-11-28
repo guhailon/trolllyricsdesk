@@ -1012,9 +1012,10 @@ try:
     if not msgs:
         open_item("未提交：提交顺序断言等提交后再跑", "HEAD == BASE，尚无新提交")
     else:
-        check("提交顺序：v2.0.6 三笔（2.0.6 产品＋引擎测试修＋RUN 文档）",
-              len(msgs) == 3 and msgs[2].startswith("2.0.6/build 36：卡拉OK修复")
-              and msgs[1].startswith("2.0.6/build 36：修 run 46134758976")
+        check("提交顺序：v2.0.6 四笔（2.0.6 产品＋引擎测试修＋Widget 编译修＋RUN 文档）",
+              len(msgs) == 4 and msgs[3].startswith("2.0.6/build 36：卡拉OK修复")
+              and msgs[2].startswith("2.0.6/build 36：修 run 46134758976")
+              and msgs[1].startswith("2.0.6/build 36：修 run 46135798827")
               and msgs[0].startswith("RUN_2.0.6"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))
@@ -1357,9 +1358,14 @@ check("P2：歌卡逐字门复用 LyricMatcher.normalize（字母数字归一化
       "let normalize: (String) -> String = LyricMatcher.normalize" in pd)
 check("P2：歌卡旧窄 normalize 闭包已撤（只去空格）",
       '.replacingOccurrences(of: " ", with: "")' not in pd)
-check("P2：LyricMatcher.normalize 已去 private（供歌卡／解析器复用）",
+check("P2：LyricMatcher.normalize 已去 private（供歌卡复用）",
       "static func normalize(" in lm
       and "private static func normalize(" not in lm)
+check("P0 回归门：LyricParser.swift 不引 LyricMatcher（Widget target 只编前者，run 46135798827 教训）",
+      re.search(r"LyricMatcher\.(?!swift\b)", lp) is None)
+check("P0 回归门：LyricsFileParser 自带同规则归一化（小写＋只留字母数字）",
+      "private static func normalize(_ value: String) -> String" in lp
+      and "$0.isLetter || $0.isNumber" in lp)
 check("P2：药丸与 LC 应用内区没有逐字门——不动（RootVC／应用内渲染无 normalize 门）",
       "LyricMatcher.normalize" not in rv)
 by = read(".github/workflows/build.yml")

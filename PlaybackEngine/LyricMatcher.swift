@@ -24,10 +24,12 @@ struct LyricMatcher {
         }
     }
 
-    /// 2.0.6：去 private——歌卡的逐字门（PlaybackDashboardView）与
-    /// lyricsfile 行对齐（LyricsFileParser）复用同一份归一化，
-    /// 不再各写各的窄 normalize（只去空格会把「你好」和「你 好」
-    /// 判成两行，逐字门白白关掉）。
+    /// 2.0.6：去 private——歌卡的逐字门（PlaybackDashboardView）复用
+    /// 同一份归一化，不再各写各的窄 normalize（只去空格会把「你好」
+    /// 和「你 好」判成两行，逐字门白白关掉）。
+    /// 注意：LyricsFileParser 不引这里——Widget target 也编
+    /// LyricParser.swift 却不编本文件，它自带一份同规则归一化
+    /// （run 46135798827 教训）。
     static func normalize(
         _ value: String
     ) -> String {

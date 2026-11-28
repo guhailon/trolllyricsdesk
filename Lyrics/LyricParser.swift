@@ -189,6 +189,19 @@ enum LyricsFileParser {
         return s
     }
 
+    /// 行对齐用的归一化：与 LyricMatcher 的 normalize 同一条规则
+    /// （小写、只留字母数字），但这里必须自带一份，不许引 LyricMatcher——
+    /// Widget target 也编 LyricParser.swift，却不编 LyricMatcher.swift；
+    /// 引了它，archive 编 Widget 就报 cannot find 'LyricMatcher' in scope
+    /// （run 46135798827 教训）。歌卡那道门仍复用 LyricMatcher 的 normalize
+    /// （App target 才有它，不受影响）。
+    private static func normalize(_ value: String) -> String {
+        value.lowercased()
+            .filter {
+                $0.isLetter || $0.isNumber
+            }
+    }
+
     /// 把 lyricsfile 的逐字时间戳映射到行级解析结果上：行时间仍用
     /// syncedLyrics 的行级时间戳，只换 words（time = start_ms / 1000）。
     /// 行数一致时按下标映射；不一致时按归一化行文本对齐；
@@ -220,10 +233,10 @@ enum LyricsFileParser {
             }
         } else {
             for i in out.indices {
-                let norm = LyricMatcher.normalize(out[i].text)
+                let norm = normalize(out[i].text)
                 guard !norm.isEmpty else { continue }
                 if let fileLine = fileLines.first(where: {
-                    LyricMatcher.normalize($0.text) == norm
+                    normalize($0.text) == norm
                 }), let words = wordsOf(fileLine) {
                     out[i].words = words
                 }
