@@ -208,8 +208,11 @@ mw = read("HUD/TLDHUDMainWindow.mm")
 check("MainWindow: _ignoresHitTest 改 NO（药丸要接长按，2.0.2）",
       "- (BOOL)_ignoresHitTest { return NO; }" in mw)
 check("MainWindow: hitTest 只放行药丸框内触摸，其余 return nil",
-      "pillFrameInWindow" in mw and "CGRectContainsPoint(pillFrame, point)" in mw
+      "pillFrameInWindow" in mw and "insidePill" in mw
       and "return nil;" in mw)
+check("MainWindow/RootVC: 不用 CoreGraphics 外部符号（daemon 不链它，run 46109741847）",
+      "CGRectContainsPoint(" not in mw and "CGRectIsEmpty(" not in mw
+      and "CGRectZero(" not in read("HUD/TLDHUDRootViewController.mm"))
 snap = read("HUD/TLDHUDLyricsSnapshot.mm")
 check("Snapshot: 分隔符表与 LyricStore 一字不差",
       '@" — ", @" – ", @" - ", @" · ", @"—", @"–"' in snap)

@@ -279,7 +279,11 @@ static void SpringBoardLockStatusChanged(
 
 - (CGRect)pillFrameInWindow
 {
-    if (!_pill) return CGRectZero;
+    // CGRectZero is an extern CoreGraphics symbol and the daemon target
+    // does not link CoreGraphics (run 46109741847) — build the zero rect
+    // by hand instead.
+    CGRect zero = {{0, 0}, {0, 0}};
+    if (!_pill) return zero;
     return [self.view convertRect:_pill.frame toView:nil];
 }
 

@@ -31,7 +31,18 @@
     UIViewController *rootVC = self.rootViewController;
     if ([rootVC respondsToSelector:@selector(pillFrameInWindow)]) {
         CGRect pillFrame = [(TLDHUDRootViewController *)rootVC pillFrameInWindow];
-        if (!CGRectIsEmpty(pillFrame) && CGRectContainsPoint(pillFrame, point)) {
+        // Manual geometry on purpose: the daemon target does not link
+        // CoreGraphics, and CGRectContainsPoint / CGRectIsEmpty /
+        // CGRectZero are extern symbols there (run 46109741847 link
+        // error) — CGPointMake is inline, these are not.
+        BOOL pillNotEmpty =
+            pillFrame.size.width > 0 && pillFrame.size.height > 0;
+        BOOL insidePill =
+            point.x >= pillFrame.origin.x &&
+            point.x < pillFrame.origin.x + pillFrame.size.width &&
+            point.y >= pillFrame.origin.y &&
+            point.y < pillFrame.origin.y + pillFrame.size.height;
+        if (pillNotEmpty && insidePill) {
             return hit;
         }
         return nil;
