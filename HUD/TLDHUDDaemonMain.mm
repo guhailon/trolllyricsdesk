@@ -9,7 +9,10 @@
 //              (TrollSpeed's inverted semantics, kept on purpose)
 //   -exit   -> SIGKILL the daemon via the PID file
 //   -install-daemon -> (root) install the launchd plist, see TLDHUDHelper
-// The HID event callback in the original is NOT copied (v1: no touch).
+// The HID event callback in the original is NOT copied in v1 (no touch).
+// hid-probe (2.0.4/build 91) registers a LOG-ONLY probe callback
+// (TLDHIDProbeCallback below) — registration only, no AX decoding,
+// no injection.
 // No no-arg mode: the main app has its own Overlay/main.m.
 // (Adapted code, © 2026 顾海龙集团, MIT — see docs/2.0.0-MERGE-DESIGN.md.)
 
@@ -82,6 +85,48 @@ static int InstallDaemonPlist(void)
     return 0;
 }
 
+// hid-probe (2.0.4/build 91): MINIMAL probe of the registration TrollSpeed
+// (MIT © 2023 Lessica) uses in HUDApp.mm — _HUDEventCallback registered
+// via BKSHIDEventRegisterEventCallback. Only the REGISTRATION is borrowed:
+// this callback does NOT copy TrollSpeed's AX decoding or its event
+// injection logic. It only LOGS: it never calls any event handler, never
+// synthesises, modifies or swallows an event, and never touches the UI.
+// Throttle: the first 10 events log a full CFCopyDescription each; after
+// that at most one cumulative-count line per second, so a flood of HID
+// events cannot spam the log file. TLDHUDLog is already thread-safe
+// (@synchronized inside TLDHUDLog.mm), and the counter below has its own
+// lock — the callback may run off the main thread.
+static void TLDHIDProbeCallback(void *target, void *refcon, IOHIDServiceRef service, IOHIDEventRef event)
+{
+    (void)target;
+    (void)refcon;
+    (void)service;
+    static NSObject *probeLock = nil;
+    static dispatch_once_t probeLockToken;
+    dispatch_once(&probeLockToken, ^{ probeLock = [[NSObject alloc] init]; });
+    static NSUInteger probeCount = 0;
+    static NSTimeInterval lastCountLog = 0;
+    @synchronized (probeLock) {
+        probeCount++;
+        if (!event) {
+            TLDHUDLog(@"hid: probe event %lu (null event)", (unsigned long)probeCount);
+            return;
+        }
+        if (probeCount <= 10) {
+            CFStringRef desc = CFCopyDescription((CFTypeRef)event);
+            TLDHUDLog(@"hid: probe event %lu %@", (unsigned long)probeCount,
+                      desc ? (__bridge NSString *)desc : @"(null description)");
+            if (desc) CFRelease(desc);
+        } else {
+            NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+            if (now - lastCountLog >= 1.0) {
+                lastCountLog = now;
+                TLDHUDLog(@"hid: probe count %lu", (unsigned long)probeCount);
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     @autoreleasepool
@@ -123,6 +168,12 @@ int main(int argc, char *argv[])
             [UIApplication.sharedApplication _accessibilityInit];
 
             [NSRunLoop currentRunLoop];
+
+            // hid-probe (2.0.4/build 91): same spot as TrollSpeed's
+            // HUDApp.mm — register the HID event callback right after
+            // the run loop is touched. Probe only: TLDHIDProbeCallback
+            // logs events, it never handles or injects them.
+            BKSHIDEventRegisterEventCallback(TLDHIDProbeCallback);
 
             if (@available(iOS 15.0, *)) {
                 GSEventInitialize(0);

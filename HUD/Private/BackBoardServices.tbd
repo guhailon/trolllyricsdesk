@@ -6,5 +6,5 @@ current-version: 0
 objc-constraint: none
 exports:
   - archs:           [ arm64 ]
-    symbols:         [ _BKSDisplayServicesStart ]
+    symbols:         [ _BKSDisplayServicesStart, _BKSHIDEventRegisterEventCallback ]
 ...
