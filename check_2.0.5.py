@@ -1018,9 +1018,10 @@ try:
     if not msgs:
         open_item("未提交：提交顺序断言等提交后再跑", "HEAD == BASE，尚无新提交")
     else:
-        check("提交顺序：hid-touch 三笔（探针底子＋2.0.5 产品＋RUN 文档）",
-              len(msgs) == 3 and msgs[-1].startswith("hid-probe 底子")
-              and msgs[1].startswith("2.0.5/build 35")
+        check("提交顺序：hid-touch 四笔（探针底子＋2.0.5 产品＋entitlements 注释修＋RUN 文档）",
+              len(msgs) == 4 and msgs[-1].startswith("hid-probe 底子")
+              and msgs[2].startswith("2.0.5/build 35")
+              and msgs[1].startswith("2.0.5/build 35：entitlements 注释")
               and msgs[0].startswith("RUN_2.0.5"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))

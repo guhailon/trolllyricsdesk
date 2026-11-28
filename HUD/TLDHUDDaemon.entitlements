@@ -6,7 +6,7 @@
 	     Deliberately NOT included: MediaRemote keys (no MediaRemote in
 	     this project), disallowControlCenter/NotificationCenter (not
 	     needed). hid.* keys below exist since the hid-probe verification
-	     build (2.0.4/build 91) and are REQUIRED in 2.0.5 (Lee approved
+	     build (hid-probe verification build) and are REQUIRED in 2.0.5 (Lee approved
 	     the full HID touch port 2026-11-28): the daemon registers
 	     BKSHIDEventRegisterEventCallback and injects pill-only touches.
 	     0.2.0 adds ONE key: App Group (snapshot transport, see below). -->
