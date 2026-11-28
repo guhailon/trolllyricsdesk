@@ -7,6 +7,15 @@ enum MusicPlatform: String, Codable, CaseIterable, Identifiable {
     case manual = "手动输入"
 
     var id: String { rawValue }
+
+    static func fromBundleIdentifier(_ identifier: String?) -> MusicPlatform {
+        switch identifier?.lowercased() {
+        case "com.apple.music": return .appleMusic
+        case "com.netease.cloudmusic": return .netEase
+        case "com.tencent.qqmusic": return .qqMusic
+        default: return .manual
+        }
+    }
 }
 
 struct MusicTrack: Codable, Identifiable, Equatable {

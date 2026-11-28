@@ -73,6 +73,9 @@ enum DisplayCapability: String {
 }
 
 enum RuntimeEnvironment {
+    static var canUseNativeHUD: Bool {
+        !LyricStore.isLiveContainer && LyricStore.installEnvironment == "trollstore"
+    }
 
     /// 安装环境判定（启动时调一次；只读证据，不写模式）。
     static func detectInstallEnvironment() -> (env: InstallEnvironment, reason: String) {
@@ -90,13 +93,15 @@ enum RuntimeEnvironment {
     }
 
     /// 模式 → 首选引擎（纯映射，不探测；探测在复核／PiP delegate 里）。
-    /// native-candidate（安装来源未知，托管结构通过）也走原生 HUD——
-    /// 这是并入 ChatGPT 1.0.6 的映射（皇上 23:18 批并）；trollstore（正面证据
-    /// 已出）与 native-candidate 是两档模式，但首选引擎相同。
+    /// 2.0.4（兼容补丁并入）：未知环境 fail-closed——"native-candidate"
+    /// 不再走 nativeHUD，改为 .inApp；trollstore 只有 canUseNativeHUD
+    /// 为真才走 nativeHUD，否则同样回落应用内。
     static func preferredEngine(forRunMode mode: String) -> TLDSDisplayEngine {
         switch mode {
-        case "trollstore", "native-candidate":
-            return .nativeHUD
+        case "trollstore":
+            return canUseNativeHUD ? .nativeHUD : .inApp
+        case "native-candidate":
+            return .inApp
         case "enhanced-host":
             return .pip
         default:

@@ -277,7 +277,7 @@ struct SettingsView: View {
                         testTextEnabled = LyricStore.isTestTextEnabled
                     }
 
-                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.3」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.4」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -321,8 +321,8 @@ struct SettingsView: View {
                 // （宿主跑不了 root 守护进程；见 docs/2.0.0-MERGE-DESIGN.md §5）。
                 Section(header: Text("悬浮歌词（HUD 守护进程）")) {
 
-                    if LyricStore.isLiveContainer {
-                        Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                    if !RuntimeEnvironment.canUseNativeHUD {
+                        Text("当前环境未确认具备原生 HUD 权限；使用应用内歌词或独立 PiP 测试。")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     } else {
@@ -460,6 +460,13 @@ struct SettingsView: View {
     /// 2.0.0：读 HUD 守护进程状态（HUD-Test MainViewController.refreshStatus
     /// 同款：-check 为准，PID 文件只用来显示 pid）。
     private func refreshHUDStatus() {
+        // 2.0.4（兼容补丁并入）：未知环境 fail-closed——门控不通过时
+        // 直接报未运行，不调 -check。
+        guard RuntimeEnvironment.canUseNativeHUD else {
+            hudRunning = false
+            hudStatusText = "当前环境不支持原生 HUD"
+            return
+        }
         let running = TLDHUDIsEnabled()
         hudRunning = running
         if running,

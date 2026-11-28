@@ -11,6 +11,8 @@ final class PlaybackCoordinator: ObservableObject {
     private let adapter: any PlaybackAdapter
 
     private var timer: Timer?
+    private var pollingGeneration = UUID()
+    private var nextPollUptime: TimeInterval = 0
     private var lastTrackKey: String?
     private var lastStatus: PlaybackStatus?
     /// Engine Fix（皇上 22:03 令并入）：最新原始状态（与 @Published 的 state 分离——
@@ -44,6 +46,9 @@ final class PlaybackCoordinator: ObservableObject {
         message = "正在检测音乐..."
         LyricLogger.log("开始检测音乐")
 
+        pollingGeneration = UUID()
+        let generation = pollingGeneration
+        nextPollUptime = 0
         // 立即检测一次，不等第一个 tick —— 打开 App/点开始时立刻出画面
         poll()
 
@@ -54,7 +59,8 @@ final class PlaybackCoordinator: ObservableObject {
         ) { [weak self] _ in
 
             Task { @MainActor in
-                guard let self, self.timer != nil else { return }
+                guard let self, self.timer != nil, self.pollingGeneration == generation else { return }
+                guard ProcessInfo.processInfo.systemUptime >= self.nextPollUptime else { return }
                 self.poll()
             }
         }
@@ -62,6 +68,7 @@ final class PlaybackCoordinator: ObservableObject {
 
     func stop() {
 
+        pollingGeneration = UUID()
         timer?.invalidate()
         timer = nil
         searchTask?.cancel()
@@ -77,7 +84,14 @@ final class PlaybackCoordinator: ObservableObject {
 
         guard let newState = adapter.currentState() else {
             // 标记「当前无播放器」：悬浮窗据此清掉上一次的歌词，避免停留在旧内容。
-            LyricStore.defaults?.set(true, forKey: LyricStore.noMusicKey)
+            nextPollUptime = ProcessInfo.processInfo.systemUptime + 0.75
+            if LyricStore.defaults?.bool(forKey: LyricStore.noMusicKey) != true {
+                LyricStore.defaults?.set(true, forKey: LyricStore.noMusicKey)
+            }
+            if latestState == nil && state == nil && lastTrackKey == nil {
+                setMessage("没有检测到可读取的音乐")
+                return
+            }
             setMessage("没有检测到可读取的音乐")
             // state 也要清空：主界面卡片与悬浮窗看同一个结论
             if state != nil { state = nil }
@@ -92,6 +106,7 @@ final class PlaybackCoordinator: ObservableObject {
             return
         }
 
+        nextPollUptime = ProcessInfo.processInfo.systemUptime + (newState.status == .playing ? 0 : 0.5)
         // 检测到播放器：解除无音乐标记（悬浮窗恢复显示歌词）
         if LyricStore.defaults?.bool(forKey: LyricStore.noMusicKey) == true {
             LyricStore.defaults?.set(false, forKey: LyricStore.noMusicKey)
@@ -229,8 +244,7 @@ final class PlaybackCoordinator: ObservableObject {
         // 现在阈值放宽到 2s：亚秒抖动一律忽略，本地时钟自己走；
         // 只有偏差超过 2s（确定是 seek / 失步）才重置基准。
         // 单首歌 LRC 时间轴的整体偏差交给「逐歌时间偏移」校正，互不干扰。
-        let reportedNow = newState.position
-            + max(0, now.timeIntervalSince(newState.observedAt))
+        let reportedNow = newState.estimatedPosition()
         let drift = reportedNow - elapsed
         let needsProgressSync = abs(drift) > 2.0
 
@@ -464,7 +478,7 @@ final class PlaybackCoordinator: ObservableObject {
         // 用传进来的 current（最新原始状态）＋自 observedAt 起的流逝推算；
         // 暂停时不推算，位置冻结在 current.position。
         let baseStatus = current.status
-        let basePosition = current.position + (baseStatus == .playing ? max(0, Date().timeIntervalSince(current.observedAt)) : 0)
+        let basePosition = current.estimatedPosition()
 
         snapshot?.lyrics = lines
         snapshot?.startedAt = Date()

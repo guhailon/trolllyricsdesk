@@ -30,7 +30,7 @@ enum LyricStore {
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 33（2.0.3）"
+    static let versionTag = "build 34（2.0.4）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -164,6 +164,25 @@ enum LyricStore {
         return snapshot.lyrics.last {
             $0.time <= elapsed
         }
+    }
+
+    /// 2.0.4：当前歌词行＋它在歌里的已播位置（卡拉OK逐字用）。
+    /// elapsed 与 currentLyric 同轴（含逐歌偏移）：词级时间戳是
+    /// LyricParser 从增强 LRC 的 <mm:ss> 标签里解析的绝对时间，
+    /// 与行时间同一条轴，直接比大小即可。
+    static func currentLyricAndElapsed(
+        _ snapshot: LyricSnapshot,
+        at date: Date
+    ) -> (line: LyricLine, elapsed: TimeInterval)? {
+        let elapsed = currentElapsed(
+            snapshot,
+            at: date
+        ) + timeOffset(snapshot)
+
+        guard let line = snapshot.lyrics.last(where: { $0.time <= elapsed }) else {
+            return nil
+        }
+        return (line, elapsed)
     }
 
     /// 识别「歌词被塞进 artist 字段」的播放器。
@@ -417,7 +436,7 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 2.0.3 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 2.0.4 · \(fmt.string(from: Date()))"
     }
 }
 
@@ -454,6 +473,34 @@ extension LyricStore {
         let mutable = NSMutableString(string: text)
         guard CFStringTransform(mutable, nil, transform, false) else { return text }
         return mutable as String
+    }
+}
+
+// MARK: - 2.0.4：卡拉OK模式
+//
+// 只改显示层，与简繁开关同一规矩：
+// - 开关存在 LyricStore.defaults 里（巨魔走 App Group，宿主走 .standard，
+//   与快照同一份存储，守护进程读的是同一把键）；新键 lyric.karaokeEnabled，
+//   默认开（键不存在 = 开）。
+// - 快照里的 title／artist／lyrics[] 一律存 MediaRemote 原文；逐字时间戳
+//   是 LyricParser 从增强 LRC 解析进 LyricLine.words 的，随快照一起存，
+//   但转换与逐字渲染只在显示时做（药丸 TLDHUDRootViewController、
+//   主页面歌卡、应用内歌词区各在渲染时按词上色）。
+// - 没有逐字时间戳的歌（words 为空）退回整行高亮，不会没词显示；
+//   开关关掉同样退回整行高亮。简繁切换对逐字也生效（逐词转换）。
+extension LyricStore {
+
+    static let karaokeEnabledKey = "lyric.karaokeEnabled"
+
+    /// 卡拉OK模式开／关：默认开（键不存在时开，与 ContentView 的
+    /// @AppStorage 默认值一致；daemon 侧读不到键时同样当开处理）。
+    static var isKaraokeEnabled: Bool {
+        get {
+            guard let defaults else { return true }
+            guard defaults.object(forKey: karaokeEnabledKey) != nil else { return true }
+            return defaults.bool(forKey: karaokeEnabledKey)
+        }
+        set { defaults?.set(newValue, forKey: karaokeEnabledKey) }
     }
 }
 

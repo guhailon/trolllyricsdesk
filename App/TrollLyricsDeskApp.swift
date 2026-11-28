@@ -182,7 +182,7 @@ final class TrollLyricsRuntime: NSObject {
         }
         started = true
 
-        if !LyricStore.isLiveContainer { BackgroundKeepAlive.shared.start() }
+        if RuntimeEnvironment.canUseNativeHUD { BackgroundKeepAlive.shared.start() }
 
         let coordinator = ensurePlayback()
         Task { @MainActor in

@@ -122,6 +122,12 @@ struct ContentView: View {
     @AppStorage("lyric.displayScript", store: LyricStore.defaults)
     private var displayScript = "Hans"
 
+    /// 2.0.4：卡拉OK模式（新键 lyric.karaokeEnabled，默认开）。
+    /// 有逐字时间戳的歌，药丸与应用内当前那句逐字亮（已唱金色、未唱灰色）；
+    /// 没有逐字时间戳的歌、或开关关掉，退回整行高亮。只改显示层。
+    @AppStorage("lyric.karaokeEnabled", store: LyricStore.defaults)
+    private var karaokeEnabled = true
+
     var body: some View {
 
         ZStack {
@@ -205,6 +211,15 @@ struct ContentView: View {
                                     Text("繁体").tag("Hant")
                                 }
                                 .pickerStyle(.segmented)
+                            }
+
+                            VStack(spacing: 8) {
+                                Toggle("卡拉OK模式", isOn: $karaokeEnabled)
+                                    .foregroundColor(.white)
+                                Text("有逐字时间戳的歌词逐字亮（已唱金色、未唱灰色）；没有逐字时间戳的歌仍整行亮。")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
 
                         }

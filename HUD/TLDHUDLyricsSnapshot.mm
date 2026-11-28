@@ -131,6 +131,19 @@ static void TLDHUDApplyScriptToDisplay(TLDHUDLyricsDisplay *display)
     if (display.nextLine) {
         display.nextLine = TLDHUDConvertForDisplay(display.nextLine);
     }
+    // 2.0.4：逐字也逐词转换（与上面四行同一规矩：只转显示，快照原文不动）。
+    if (display.currentWords) {
+        NSMutableArray<NSDictionary *> *convertedWords = [NSMutableArray array];
+        for (NSDictionary *word in display.currentWords) {
+            NSString *wordText = word[@"text"];
+            NSNumber *wordTime = word[@"time"];
+            if (![wordText isKindOfClass:[NSString class]] ||
+                ![wordTime isKindOfClass:[NSNumber class]]) continue;
+            [convertedWords addObject:@{@"time": wordTime,
+                                        @"text": TLDHUDConvertForDisplay(wordText)}];
+        }
+        display.currentWords = [convertedWords copy];
+    }
 }
 
 // lyricLocation helpers (LyricStore.swift L254-L294). `norm` strips spaces;
@@ -290,6 +303,9 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
     }
 
     // Lyric lines, in file order (times ascending, as LRCLIB returns them).
+    // 2.0.4: keep each line's per-word timings too (LyricLine.words from
+    // the enhanced LRC parser) — the daemon renders the current line's
+    // words for karaoke; lines without them just carry no "words" key.
     NSMutableArray<NSDictionary *> *lines = [NSMutableArray array];
     for (id entry in lyricDicts) {
         if (![entry isKindOfClass:[NSDictionary class]]) continue;
@@ -297,7 +313,21 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
         id timeRaw = entry[@"time"];
         if (![text isKindOfClass:[NSString class]]) continue;
         if (![timeRaw isKindOfClass:[NSNumber class]]) continue;
-        [lines addObject:@{@"time": timeRaw, @"text": text}];
+        NSMutableDictionary *lineDict = [@{@"time": timeRaw, @"text": text} mutableCopy];
+        id wordsRaw = entry[@"words"];
+        if ([wordsRaw isKindOfClass:[NSArray class]]) {
+            NSMutableArray<NSDictionary *> *words = [NSMutableArray array];
+            for (id w in (NSArray *)wordsRaw) {
+                if (![w isKindOfClass:[NSDictionary class]]) continue;
+                NSString *wordText = w[@"text"];
+                id wordTime = w[@"time"];
+                if (![wordText isKindOfClass:[NSString class]]) continue;
+                if (![wordTime isKindOfClass:[NSNumber class]]) continue;
+                [words addObject:@{@"time": wordTime, @"text": wordText}];
+            }
+            if (words.count > 0) lineDict[@"words"] = [words copy];
+        }
+        [lines addObject:[lineDict copy]];
     }
 
     // currentElapsed (LyricStore.swift L134-L150) + per-song offset
@@ -325,6 +355,9 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
     TLDHUDLyricsDisplay *display = [[TLDHUDLyricsDisplay alloc] init];
     display.songIdentity = identity;
     display.lineCount = lines.count;
+    // 2.0.4: karaoke — elapsed 随 display 一起带出去（与行／词时间同一条轴，
+    // 含逐歌偏移）；currentWords 在下面 currentIndex 定下来后填。
+    display.elapsed = elapsed;
     // 2.0.2: appearance from the snapshot. Absent / non-number = the
     // defaults (opacity 1.0, fontSize 23.0); out-of-range values are
     // clamped to the sliders' ranges (opacity 0–1, fontSize 14–36) so a
@@ -393,6 +426,9 @@ static TLDHUDLyricLocation TLDHUDLyricLocationFor(NSString *title, NSString *art
     }
     if (currentIndex == NSNotFound) currentIndex = 0;
     display.currentLine = lines[currentIndex][@"text"];
+    // 2.0.4: this line's per-word timings (nil when the LRC has none —
+    // the pill then falls back to whole-line highlight).
+    display.currentWords = lines[currentIndex][@"words"];
     if (currentIndex > 0) {
         display.previousLine = lines[currentIndex - 1][@"text"];
     }

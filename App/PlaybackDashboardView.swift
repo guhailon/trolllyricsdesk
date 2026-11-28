@@ -27,6 +27,35 @@ struct PlaybackDashboardView: View {
     @AppStorage("hudPill.positionLocked", store: LyricStore.defaults)
     private var hudPillPositionLocked = false
 
+    /// 2.0.4：药丸位置滑块——横向／纵向两条，直接写 hudPill.positionX／Y
+    /// （与 2.0.2 拖动、2.0.3 直接拖动共用同一对键，不另发明键；
+    /// daemon 每秒 tick 重读，键变了就移药丸，拖动中不抢）。
+    /// 固定位置开时滑块置灰（.disabled），关时能拖。进页面时 onAppear
+    /// 从共享存储读回当前药丸位置（没拖过就没有键，用默认居中偏上）。
+    @State private var pillSliderX: Double = Double(UIScreen.main.bounds.width) / 2
+    @State private var pillSliderY: Double = 120
+
+    private func syncPillSliders() {
+        let store = LyricStore.defaults
+        let width = Double(UIScreen.main.bounds.width)
+        let height = Double(UIScreen.main.bounds.height)
+        if let x = store?.object(forKey: "hudPill.positionX") as? NSNumber {
+            pillSliderX = min(max(x.doubleValue, 0), width)
+        } else {
+            pillSliderX = width / 2
+        }
+        if let y = store?.object(forKey: "hudPill.positionY") as? NSNumber {
+            pillSliderY = min(max(y.doubleValue, 0), height)
+        } else {
+            pillSliderY = 120
+        }
+    }
+
+    private func writePillSliderPosition() {
+        LyricStore.defaults?.set(pillSliderX, forKey: "hudPill.positionX")
+        LyricStore.defaults?.set(pillSliderY, forKey: "hudPill.positionY")
+    }
+
     /// 悬浮歌词文字颜色（0xRRGGBB，写进共享存储，悬浮窗每次刷新时读取）。
     @AppStorage("floatingLyric.textColorHex", store: LyricStore.defaults)
     private var lyricTextColorHex: Int = 0xFFFFFF
@@ -49,6 +78,12 @@ struct PlaybackDashboardView: View {
     /// 2.0.1/build 31：读 HUD 守护进程状态（SettingsView.swift:462 同款：
     /// -check 为准）。2.0.3 起不再读 PID 文件（pid 只在日志里，不显示了）。
     private func refreshHUDStatus() {
+        // 2.0.4（兼容补丁并入）：未知环境 fail-closed——门控不通过时
+        // 直接报未运行，不调 -check（避免未知环境下误判守护进程状态）。
+        guard RuntimeEnvironment.canUseNativeHUD else {
+            hudRunning = false
+            return
+        }
         hudRunning = TLDHUDIsEnabled()
     }
 
@@ -158,10 +193,25 @@ struct PlaybackDashboardView: View {
                             // 2.0.2：歌名／歌手只在显示时按简繁开关转换——
                             // state.track 是 MediaRemote 原文，识别／缓存／
                             // 快照都不动它。
-                            Text(LyricStore.convertForDisplay(topText))
-                                .font(.title2.bold())
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
+                            // 2.0.4：卡拉OK——卡片大字那行正是当前歌词行时
+                            // 逐字亮（字段型播放器把歌词放进 title／artist，
+                            // 大字就是歌词行；正常播放器大字是歌名，不逐字，
+                            // 原样显示）。TimelineView 每 0.25s 重算已唱位置。
+                            TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+                                if let snapshot,
+                                   let pair = LyricStore.currentLyricAndElapsed(snapshot, at: Date()),
+                                   LyricStore.isKaraokeEnabled,
+                                   let words = pair.line.words, !words.isEmpty,
+                                   normalize(pair.line.text) == normalize(topText) {
+                                    KaraokeLyricText(line: pair.line, elapsed: pair.elapsed, font: .title2.bold(), baseColor: .white)
+                                        .multilineTextAlignment(.center)
+                                } else {
+                                    Text(LyricStore.convertForDisplay(topText))
+                                        .font(.title2.bold())
+                                        .foregroundColor(.white)
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
 
                             Text(
                                 state.status.rawValue.uppercased()
@@ -189,8 +239,8 @@ struct PlaybackDashboardView: View {
 
                     // LiveContainer 宿主：没有悬浮窗／小组件，只在应用内显示歌词，
                     // 0.25s 刷新一次，带暂停／开始与归零。
-                    if LyricStore.isLiveContainer {
-                        Text("LiveContainer · 应用内歌词模式")
+                    if !RuntimeEnvironment.canUseNativeHUD {
+                        Text("兼容环境 · 应用内歌词模式")
                             .foregroundColor(.white)
                         TimelineView(.periodic(from: .now, by: 0.25)) { context in
                             if let snapshot = LyricStore.load() {
@@ -199,8 +249,19 @@ struct PlaybackDashboardView: View {
                                     // 1.0.5（第 2 项＋应用内渲染器）：宿主模式本来就没有悬浮窗，
                                     // 测试开关开时测试文字显示在这里（应用内歌词区），
                                     // 并明确说明这不是悬浮窗；关后恢复正常歌词。
-                                    Text(InAppLyricsRenderer.currentDisplayText(at: context.date))
-                                        .font(.title2).multilineTextAlignment(.center)
+                                    // 2.0.4：卡拉OK——当前歌词行有逐字时间戳时
+                                    // 逐字亮（已唱金色、未唱灰色）；测试文字开
+                                    // 时不逐字，没有逐字时间戳时退回整行显示。
+                                    if !LyricStore.isTestTextEnabled,
+                                       let pair = LyricStore.currentLyricAndElapsed(snapshot, at: context.date),
+                                       LyricStore.isKaraokeEnabled,
+                                       let words = pair.line.words, !words.isEmpty {
+                                        KaraokeLyricText(line: pair.line, elapsed: pair.elapsed, font: .title2, baseColor: .white)
+                                            .multilineTextAlignment(.center)
+                                    } else {
+                                        Text(InAppLyricsRenderer.currentDisplayText(at: context.date))
+                                            .font(.title2).multilineTextAlignment(.center)
+                                    }
                                     Button(snapshot.isPlaying ? "暂停歌词" : "开始歌词") {
                                         var updated = snapshot
                                         updated.elapsedWhenPaused = LyricStore.currentElapsed(snapshot, at: Date())
@@ -240,8 +301,8 @@ struct PlaybackDashboardView: View {
                         // 2.0.3（Lee 定：区段标题藏掉，只留控件）——
                         // 区段标题「悬浮歌词（HUD 守护进程）」已删，开关、
                         // 固定位置、颜色、说明文字、日志入口都原样留着。
-                        if LyricStore.isLiveContainer {
-                            Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                        if !RuntimeEnvironment.canUseNativeHUD {
+                            Text("当前环境未确认具备原生 HUD 权限；使用应用内歌词或独立 PiP 测试。")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.7))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,6 +325,36 @@ struct PlaybackDashboardView: View {
                             // 在上面那个 if 里，这里是非 LC 才进得来。
                             Toggle("固定位置", isOn: $hudPillPositionLocked)
                                 .foregroundColor(.white)
+
+                            // 2.0.4：药丸位置滑块——横向／纵向两条，拖滑块
+                            // 直接定药丸位置（写 hudPill.positionX／Y，
+                            // daemon 每秒 tick 重读应用；拖动中不抢）。
+                            // 固定位置开时置灰拖不动；进页面时 onAppear
+                            // 读回当前药丸位置。夹取不出屏由 daemon 的
+                            // clampedPillCenterForCenter 负责。
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("横向")
+                                        .foregroundColor(.white)
+                                    Slider(value: $pillSliderX, in: 0...Double(UIScreen.main.bounds.width))
+                                        .disabled(hudPillPositionLocked)
+                                        .onChange(of: pillSliderX) { _ in writePillSliderPosition() }
+                                    Text("\(Int(pillSliderX))")
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                HStack {
+                                    Text("纵向")
+                                        .foregroundColor(.white)
+                                    Slider(value: $pillSliderY, in: 0...Double(UIScreen.main.bounds.height))
+                                        .disabled(hudPillPositionLocked)
+                                        .onChange(of: pillSliderY) { _ in writePillSliderPosition() }
+                                    Text("\(Int(pillSliderY))")
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                            }
+                            .onAppear {
+                                syncPillSliders()
+                            }
 
                             ColorPicker("悬浮歌词颜色", selection: lyricTextColor)
                                 .foregroundColor(.white)
@@ -360,6 +451,36 @@ struct PlaybackDashboardView: View {
             .sheet(isPresented: $showAbout) {
                 AboutSheet().equatable()
             }
+        }
+    }
+}
+
+/// 卡拉OK逐字行（2.0.4，药丸与应用内共用同一渲染规矩）。
+/// 有逐字时间戳时：已唱的字金色、未唱的字灰色（Lee 定的对比效果图：
+/// 「想着温柔的」金色在前、「某某某」灰色在后）；没有逐字时间戳
+/// （words 为空）或开关关时，退回整行原样高亮，不会没词显示。
+/// 只改显示层：每词按简繁开关逐词转换，快照里的原文不动。
+private struct KaraokeLyricText: View {
+    let line: LyricLine
+    let elapsed: TimeInterval
+    let font: Font
+    let baseColor: Color
+
+    /// 已唱金色（效果图的琥珀金）；未唱灰色 = 底色 45%（与药丸暗行同档）。
+    private static let sungGold = Color(red: 1.0, green: 0.8, blue: 0.1)
+
+    var body: some View {
+        if LyricStore.isKaraokeEnabled,
+           let words = line.words, !words.isEmpty {
+            words.reduce(Text("")) { partial, word in
+                partial + Text(LyricStore.convertForDisplay(word.text))
+                    .foregroundColor(word.time <= elapsed ? Self.sungGold : baseColor.opacity(0.45))
+            }
+            .font(font)
+        } else {
+            Text(LyricStore.convertForDisplay(line.text))
+                .font(font)
+                .foregroundColor(baseColor)
         }
     }
 }

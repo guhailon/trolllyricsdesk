@@ -37,6 +37,12 @@ NS_ASSUME_NONNULL_BEGIN
 // in the .mm parser (1.0 / 23.0 when the field is absent).
 @property (nonatomic, assign) double opacity;
 @property (nonatomic, assign) double fontSize;
+// 2.0.4: karaoke — elapsed in the song (incl. per-song offset, same axis
+// as the line/word times) and the current line's per-word timings
+// (@{@"time": NSNumber, @"text": NSString}, display-converted). Nil/empty
+// means "no word timings — fall back to whole-line highlight".
+@property (nonatomic, assign) NSTimeInterval elapsed;
+@property (nonatomic, copy, nullable) NSArray<NSDictionary *> *currentWords;
 @end
 
 @interface TLDHUDLyricsSnapshot : NSObject

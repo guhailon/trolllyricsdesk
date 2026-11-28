@@ -41,7 +41,7 @@ enum ActivationKeychain {
         guard status == errSecSuccess,
               let data = item as? Data,
               let type = String(data: data, encoding: .utf8),
-              !type.isEmpty
+              ["master", "code"].contains(type)
         else {
             return nil
         }
@@ -51,7 +51,7 @@ enum ActivationKeychain {
     /// 写标记：不存在则 SecItemAdd，已存在则 SecItemUpdate。
     /// 失败静默忽略（例如设备锁定期间 Keychain 不可用）。
     static func write(_ type: String) {
-        guard let data = type.data(using: .utf8), !data.isEmpty else { return }
+        guard ["master", "code"].contains(type), let data = type.data(using: .utf8), !data.isEmpty else { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

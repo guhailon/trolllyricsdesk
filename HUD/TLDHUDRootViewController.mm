@@ -47,7 +47,9 @@ extern char **environ;
 - (CGFloat)pillCardAlpha;
 - (CGPoint)clampedPillCenterForCenter:(CGPoint)center;
 - (void)applySavedPillPositionIfNeeded;
+- (void)applySavedPillPositionIfChanged;
 - (void)savePillPosition;
+- (BOOL)readKaraokeEnabled;
 - (void)handlePillPan:(UIPanGestureRecognizer *)recognizer;
 @end
 
@@ -67,6 +69,7 @@ extern char **environ;
 #define TLDHUD_PILL_POSITION_LOCKED_KEY @"hudPill.positionLocked"
 #define TLDHUD_PILL_CARD_OPACITY_KEY @"floatingLyric.cardOpacity"
 #define TLDHUD_PILL_TEXT_COLOR_KEY @"floatingLyric.textColorHex"
+#define TLDHUD_PILL_KARAOKE_KEY @"lyric.karaokeEnabled"
 // Card background alpha when the key was never written: 0.75, the look
 // Lee already sees. NOT the slider's 0.23 initial value.
 #define TLDHUD_PILL_DEFAULT_CARD_ALPHA 0.75
@@ -206,6 +209,7 @@ static void SpringBoardLockStatusChanged(
     [self.view setHidden:NO];
     _positionLocked = [self readPositionLocked];
     [self resetLoopTimer];
+    [self applySavedPillPositionIfChanged];
     [self updateDisplay];
 }
 
@@ -386,6 +390,50 @@ static void SpringBoardLockStatusChanged(
     [defaults synchronize];
 }
 
+// 2.0.4: slider positioning — the main app's 横向／纵向 sliders write
+// hudPill.positionX／Y (same keys the drag path saves); the 1s tick
+// re-reads them and moves the pill when they changed. Never fights a
+// finger drag (_dragging), never moves when nothing changed (0.5pt dead
+// band), clamped on-screen by movePillToCenter like the drag path.
+// Position survives lock/unlock (re-applied in hudDidUnlock) and
+// disable/re-enable (the keys live in the App Group, not in memory).
+- (void)applySavedPillPositionIfChanged
+{
+    if (_dragging || !_pill) return;
+    NSUserDefaults *defaults = [self pillDefaults];
+    if (!defaults) return;
+    if (![defaults objectForKey:TLDHUD_PILL_POSITION_X_KEY] ||
+        ![defaults objectForKey:TLDHUD_PILL_POSITION_Y_KEY]) {
+        return;  // never positioned: keep the default top-centre spot
+    }
+    CGPoint saved = CGPointMake(
+        [defaults doubleForKey:TLDHUD_PILL_POSITION_X_KEY],
+        [defaults doubleForKey:TLDHUD_PILL_POSITION_Y_KEY]);
+    CGPoint current = CGPointMake(
+        self.view.bounds.size.width / 2 + _pillCenterXConstraint.constant,
+        self.view.safeAreaInsets.top + _pillTopConstraint.constant
+            + _pill.bounds.size.height / 2);
+    if (saved.x - current.x > 0.5 || current.x - saved.x > 0.5 ||
+        saved.y - current.y > 0.5 || current.y - saved.y > 0.5) {
+        [self movePillToCenter:saved];
+        [self.view layoutIfNeeded];
+        TLDHUDLog(@"hud: pill position applied from slider (%.0f, %.0f)",
+                  saved.x, saved.y);
+    }
+}
+
+// Karaoke switch (lyric.karaokeEnabled, same suite as the colour key).
+// Key absent = ON (same default as the main app's @AppStorage and
+// LyricStore.isKaraokeEnabled).
+- (BOOL)readKaraokeEnabled
+{
+    NSUserDefaults *defaults = [self pillDefaults];
+    if (!defaults || ![defaults objectForKey:TLDHUD_PILL_KARAOKE_KEY]) {
+        return YES;
+    }
+    return [defaults boolForKey:TLDHUD_PILL_KARAOKE_KEY];
+}
+
 // Direct pan drag (2.0.3 — replaces the 2.0.2 press-and-hold, which never
 // fired on Lee's phone). Locked = one log line and return immediately,
 // no feedback, pill stays. Began: remember the grab offset, dim the
@@ -520,9 +568,46 @@ static void SpringBoardLockStatusChanged(
             [[NSAttributedString alloc] initWithString:@"\n"
                                             attributes:dimAttrs]];
     }
-    [text appendAttributedString:
-        [[NSAttributedString alloc] initWithString:lyrics.currentLine ?: @"♪"
-                                        attributes:currentAttrs]];
+    // 2.0.4：卡拉OK——当前行有逐字时间戳且开关开时，已唱的字金色、
+    // 未唱的字灰色（与主页面 KaraokeLyricText 同一规矩，逐词已按简繁
+    // 开关转换过）；没有逐字时间戳或开关关时，退回整行原样高亮。
+    // 上一句／下一句照常（暗行），不受逐字影响。
+    if ([self readKaraokeEnabled] && lyrics.currentWords.count > 0) {
+        NSDictionary *sungAttrs = @{
+            NSFontAttributeName :
+                [UIFont boldSystemFontOfSize:baseSize],
+            NSForegroundColorAttributeName :
+                [UIColor colorWithRed:1.0 green:0.8 blue:0.1 alpha:1.0],
+        };
+        NSDictionary *unsungAttrs = @{
+            NSFontAttributeName :
+                [UIFont boldSystemFontOfSize:baseSize],
+            NSForegroundColorAttributeName :
+                [baseColor colorWithAlphaComponent:0.45],
+        };
+        BOOL appendedWord = NO;
+        for (NSDictionary *word in lyrics.currentWords) {
+            NSString *wordText = word[@"text"];
+            NSNumber *wordTime = word[@"time"];
+            if (![wordText isKindOfClass:[NSString class]] ||
+                ![wordTime isKindOfClass:[NSNumber class]]) continue;
+            BOOL sung = [wordTime doubleValue] <= lyrics.elapsed;
+            [text appendAttributedString:
+                [[NSAttributedString alloc] initWithString:wordText
+                                                attributes:sung ? sungAttrs : unsungAttrs]];
+            appendedWord = YES;
+        }
+        if (!appendedWord) {
+            // 逐字全是坏数据：退回整行，不留空药丸。
+            [text appendAttributedString:
+                [[NSAttributedString alloc] initWithString:lyrics.currentLine ?: @"♪"
+                                                attributes:currentAttrs]];
+        }
+    } else {
+        [text appendAttributedString:
+            [[NSAttributedString alloc] initWithString:lyrics.currentLine ?: @"♪"
+                                            attributes:currentAttrs]];
+    }
     if (lyrics.nextLine.length > 0) {
         [text appendAttributedString:
             [[NSAttributedString alloc] initWithString:@"\n"
@@ -548,7 +633,7 @@ static void SpringBoardLockStatusChanged(
     // no snapshot means no lyric opacity, so label alpha is 1.0.
     _testLabel.alpha = 1.0;
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.3\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.4\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :
@@ -564,6 +649,9 @@ static void SpringBoardLockStatusChanged(
     // 2.0.2: re-read the lock flag every tick — cheap, and no unlock
     // event is needed for the main app's toggle to take effect.
     _positionLocked = [self readPositionLocked];
+    // 2.0.4: re-read the slider position keys every tick — the main
+    // app's 横向／纵向 sliders write them; the pill follows within 1s.
+    [self applySavedPillPositionIfChanged];
     [self updateDisplay];
     // Throttled logging: state changes are logged at the moment they
     // happen; timer ticks at most once every 60s. No log spam.
