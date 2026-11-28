@@ -8,6 +8,7 @@
 // (Adapted code, © 2026 顾海龙集团, MIT — see README for attribution.)
 
 #import "TLDHUDMainWindow.h"
+#import "TLDHUDLog.h"
 #import "TLDHUDRootViewController.h"
 
 @implementation TLDHUDMainWindow
@@ -26,6 +27,16 @@
 // NO would swallow every touch on the home screen / app underneath.)
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event
 {
+    // hid-probe (2.0.4/build 91): log the FIRST call only — this is a
+    // full-screen window, so hitTest runs on every touch and a full log
+    // would spam the daemon log. One line proves touches reach the
+    // window at all; the HID probe above shows whether Backboard
+    // delivers the events.
+    static BOOL hitTestLogged = NO;
+    if (!hitTestLogged) {
+        hitTestLogged = YES;
+        TLDHUDLog(@"hid: probe hitTest first call point (%d,%d)", (int)point.x, (int)point.y);
+    }
     UIView *hit = [super hitTest:point withEvent:event];
     if (!hit) return nil;
     UIViewController *rootVC = self.rootViewController;
