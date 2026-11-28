@@ -573,7 +573,7 @@ check("死开关的唯一消费方仍是已死的 FloatingLyricViewController",
 print("\n== 10. diff 范围（相对 c6340d0） ==")
 try:
     diff_names = git_out(["diff", "--name-only", BASE]).split()
-    check("diff 文件数合理（2.0.2 六项改动＋版本）", 0 < len(diff_names) <= 20, str(len(diff_names)))
+    check("diff 文件数合理（底子 3 文件＋六项改动＋版本）", 0 < len(diff_names) <= 22, str(len(diff_names)))
     print("changed files:", len(diff_names))
     for n in diff_names:
         print("  ", n)
@@ -806,6 +806,40 @@ check("简繁：快照 struct 未加字段（title／artist／lyrics[] 仍存原
 check("简繁：LyricStore.searchTerms／stableSongIdentity 内无转换调用",
       "convertForDisplay" not in ls.split("static func searchTerms")[1].split("static func")[0]
       if "static func searchTerms" in ls else False)
+
+
+print("\n== 16. 2.0.2 底子：ChatGPT 建议（PID 校验＋Enable 健壮性） ==")
+dm = read("HUD/TLDHUDDaemonMain.mm")
+hh = read("HUD/TLDHUDHelper.mm")
+vh = read("HUD/TLDHUDVersion.h")
+check("底子：TLDHUDOwnPID 用 proc_pidpath＋realpath 核对可执行路径",
+      "TLDHUDOwnPID" in dm and "proc_pidpath" in dm and "realpath" in dm
+      and "strcmp(expected, resolved) == 0" in dm)
+check("底子：TLDHUDOwnPID 头文件齐全（libproc／limits／stdlib，无需补 import）",
+      "#import <libproc.h>" in dm and "#import <limits.h>" in dm
+      and "#import <stdlib.h>" in dm)
+check("底子：-exit 先验 PID，不是本进程就拒绝并记日志",
+      "hud: refusing stale or unverified PID" in dm)
+check("底子：-check 先验 PID，未通过直接回 EXIT_SUCCESS（不再谎报活着）",
+      "if (!TLDHUDOwnPID(pid)) return EXIT_SUCCESS;" in dm)
+check("底子：waitpid 后只在 WIFEXITED 时读退出码",
+      "if (w != -1 && WIFEXITED(status))" in hh)
+check("底子：TLDHUDIsEnabled 由 status != 0 改 status == 1",
+      "return status == 1;" in hh and "return status != 0;" not in hh)
+check("底子：Enable 只有 plist 装成功才走 launchctl unload/load",
+      "BOOL installed = TLDHUDInstallDaemonPlist();" in hh
+      and "if (installed && " in hh)
+check("底子：launchctl load 失败直接返回（走直启 -hud 兜底）",
+      "if (loadRc != 0) return;" in hh)
+check("底子：TLDHUDVersion.h 注释指向 check_2.0.2.py",
+      "check_2.0.2.py" in vh)
+try:
+    msgs = git_out(["log", "--format=%s", BASE + "..HEAD"]).splitlines()
+    check("底子：分支顺序正确（底子提交第一，功能提交第二）",
+          len(msgs) == 2 and msgs[1].startswith("ChatGPT 建议")
+          and msgs[0].startswith("2.0.2/build 32"), str(msgs))
+except subprocess.CalledProcessError as e:
+    open_item("git log 读不到，分支顺序断言跳过", str(e))
 
 
 print("\n== OPEN（需 macOS／真机） ==")
