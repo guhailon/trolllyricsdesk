@@ -5,10 +5,10 @@
 	<!-- Minimal set for the HUD mechanism only. Every key is justified below.
 	     Deliberately NOT included: MediaRemote keys (no MediaRemote in
 	     this project), disallowControlCenter/NotificationCenter (not
-	     needed). hid.* keys were NOT in v1 (no touch) — the five keys
-	     below exist ONLY in the hid-probe verification build
-	     (2.0.4/build 91): register + log, never inject. Do NOT carry
-	     them into a release build without Lee's say-so.
+	     needed). hid.* keys below exist since the hid-probe verification
+	     build (2.0.4/build 91) and are REQUIRED in 2.0.5 (Lee approved
+	     the full HID touch port 2026-11-28): the daemon registers
+	     BKSHIDEventRegisterEventCallback and injects pill-only touches.
 	     0.2.0 adds ONE key: App Group (snapshot transport, see below). -->
 
 	<!-- TrollStore identity -->
@@ -44,10 +44,12 @@
 	<key>com.apple.backboard.client</key>
 	<true/>
 
-	<!-- hid-probe (2.0.4/build 91) ONLY: HID client keys so the daemon
-	     may register BKSHIDEventRegisterEventCallback and LOG incoming
-	     HID events (TLDHIDProbeCallback in TLDHUDDaemonMain.mm). Probe
-	     only — the callback never handles, modifies or injects events. -->
+	<!-- 2.0.5 (Lee approved the full HID touch port 2026-11-28): HID
+	     client keys so the daemon may register
+	     BKSHIDEventRegisterEventCallback, decode the AX event and inject
+	     ONLY touches that fall inside the pill rect (TLDHIDEventCallback
+	     in TLDHUDDaemonMain.mm + TSEventFetcher). Everything outside the
+	     pill passes through untouched — never swallowed or modified. -->
 	<key>com.apple.private.hid.client.event-dispatch</key>
 	<true/>
 	<key>com.apple.private.hid.client.event-filter</key>

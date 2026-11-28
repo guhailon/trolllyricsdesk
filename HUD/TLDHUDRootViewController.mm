@@ -633,7 +633,7 @@ static void SpringBoardLockStatusChanged(
     // no snapshot means no lyric opacity, so label alpha is 1.0.
     _testLabel.alpha = 1.0;
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.4\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.5\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :

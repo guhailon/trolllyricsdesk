@@ -54,6 +54,34 @@
 			path = "TLDHUDDaemonMain.mm";
 			sourceTree = "<group>";
 		};
+		7CC5DE62F95A1075D7B9CD45 /* TSEventFetcher.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "TSEventFetcher.h";
+			path = "TSEventFetcher.h";
+			sourceTree = "<group>";
+		};
+		85D388BBD84FD2E04ACF6357 /* TSEventFetcher.mm */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.cpp.objcpp;
+			name = "TSEventFetcher.mm";
+			path = "TSEventFetcher.mm";
+			sourceTree = "<group>";
+		};
+		FF6AE6737B7C9A5EF34A559E /* UITouch-KIFAdditions.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			name = "UITouch-KIFAdditions.m";
+			path = "UITouch-KIFAdditions.m";
+			sourceTree = "<group>";
+		};
+		F4238A2E0C8FC09A84B7C017 /* IOHIDEvent+KIF.m */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.objc;
+			name = "IOHIDEvent+KIF.m";
+			path = "IOHIDEvent+KIF.m";
+			sourceTree = "<group>";
+		};
 		07D4F45C910F0A1850057682 /* TLDHUDMainApplication.h */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.c.h;
@@ -194,6 +222,76 @@
 			path = "LSApplicationWorkspace.h";
 			sourceTree = "<group>";
 		};
+		CAFD71D78B19D56D4BFC3F97 /* AXEventRepresentation.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "AXEventRepresentation.h";
+			path = "AXEventRepresentation.h";
+			sourceTree = "<group>";
+		};
+		7B4DBDB820F031242D5CBB21 /* AXEventHandInfoRepresentation.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "AXEventHandInfoRepresentation.h";
+			path = "AXEventHandInfoRepresentation.h";
+			sourceTree = "<group>";
+		};
+		EE13CECB9D23E5153228A3C4 /* AXEventPathInfoRepresentation.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "AXEventPathInfoRepresentation.h";
+			path = "AXEventPathInfoRepresentation.h";
+			sourceTree = "<group>";
+		};
+		3351970E9A78D286A5E1288C /* UIEvent+Private.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UIEvent+Private.h";
+			path = "UIEvent+Private.h";
+			sourceTree = "<group>";
+		};
+		ECCD265826D0F768D6660A4F /* UITouch+Private.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UITouch+Private.h";
+			path = "UITouch+Private.h";
+			sourceTree = "<group>";
+		};
+		D47EC24109907BA5E6B7F71A /* UITouch-KIFAdditions.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UITouch-KIFAdditions.h";
+			path = "UITouch-KIFAdditions.h";
+			sourceTree = "<group>";
+		};
+		629BBFE52C65FCCC345E20AE /* IOHIDEvent+KIF.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "IOHIDEvent+KIF.h";
+			path = "IOHIDEvent+KIF.h";
+			sourceTree = "<group>";
+		};
+		FC9BAEBE302442065DFD427B /* UIEventFetcher.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UIEventFetcher.h";
+			path = "UIEventFetcher.h";
+			sourceTree = "<group>";
+		};
+		E6B19B63C704D0E49338679E /* UIEventDispatcher.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "UIEventDispatcher.h";
+			path = "UIEventDispatcher.h";
+			sourceTree = "<group>";
+		};
+		54BB9CDC049B43D5B34C4C0D /* pac_helper.h */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.c.h;
+			name = "pac_helper.h";
+			path = "pac_helper.h";
+			sourceTree = "<group>";
+		};
 		967AF8103B959CA59A42B7AD /* IOKit+SPI.h */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.c.h;
@@ -234,6 +332,18 @@
 		968DBE9282B383BF6BDE7C88 /* TLDHUDDaemon.plist in Resources */ = {
 			isa = PBXBuildFile;
 			fileRef = 2BA74BE65056CEBE9D2D85D2 /* TLDHUDDaemon.plist */;
+		};
+		77AE8DF9589768E47260DE08 /* TSEventFetcher.mm in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 85D388BBD84FD2E04ACF6357 /* TSEventFetcher.mm */;
+		};
+		59D6C12E173B488E2D12A6E8 /* UITouch-KIFAdditions.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = FF6AE6737B7C9A5EF34A559E /* UITouch-KIFAdditions.m */;
+		};
+		CC1A79D73786461B1AE9AE2E /* IOHIDEvent+KIF.m in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = F4238A2E0C8FC09A84B7C017 /* IOHIDEvent+KIF.m */;
 		};
 		C6518203D5AC16100FAD0856 /* TLDHUDDaemonMain.mm in Sources */ = {
 			isa = PBXBuildFile;
@@ -281,6 +391,10 @@
 				9BD8633472D37CD9F5632E1A /* TLDHUDLog.h */,
 				13AB39912B2A57568B4BC9E9 /* TLDHUDLog.mm */,
 				670DE36FF57563EFFB2D36EB /* TLDHUDDaemonMain.mm */,
+				7CC5DE62F95A1075D7B9CD45 /* TSEventFetcher.h */,
+				85D388BBD84FD2E04ACF6357 /* TSEventFetcher.mm */,
+				FF6AE6737B7C9A5EF34A559E /* UITouch-KIFAdditions.m */,
+				F4238A2E0C8FC09A84B7C017 /* IOHIDEvent+KIF.m */,
 				07D4F45C910F0A1850057682 /* TLDHUDMainApplication.h */,
 				1182026F8A8029A0B305E08A /* TLDHUDMainApplication.mm */,
 				D639BCA5AC5C02F81EB2D620 /* TLDHUDMainApplicationDelegate.h */,
@@ -311,6 +425,16 @@
 				61834B6789A329E945711F25 /* LSApplicationProxy.h */,
 				83FDEE1E33EB49692C48DA64 /* LSApplicationWorkspace.h */,
 				967AF8103B959CA59A42B7AD /* IOKit+SPI.h */,
+				CAFD71D78B19D56D4BFC3F97 /* AXEventRepresentation.h */,
+				7B4DBDB820F031242D5CBB21 /* AXEventHandInfoRepresentation.h */,
+				EE13CECB9D23E5153228A3C4 /* AXEventPathInfoRepresentation.h */,
+				3351970E9A78D286A5E1288C /* UIEvent+Private.h */,
+				ECCD265826D0F768D6660A4F /* UITouch+Private.h */,
+				D47EC24109907BA5E6B7F71A /* UITouch-KIFAdditions.h */,
+				629BBFE52C65FCCC345E20AE /* IOHIDEvent+KIF.h */,
+				FC9BAEBE302442065DFD427B /* UIEventFetcher.h */,
+				E6B19B63C704D0E49338679E /* UIEventDispatcher.h */,
+				54BB9CDC049B43D5B34C4C0D /* pac_helper.h */,
 			);
 			name = "headers";
 			path = "headers";
@@ -321,6 +445,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				C6518203D5AC16100FAD0856 /* TLDHUDDaemonMain.mm in Sources */,
+				77AE8DF9589768E47260DE08 /* TSEventFetcher.mm in Sources */,
+				59D6C12E173B488E2D12A6E8 /* UITouch-KIFAdditions.m in Sources */,
+				CC1A79D73786461B1AE9AE2E /* IOHIDEvent+KIF.m in Sources */,
 				35AF65372FAE6D85F773E900 /* TLDHUDMainApplication.mm in Sources */,
 				9C58A0385E667522D7DA210C /* TLDHUDMainApplicationDelegate.mm in Sources */,
 				4FE8D2DFBDABB8D411C0DD2B /* TLDHUDMainWindow.mm in Sources */,
@@ -395,7 +522,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
@@ -407,13 +534,15 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
 					Foundation,
 					"-framework",
 					UIKit,
+					"-framework",
+					IOKit,
 					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
 					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
 					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",
@@ -436,7 +565,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_OPTIMIZATION_LEVEL = s;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -449,13 +578,15 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
 					Foundation,
 					"-framework",
 					UIKit,
+					"-framework",
+					IOKit,
 					"$(SRCROOT)/HUD/Private/BackBoardServices.tbd",
 					"$(SRCROOT)/HUD/Private/GraphicsServices.tbd",
 					"$(SRCROOT)/HUD/Private/SpringBoardServices.tbd",
@@ -1047,7 +1178,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1062,7 +1193,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -1305,7 +1436,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsDesk/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1320,7 +1451,7 @@
 				"$(SRCROOT)/Overlay/Private/RunningBoardServices.tbd",
 				"$(SRCROOT)/Overlay/Private/AppleAccount.tbd",
 			);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -1347,7 +1478,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1359,7 +1490,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1460,7 +1591,7 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 91;
+				CURRENT_PROJECT_VERSION = 35;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "TrollLyricsWidget/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -1472,7 +1603,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 				);
-				MARKETING_VERSION = 2.0.4;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ycwl.Lyrics.TrollLyricsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

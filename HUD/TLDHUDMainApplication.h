@@ -3,8 +3,9 @@
 // (New code, © 2026 顾海龙集团, MIT.)
 //
 // TrollSpeed's TLDHUDMainApplication also installs the HID touch pipeline
-// (UIEventDispatcher / UIEventFetcher / pac_helper). v1 has NO touch, so
-// this subclass only listens for the dismissal notification.
+// (UIEventDispatcher / UIEventFetcher / pac_helper). 2.0.5 ports that
+// pipeline (see TLDHUDMainApplication.mm); v1 had NO touch, so this
+// subclass only listened for the dismissal notification.
 
 #import <UIKit/UIKit.h>
 

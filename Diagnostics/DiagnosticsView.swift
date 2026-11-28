@@ -98,7 +98,7 @@ struct DiagnosticsView: View {
                 }
             }
         }
-        .navigationTitle("诊断（2.0.4）")
+        .navigationTitle("诊断（2.0.5）")
         .onAppear {
             refresh()
         }

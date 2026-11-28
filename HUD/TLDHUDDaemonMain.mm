@@ -9,10 +9,11 @@
 //              (TrollSpeed's inverted semantics, kept on purpose)
 //   -exit   -> SIGKILL the daemon via the PID file
 //   -install-daemon -> (root) install the launchd plist, see TLDHUDHelper
-// The HID event callback in the original is NOT copied in v1 (no touch).
-// hid-probe (2.0.4/build 91) registers a LOG-ONLY probe callback
-// (TLDHIDProbeCallback below) — registration only, no AX decoding,
-// no injection.
+// The HID event callback is the full TrollSpeed touch pipeline (2.0.5):
+// TLDHIDEventCallback below — BKSHIDEventRegisterEventCallback,
+// AXEventRepresentation decoding, pill-only gate, TSEventFetcher injection.
+// (Adapted code, © 2026 顾海龙集团, MIT — see docs/2.0.0-MERGE-DESIGN.md;
+// TrollSpeed parts © 2023 Lessica, MIT.)
 // No no-arg mode: the main app has its own Overlay/main.m.
 // (Adapted code, © 2026 顾海龙集团, MIT — see docs/2.0.0-MERGE-DESIGN.md.)
 
@@ -22,6 +23,7 @@
 #import <stdlib.h>
 #import <unistd.h>
 #import <sys/stat.h>
+#import <sys/utsname.h>
 #import <mach-o/dyld.h>
 #import <objc/runtime.h>
 
@@ -41,6 +43,9 @@ extern "C" int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
 #import "TLDHUDHelper.h"
 #import "TLDHUDVersion.h"
 #import "BackboardServices.h"
+#import "AXEventRepresentation.h"
+#import "TSEventFetcher.h"
+#import "TLDHUDRootViewController.h"
 #import "UIApplication+Private.h"
 
 static BOOL TLDHUDOwnPID(pid_t pid) {
@@ -85,18 +90,38 @@ static int InstallDaemonPlist(void)
     return 0;
 }
 
-// hid-probe (2.0.4/build 91): MINIMAL probe of the registration TrollSpeed
-// (MIT © 2023 Lessica) uses in HUDApp.mm — _HUDEventCallback registered
-// via BKSHIDEventRegisterEventCallback. Only the REGISTRATION is borrowed:
-// this callback does NOT copy TrollSpeed's AX decoding or its event
-// injection logic. It only LOGS: it never calls any event handler, never
-// synthesises, modifies or swallows an event, and never touches the UI.
-// Throttle: the first 10 events log a full CFCopyDescription each; after
-// that at most one cumulative-count line per second, so a flood of HID
-// events cannot spam the log file. TLDHUDLog is already thread-safe
-// (@synchronized inside TLDHUDLog.mm), and the counter below has its own
-// lock — the callback may run off the main thread.
-static void TLDHIDProbeCallback(void *target, void *refcon, IOHIDServiceRef service, IOHIDEventRef event)
+// 2.0.5: FULL HID touch pipeline, ported from TrollSpeed (MIT © 2023
+// Lessica), sources/HUDApp.mm:27-100 (_HUDEventCallback). Registration,
+// AX decoding, phase mapping and the pointer-id clamp are TrollSpeed's;
+// the PILL-ONLY gate inside the main-queue block is TLD's own safety
+// rule, added on top of TrollSpeed (which injects whatever its window
+// hit-tests). Safety, hard requirements:
+//   - Only a touch point that falls inside the pill rect is injected;
+//     everything else is passed through untouched — never swallowed,
+//     never modified, never injected into another window.
+//   - Injection goes only to the pill window's own view (keyView from
+//     the pill window's hitTest), never to the system or another app.
+//   - Two independent gates: (1) the window's own hitTest, which already
+//     narrows to the pill (TLDHUDMainWindow.mm); (2) the pill frame from
+//     the root view controller, compared by hand (no CoreGraphics in the
+//     daemon — CGRectContainsPoint is an extern symbol there). Either
+//     gate saying "outside" drops the event silently.
+//   - Dragging is protected the same way as before: the 1s tick never
+//     moves the pill while _dragging (TLDHUDRootViewController.mm).
+// The hid-probe logging is kept: the first 10 events log a full
+// CFCopyDescription each, after that at most one cumulative-count line
+// per second, so a flood of HID events cannot spam the log file.
+// TLDHUDLog is already thread-safe (@synchronized inside TLDHUDLog.mm),
+// and the counter below has its own lock — the callback may run off the
+// main thread.
+static __used
+NSString *TLDHIDDeviceModel(void) {
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    return [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding];
+}
+
+static void TLDHIDEventCallback(void *target, void *refcon, IOHIDServiceRef service, IOHIDEventRef event)
 {
     (void)target;
     (void)refcon;
@@ -106,6 +131,7 @@ static void TLDHIDProbeCallback(void *target, void *refcon, IOHIDServiceRef serv
     dispatch_once(&probeLockToken, ^{ probeLock = [[NSObject alloc] init]; });
     static NSUInteger probeCount = 0;
     static NSTimeInterval lastCountLog = 0;
+    static BOOL touchInjectLogged = NO;
     @synchronized (probeLock) {
         probeCount++;
         if (!event) {
@@ -124,6 +150,93 @@ static void TLDHIDProbeCallback(void *target, void *refcon, IOHIDServiceRef serv
                 TLDHUDLog(@"hid: probe count %lu", (unsigned long)probeCount);
             }
         }
+    }
+    if (!event) return;
+
+    static UIApplication *app = [UIApplication sharedApplication];
+
+    // iOS 15.1+ has a new API for handling HID events.
+    if (@available(iOS 15.1, *)) {}
+    else {
+        [app _enqueueHIDEvent:event];
+    }
+
+    BOOL shouldUseAXEvent = YES;  // Always use AX events now...
+
+    BOOL isExactly15 = NO;
+    static NSOperatingSystemVersion version = [[NSProcessInfo processInfo] operatingSystemVersion];
+    if (version.majorVersion == 15 && version.minorVersion == 0 && version.patchVersion == 0) {
+        NSString *deviceModel = TLDHIDDeviceModel();
+        if (![deviceModel hasPrefix:@"iPhone13,"] && ![deviceModel hasPrefix:@"iPhone14,"]) { // iPhone 12 & 13 Series
+            isExactly15 = YES;
+        }
+    }
+
+    if (@available(iOS 15.0, *)) {
+        shouldUseAXEvent = !isExactly15;
+    } else {
+        shouldUseAXEvent = NO;
+    }
+
+    if (shouldUseAXEvent)
+    {
+        static Class AXEventRepresentationCls = nil;
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            [[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/AccessibilityUtilities.framework"] load];
+            AXEventRepresentationCls = objc_getClass("AXEventRepresentation");
+        });
+
+        AXEventRepresentation *rep = [AXEventRepresentationCls representationWithHIDEvent:event hidStreamIdentifier:@"UIApplicationEvents"];
+        if (!rep) return;
+
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            static UIWindow *keyWindow = nil;
+            static dispatch_once_t onceToken;
+            dispatch_once(&onceToken, ^{
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+                keyWindow = [[app windows] firstObject];
+#pragma clang diagnostic pop
+            });
+            if (!keyWindow) return;
+            CGPoint location = [rep location];
+
+            // Gate 1: the pill window's own hitTest (narrows to the pill).
+            UIView *keyView = [keyWindow hitTest:location withEvent:nil];
+            if (!keyView) return;
+            // Gate 2: the pill frame from the root view controller.
+            UIViewController *rootVC = keyWindow.rootViewController;
+            if (![rootVC respondsToSelector:@selector(pillFrameInWindow)]) return;
+            CGRect pillFrame = [(TLDHUDRootViewController *)rootVC pillFrameInWindow];
+            BOOL pillNotEmpty =
+                pillFrame.size.width > 0 && pillFrame.size.height > 0;
+            BOOL insidePill =
+                location.x >= pillFrame.origin.x &&
+                location.x < pillFrame.origin.x + pillFrame.size.width &&
+                location.y >= pillFrame.origin.y &&
+                location.y < pillFrame.origin.y + pillFrame.size.height;
+            if (!pillNotEmpty || !insidePill) return;
+
+            UITouchPhase phase = UITouchPhaseEnded;
+            if ([rep isTouchDown])
+                phase = UITouchPhaseBegan;
+            else if ([rep isMove])
+                phase = UITouchPhaseMoved;
+            else if ([rep isCancel])
+                phase = UITouchPhaseCancelled;
+            else if ([rep isLift] || [rep isInRange] || [rep isInRangeLift])
+                phase = UITouchPhaseEnded;
+
+            NSInteger pointerId = [[[[rep handInfo] paths] firstObject] pathIdentity];
+            if (pointerId > 0) {
+                if (!touchInjectLogged) {
+                    touchInjectLogged = YES;
+                    TLDHUDLog(@"hid: touch in pill, injecting (phase %ld)", (long)phase);
+                }
+                [TSEventFetcher receiveAXEventID:MIN(MAX(pointerId, 1), 98) atGlobalCoordinate:location withTouchPhase:phase inWindow:keyWindow onView:keyView];
+            }
+        });
     }
 }
 
@@ -169,11 +282,12 @@ int main(int argc, char *argv[])
 
             [NSRunLoop currentRunLoop];
 
-            // hid-probe (2.0.4/build 91): same spot as TrollSpeed's
-            // HUDApp.mm — register the HID event callback right after
-            // the run loop is touched. Probe only: TLDHIDProbeCallback
-            // logs events, it never handles or injects them.
-            BKSHIDEventRegisterEventCallback(TLDHIDProbeCallback);
+            // 2.0.5: same spot as TrollSpeed's HUDApp.mm — register the
+            // HID event callback right after the run loop is touched.
+            // Full pipeline now: TLDHIDEventCallback decodes the AX
+            // event and injects ONLY touches inside the pill rect
+            // (TSEventFetcher); everything else passes through untouched.
+            BKSHIDEventRegisterEventCallback(TLDHIDEventCallback);
 
             if (@available(iOS 15.0, *)) {
                 GSEventInitialize(0);
