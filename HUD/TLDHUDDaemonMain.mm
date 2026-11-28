@@ -15,13 +15,21 @@
 
 #import <notify.h>
 #import <signal.h>
-#import <libproc.h>
 #import <limits.h>
 #import <stdlib.h>
 #import <unistd.h>
 #import <sys/stat.h>
 #import <mach-o/dyld.h>
 #import <objc/runtime.h>
+
+// 2.0.2: libproc.h 不在 iOS SDK 里（run 46109489987：'libproc.h' file
+// not found）——proc_pidpath 是 libSystem 的导出函数，链接不缺，只缺
+// 声明；这里前置声明（与 HUD/headers 里私有 API 的做法一致），
+// 不丢 TLDHUDOwnPID 的校验。
+extern int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
+#ifndef PROC_PIDPATHINFO_MAXSIZE
+#define PROC_PIDPATHINFO_MAXSIZE 1024
+#endif
 
 #import "TLDHUDLog.h"
 #import "TLDHUDPaths.h"

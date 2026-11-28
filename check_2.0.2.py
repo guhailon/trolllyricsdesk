@@ -815,9 +815,11 @@ vh = read("HUD/TLDHUDVersion.h")
 check("底子：TLDHUDOwnPID 用 proc_pidpath＋realpath 核对可执行路径",
       "TLDHUDOwnPID" in dm and "proc_pidpath" in dm and "realpath" in dm
       and "strcmp(expected, resolved) == 0" in dm)
-check("底子：TLDHUDOwnPID 头文件齐全（libproc／limits／stdlib，无需补 import）",
-      "#import <libproc.h>" in dm and "#import <limits.h>" in dm
-      and "#import <stdlib.h>" in dm)
+check("底子：libproc.h 不在 iOS SDK 里，改前置声明（run 46109489987 教训）",
+      "#import <libproc.h>" not in dm
+      and "extern int proc_pidpath(int pid, void *buffer, uint32_t buffersize);" in dm
+      and "#define PROC_PIDPATHINFO_MAXSIZE 1024" in dm
+      and "#import <limits.h>" in dm and "#import <stdlib.h>" in dm)
 check("底子：-exit 先验 PID，不是本进程就拒绝并记日志",
       "hud: refusing stale or unverified PID" in dm)
 check("底子：-check 先验 PID，未通过直接回 EXIT_SUCCESS（不再谎报活着）",
@@ -835,9 +837,9 @@ check("底子：TLDHUDVersion.h 注释指向 check_2.0.2.py",
       "check_2.0.2.py" in vh)
 try:
     msgs = git_out(["log", "--format=%s", BASE + "..HEAD"]).splitlines()
-    check("底子：分支顺序正确（底子提交第一，功能提交第二）",
-          len(msgs) == 2 and msgs[1].startswith("ChatGPT 建议")
-          and msgs[0].startswith("2.0.2/build 32"), str(msgs))
+    check("底子：分支顺序正确（底子提交第一，功能提交第二，其后只跟小修）",
+          len(msgs) >= 2 and msgs[-1].startswith("ChatGPT 建议")
+          and msgs[-2].startswith("2.0.2/build 32"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))
 
