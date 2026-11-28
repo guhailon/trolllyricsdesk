@@ -817,7 +817,7 @@ check("底子：TLDHUDOwnPID 用 proc_pidpath＋realpath 核对可执行路径",
       and "strcmp(expected, resolved) == 0" in dm)
 check("底子：libproc.h 不在 iOS SDK 里，改前置声明（run 46109489987 教训）",
       "#import <libproc.h>" not in dm
-      and "extern int proc_pidpath(int pid, void *buffer, uint32_t buffersize);" in dm
+      and 'extern "C" int proc_pidpath(int pid, void *buffer, uint32_t buffersize);' in dm
       and "#define PROC_PIDPATHINFO_MAXSIZE 1024" in dm
       and "#import <limits.h>" in dm and "#import <stdlib.h>" in dm)
 check("底子：-exit 先验 PID，不是本进程就拒绝并记日志",

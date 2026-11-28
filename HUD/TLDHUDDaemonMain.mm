@@ -26,7 +26,9 @@
 // not found）——proc_pidpath 是 libSystem 的导出函数，链接不缺，只缺
 // 声明；这里前置声明（与 HUD/headers 里私有 API 的做法一致），
 // 不丢 TLDHUDOwnPID 的校验。
-extern int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
+// 注意：本文件是 Objective-C++（.mm），声明必须包 extern "C"，否则编
+// 出 C++ 修饰名、链接时找不到 _proc_pidpath（run 46109630838 教训）。
+extern "C" int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
 #ifndef PROC_PIDPATHINFO_MAXSIZE
 #define PROC_PIDPATHINFO_MAXSIZE 1024
 #endif
