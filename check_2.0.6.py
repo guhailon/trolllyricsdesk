@@ -1012,11 +1012,12 @@ try:
     if not msgs:
         open_item("未提交：提交顺序断言等提交后再跑", "HEAD == BASE，尚无新提交")
     else:
-        check("提交顺序：v2.0.6 四笔（2.0.6 产品＋引擎测试修＋Widget 编译修＋RUN 文档）",
-              len(msgs) == 4 and msgs[3].startswith("2.0.6/build 36：卡拉OK修复")
-              and msgs[2].startswith("2.0.6/build 36：修 run 46134758976")
-              and msgs[1].startswith("2.0.6/build 36：修 run 46135798827")
-              and msgs[0].startswith("RUN_2.0.6"), str(msgs))
+        check("提交顺序：v2.0.6 五笔（2.0.6 产品＋引擎测试修＋Widget 编译修＋RUN 文档＋补自检数）",
+              len(msgs) == 5 and msgs[4].startswith("2.0.6/build 36：卡拉OK修复")
+              and msgs[3].startswith("2.0.6/build 36：修 run 46134758976")
+              and msgs[2].startswith("2.0.6/build 36：修 run 46135798827")
+              and msgs[1].startswith("RUN_2.0.6：run 46136838949")
+              and msgs[0].startswith("RUN_2.0.6：补提交后自检数"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))
 
