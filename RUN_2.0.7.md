@@ -75,7 +75,7 @@
 
 ## 5. 自检与验包
 
-- check_2.0.7.py：**（提交后复核，见下）**。
+- check_2.0.7.py：**586 PASS／0 FAIL／12 OPEN**（RUN 文档提交后复核通过；12 OPEN 全是需 macOS／真机的待验证项，见脚本末尾）。
 - verify_2.0.7.py：**221 PASS／0 FAIL**（`hidden_files/verify_2.0.7.py`）。
   - App 2.0.7／build 37、thin arm64、daemon 在包内；dSYM UUID 与三二进制一致（App `9713c946…`、Widget `58bbc4b0…`、daemon `1e5264cb…`）；逃逸检查点 2 个；entitlements 与 build 36 逐项零差异（三二进制：源码 vs 二进制一致，build 36 基线 vs build 37 一致）；二进制含 lyricsfile、拖动闩锁（`hid: drag latch set/cleared`、`hid: drag inject count`）、心跳（`hud: heartbeat pid=`）、搜索回退诊断日志（`歌词搜索：第`、`歌名歌手互换防抖`）。
   - 验包中发现并已解释的三处（不是产品问题）：
@@ -109,4 +109,4 @@
 ## 7. 未动与未决
 
 - 未动：激活／Keychain、FrontBoard 老路、锁屏歌词、entitlements、卡拉OK接线（lyricsfile 解析、缓存键 v2）、拖动手势本体（2.0.5 的 pan 逻辑未动）。
-- 未决：check 脚本的提交顺序断言按惯例在 RUN 文档提交后复核；ChatGPT 自认未解决的五项（见 §2）不在本版。
+- 未决：ChatGPT 自认未解决的五项（见 §2）不在本版；自检 12 OPEN 全是真机／macOS 待验证项，等 Lee（见 §6）。
