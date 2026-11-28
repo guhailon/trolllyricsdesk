@@ -587,7 +587,8 @@ print("\n== 10. diff 范围（相对 5392b69） ==")
 try:
     diff_names = git_out(["diff", "--name-only", BASE]).split()
     diff_names += git_out(["ls-files", "--others", "--exclude-standard"]).split()
-    expected = {"HUD/TLDHUDDaemon.entitlements", "HUD/TLDHUDDaemonMain.mm",
+    expected = {"HUD/Private/BackBoardServices.tbd",
+        "HUD/TLDHUDDaemon.entitlements", "HUD/TLDHUDDaemonMain.mm",
         "HUD/TLDHUDMainWindow.mm", "HUD/TLDHUDVersion.h",
         "Lyrics/LyricStore.swift", "TrollLyricsDesk.xcodeproj/project.pbxproj",
         "TrollLyricsDesk/Info.plist", "TrollLyricsWidget/Info.plist",
@@ -997,8 +998,9 @@ try:
     if not msgs:
         open_item("未提交：提交顺序断言等提交后再跑", "HEAD == BASE，尚无新提交")
     else:
-        check("提交顺序：hid-probe 两笔（产品提交在下，RUN 文档在上）",
-              len(msgs) == 2 and msgs[-1].startswith("2.0.4/build 91")
+        check("提交顺序：hid-probe 三笔（产品＋链接修复＋RUN 文档）",
+              len(msgs) == 3 and msgs[-1].startswith("2.0.4/build 91")
+              and msgs[1].startswith("hid-probe 链接修复")
               and msgs[0].startswith("RUN_hid-probe"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))
@@ -1155,6 +1157,10 @@ check("entitlements: 注释说明 hid-probe 验证版",
       "hid-probe" in read("HUD/TLDHUDDaemon.entitlements")
       and "no touch in v1" not in read("HUD/TLDHUDDaemon.entitlements"))
 dm = read("HUD/TLDHUDDaemonMain.mm")
+tbd = read("HUD/Private/BackBoardServices.tbd")
+check("链接：BackBoardServices.tbd 导出 _BKSHIDEventRegisterEventCallback（run 46127968236 教训：stub 只导了 _BKSDisplayServicesStart）",
+      "_BKSHIDEventRegisterEventCallback" in tbd
+      and "_BKSDisplayServicesStart" in tbd)
 check("daemon: 注册 BKSHIDEventRegisterEventCallback(TLDHIDProbeCallback)",
       "BKSHIDEventRegisterEventCallback(TLDHIDProbeCallback);" in dm)
 # 注册点在 -hud 分支 [NSRunLoop currentRunLoop]; 之后（TrollSpeed HUDApp.mm 同款位置）
