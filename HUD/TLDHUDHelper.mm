@@ -63,7 +63,7 @@ static int TLDHUDSpawnAsRoot(const char *path, char *const args[], BOOL wait)
     do {
         w = waitpid(task_pid, &status, 0);
     } while (w == -1 && errno == EINTR);
-    if (w != -1) {
+    if (w != -1 && WIFEXITED(status)) {
         TLDHUDLog(@"main: spawned %@ pid %d exit %d", @(path), task_pid, WEXITSTATUS(status));
         return WEXITSTATUS(status);
     }
@@ -89,7 +89,7 @@ BOOL TLDHUDIsEnabled(void)
     if (status < 0) return NO;
     // -check exits EXIT_FAILURE (1) when the daemon is alive, EXIT_SUCCESS
     // (0) when it is not — same inverted semantics as TrollSpeed.
-    return status != 0;
+    return status == 1;
 }
 
 /// Install the daemon plist (as root). Returns YES on success.
@@ -124,18 +124,20 @@ void TLDHUDSetEnabled(BOOL isEnabled)
                oldArg0 ?: @"(no old plist / unreadable)", exePath);
         TLDHUDLog(@"main: rewriting daemon plist (always on Enable) old=%@ -> new=%@",
                oldArg0 ?: @"(no old plist / unreadable)", exePath);
-        if (!TLDHUDInstallDaemonPlist()) {
+        BOOL installed = TLDHUDInstallDaemonPlist();
+        if (!installed) {
             TLDHUDLog(@"main: daemon plist install FAILED, falling back to direct spawn");
         }
-        if ([[NSFileManager defaultManager] fileExistsAtPath:plistPath] && launchctl) {
+        if (installed && [[NSFileManager defaultManager] fileExistsAtPath:plistPath] && launchctl) {
             // launchd may still hold the old job from the stale plist:
             // unload first (best-effort, rc ignored), then load.
             char *unloadArgs[] = { (char *)[launchctl UTF8String], (char *)"unload", (char *)[plistPath UTF8String], NULL };
             int unloadRc = TLDHUDSpawnAsRoot([launchctl UTF8String], unloadArgs, YES);
             TLDHUDLog(@"main: launchctl unload (best-effort before reload) rc %d", unloadRc);
             char *args[] = { (char *)[launchctl UTF8String], (char *)"load", (char *)[plistPath UTF8String], NULL };
-            TLDHUDSpawnAsRoot([launchctl UTF8String], args, YES);
-            TLDHUDLog(@"main: launchctl load %@", plistPath);
+            int loadRc = TLDHUDSpawnAsRoot([launchctl UTF8String], args, YES);
+            TLDHUDLog(@"main: launchctl load %@ rc %d", plistPath, loadRc);
+            if (loadRc != 0) return;
             // Give launchd a moment to start the daemon, then say so
             // plainly either way. This blocks the caller for 3s: the
             // Enable button calls TLDHUDSetEnabled on a background queue,
