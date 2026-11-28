@@ -193,19 +193,13 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
         [self log:@"运行模式：普通签名兼容模式（已证实被沙盒拦住，不建悬浮窗，走应用内歌词）"];
         [self log:@"诊断1.0.6 显示引擎：应用内歌词（普通签名兼容模式唯一档，不支持跨 App、桌面）"];
     } else {
-        // unknown：安装环境未确认。先记原生候选（安装来源未知，尝试 HUD，
-        // 并入 ChatGPT 1.0.6），尝试创建悬浮窗，等复核定显示能力；
-        // 复核通过写原生候选、失败降级兼容——安装环境仍记 unknown，不改。
-        // 2.0.0：不再试建悬浮场景、不再等托管复核。daemon 路径为候选，
-        // 由使用者在设置页启用；modeDecided 直接定，不悬在「待探测」。
         self.shouldVerify = NO;
         self.modeDecided = YES;
-        [[TLDSRuntime shared] setRunMode:@"native-candidate"
-                                  reason:@"未发现宿主信号；安装来源及权限未知（见安装环境行的证据）"];
-        [[TLDSRuntime shared] setDisplayCapability:@"nativeHUD"
-                                            reason:@"2.0.0：FrontBoard 场景已停用，悬浮歌词改由 HUD 守护进程（设置页启用）"];
-        [self log:@"运行模式：原生候选（安装来源未知，悬浮歌词改由 HUD 守护进程）"];
-        [self log:@"诊断2.0.0 显示引擎：HUD 守护进程悬浮歌词（候选，设置页启用）"];
+        self.compatMode = YES;
+        [[TLDSRuntime shared] setRunMode:@"compat" reason:@"安装来源未知，禁止原生 HUD"];
+        [[TLDSRuntime shared] setDisplayCapability:@"inApp" reason:@"权限未确认，应用内备选"];
+        [self log:@"诊断2.0.2：安装来源未知，禁止原生 HUD"];
+
     }
 
     // 1.0.6（第 7 项）：激活前后悬浮窗状态快照——Swift 侧 ActivationView 发通知，

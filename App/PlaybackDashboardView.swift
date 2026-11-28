@@ -41,6 +41,11 @@ struct PlaybackDashboardView: View {
     /// 2.0.1/build 31：读 HUD 守护进程状态（SettingsView.swift:462 同款：
     /// -check 为准，PID 文件只用来显示 pid）。
     private func refreshHUDStatus() {
+        guard RuntimeEnvironment.canUseNativeHUD else {
+            hudRunning = false
+            hudStatusText = "当前环境不支持原生 HUD"
+            return
+        }
         let running = TLDHUDIsEnabled()
         hudRunning = running
         if running,
@@ -164,8 +169,8 @@ struct PlaybackDashboardView: View {
 
                     // LiveContainer 宿主：没有悬浮窗／小组件，只在应用内显示歌词，
                     // 0.25s 刷新一次，带暂停／开始与归零。
-                    if LyricStore.isLiveContainer {
-                        Text("LiveContainer · 应用内歌词模式")
+                    if !RuntimeEnvironment.canUseNativeHUD {
+                        Text("兼容环境 · 应用内歌词模式")
                             .foregroundColor(.white)
                         TimelineView(.periodic(from: .now, by: 0.25)) { context in
                             if let snapshot = LyricStore.load() {
@@ -217,8 +222,8 @@ struct PlaybackDashboardView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        if LyricStore.isLiveContainer {
-                            Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                        if !RuntimeEnvironment.canUseNativeHUD {
+                            Text("当前环境未确认具备原生 HUD 权限；使用应用内歌词或独立 PiP 测试。")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.7))
                                 .frame(maxWidth: .infinity, alignment: .leading)

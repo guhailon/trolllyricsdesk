@@ -15,6 +15,9 @@
 
 #import <notify.h>
 #import <signal.h>
+#import <libproc.h>
+#import <limits.h>
+#import <stdlib.h>
 #import <unistd.h>
 #import <sys/stat.h>
 #import <mach-o/dyld.h>
@@ -26,6 +29,17 @@
 #import "TLDHUDVersion.h"
 #import "BackboardServices.h"
 #import "UIApplication+Private.h"
+
+static BOOL TLDHUDOwnPID(pid_t pid) {
+    if (pid <= 1 || pid == getpid()) return NO;
+    char actual[PROC_PIDPATHINFO_MAXSIZE] = {0};
+    if (proc_pidpath(pid, actual, sizeof(actual)) <= 0) return NO;
+    char expected[PATH_MAX] = {0};
+    char resolved[PATH_MAX] = {0};
+    if (!realpath([TLDHUDHelperExecutablePath() fileSystemRepresentation], expected) ||
+        !realpath(actual, resolved)) return NO;
+    return strcmp(expected, resolved) == 0;
+}
 
 static int InstallDaemonPlist(void)
 {
@@ -127,6 +141,10 @@ int main(int argc, char *argv[])
                                                                error:nil];
             if (pidString) {
                 pid_t pid = (pid_t)[pidString intValue];
+                if (!TLDHUDOwnPID(pid)) {
+                    TLDHUDLog(@"hud: refusing stale or unverified PID %d", pid);
+                    return EXIT_FAILURE;
+                }
                 kill(pid, SIGKILL);
                 unlink([pidPath UTF8String]);
                 TLDHUDLog(@"hud: -exit killed pid %d", pid);
@@ -140,6 +158,7 @@ int main(int argc, char *argv[])
                                                                error:nil];
             if (pidString) {
                 pid_t pid = (pid_t)[pidString intValue];
+                if (!TLDHUDOwnPID(pid)) return EXIT_SUCCESS;
                 int killed = kill(pid, 0);
                 return (killed == 0 ? EXIT_FAILURE : EXIT_SUCCESS);
             }

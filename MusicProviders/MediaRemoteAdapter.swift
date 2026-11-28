@@ -1,4 +1,5 @@
 import Foundation
+import MediaPlayer
 
 /// MediaRemote 跟随：读系统正在放的歌（任何 App——QQ音乐/酷我/网易云/Apple Music）。
 /// 机制和歌词墙的跟随同一路子（新写，没抄任何代码）：
@@ -42,6 +43,13 @@ final class MediaRemoteAdapter: PlaybackAdapter {
 let platform: MusicPlatform = .manual
 
 private let bridge = MediaRemoteBridge()
+private lazy var appleFallback = AppleMusicAdapter()
+
+private func authorizedFallback() -> PlaybackState? {
+    guard !RuntimeEnvironment.canUseNativeHUD, MPMediaLibrary.authorizationStatus() == .authorized else { return nil }
+    guard let state = appleFallback.currentState(), state.status == .playing else { return nil }
+    return state
+}
 
 private var cachedInfo: [String: Any]?
 private var cachedAt: Date?
@@ -111,7 +119,7 @@ refreshIfNeeded()
 
 guard let info = cachedInfo, let cachedAt,
 Date().timeIntervalSince(cachedAt) <= maxCacheAge else {
-return nil
+return authorizedFallback()
 }
 
 guard
@@ -149,13 +157,14 @@ rate == 0 ? .paused : .playing
 // 歌名先清洗再查词（面板上显示的也是清洗后的名字）。
 let title = Self.cleanTitle(rawTitle)
 
+let source = MusicPlatform.fromBundleIdentifier(info["kMRMediaRemoteNowPlayingInfoApplicationBundleIdentifier"] as? String)
 let track = MusicTrack(
-id: "manual|\(title)|\(artist)".lowercased(),
+id: "\(source.rawValue)|\(title)|\(artist)".lowercased(),
 title: title,
 artist: artist,
 album: album,
 duration: duration,
-platform: .manual
+platform: source
 )
 
 return PlaybackState(

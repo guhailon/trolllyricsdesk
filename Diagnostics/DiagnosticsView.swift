@@ -1,4 +1,5 @@
 import SwiftUI
+import MediaPlayer
 
 /// 诊断页（1.0.5＋皇上树的 Diagnostics 层）：把各路诊断结论收在一处，
 /// 真机上抄日志时先看这里，再去日志页抄整行。
@@ -6,6 +7,7 @@ import SwiftUI
 struct DiagnosticsView: View {
 
     @StateObject private var pip = PiPLyricsRenderer.shared
+    @State private var musicPermission = "未检查"
     @State private var snapshotLines: [String] = []
     @State private var entitlementRows: [EntitlementDiagnostics.CapabilityCheck] = []
 
@@ -30,6 +32,15 @@ struct DiagnosticsView: View {
             }
 
             Section(header: Text("MediaRemote 音乐识别")) {
+                Text("Apple Music 备选授权：\(musicPermission)")
+                Button("授权 Apple Music 备选数据源") {
+                    requestMusicPermission { allowed in
+                        musicPermission = allowed ? "已授权" : "未授权"
+                        LyricLogger.log("Build 32 Apple Music fallback authorization: \(allowed)")
+                    }
+                }
+                Text("仅支持系统音乐库，不读取 QQ／网易云的跨应用数据。")
+                    .font(.caption)
                 Text(MediaRemoteDiagnostics.summaryLine)
                     .font(.caption)
                 // 1.0.6 第 4 项：调用次数／回调次数／isPlaying 查询次数分开记，
@@ -87,13 +98,15 @@ struct DiagnosticsView: View {
                 }
             }
         }
-        .navigationTitle("诊断（1.0.6）")
+        .navigationTitle("诊断（2.0.2）")
         .onAppear {
             refresh()
         }
     }
 
     private func refresh() {
+        musicPermission = MPMediaLibrary.authorizationStatus() == .authorized ? "已授权" : "未授权"
+        LyricLogger.log("Build 32 diagnostic refresh: \(LyricStore.versionTag), uptime=\(Int(ProcessInfo.processInfo.systemUptime))s")
         RuntimeCapabilities.logSnapshot()
         EntitlementDiagnostics.logReport()
         snapshotLines = [

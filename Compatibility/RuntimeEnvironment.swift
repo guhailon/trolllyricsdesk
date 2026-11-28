@@ -73,6 +73,9 @@ enum DisplayCapability: String {
 }
 
 enum RuntimeEnvironment {
+    static var canUseNativeHUD: Bool {
+        !LyricStore.isLiveContainer && LyricStore.installEnvironment == "trollstore"
+    }
 
     /// 安装环境判定（启动时调一次；只读证据，不写模式）。
     static func detectInstallEnvironment() -> (env: InstallEnvironment, reason: String) {
@@ -95,8 +98,10 @@ enum RuntimeEnvironment {
     /// 已出）与 native-candidate 是两档模式，但首选引擎相同。
     static func preferredEngine(forRunMode mode: String) -> TLDSDisplayEngine {
         switch mode {
-        case "trollstore", "native-candidate":
-            return .nativeHUD
+        case "trollstore":
+            return canUseNativeHUD ? .nativeHUD : .inApp
+        case "native-candidate":
+            return .inApp
         case "enhanced-host":
             return .pip
         default:

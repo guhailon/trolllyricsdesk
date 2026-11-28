@@ -321,8 +321,8 @@ struct SettingsView: View {
                 // （宿主跑不了 root 守护进程；见 docs/2.0.0-MERGE-DESIGN.md §5）。
                 Section(header: Text("悬浮歌词（HUD 守护进程）")) {
 
-                    if LyricStore.isLiveContainer {
-                        Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                    if !RuntimeEnvironment.canUseNativeHUD {
+                        Text("当前环境未确认具备原生 HUD 权限；使用应用内歌词或独立 PiP 测试。")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     } else {
@@ -460,6 +460,11 @@ struct SettingsView: View {
     /// 2.0.0：读 HUD 守护进程状态（HUD-Test MainViewController.refreshStatus
     /// 同款：-check 为准，PID 文件只用来显示 pid）。
     private func refreshHUDStatus() {
+        guard RuntimeEnvironment.canUseNativeHUD else {
+            hudRunning = false
+            hudStatusText = "当前环境不支持原生 HUD"
+            return
+        }
         let running = TLDHUDIsEnabled()
         hudRunning = running
         if running,
