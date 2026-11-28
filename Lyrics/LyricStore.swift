@@ -30,7 +30,7 @@ enum LyricStore {
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 35（2.0.5）"
+    static let versionTag = "build 36（2.0.6）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -345,8 +345,11 @@ enum LyricStore {
     // 搜到过的歌词按「歌名|歌手」存进 App Group，下次再播同一首歌
     // 直接从缓存读，做到「播放即显示」，不必等网络搜索。
 
+    // 2.0.6：缓存键加 v2——2.0.5 及以前的缓存行 words 永远 nil
+    // （逐字是 2.0.6 才从 lyricsfile 取的），键不变旧缓存会一直
+    // 命中、逐字永远不回来；v2 让旧缓存一次性失效重取。
     private static func cacheKey(title: String, artist: String) -> String {
-        "lyric.cache|\(title.lowercased())|\(artist.lowercased())"
+        "lyric.cache|v2|\(title.lowercased())|\(artist.lowercased())"
     }
 
     struct CachedLyric: Codable {
@@ -436,7 +439,7 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 2.0.5 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 2.0.6 · \(fmt.string(from: Date()))"
     }
 }
 

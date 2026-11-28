@@ -7,12 +7,13 @@ struct LyricMatcher {
         track: MusicTrack
     ) -> LRCLyricsRecord? {
 
+        // 2.0.6：有 syncedLyrics 或 lyricsfile 任一即可候选——
+        // 只有 lyricsfile（无 syncedLyrics）的记录也有逐字数据，
+        // 以前直接被 filter 掉。
         let candidates = records.filter {
-            guard let lyrics = $0.syncedLyrics else {
-                return false
-            }
-
-            return !lyrics.isEmpty
+            let hasSynced = !($0.syncedLyrics?.isEmpty ?? true)
+            let hasFile = !($0.lyricsfile?.isEmpty ?? true)
+            return (hasSynced || hasFile)
                 && $0.instrumental != true
         }
 
@@ -23,7 +24,11 @@ struct LyricMatcher {
         }
     }
 
-    private static func normalize(
+    /// 2.0.6：去 private——歌卡的逐字门（PlaybackDashboardView）与
+    /// lyricsfile 行对齐（LyricsFileParser）复用同一份归一化，
+    /// 不再各写各的窄 normalize（只去空格会把「你好」和「你 好」
+    /// 判成两行，逐字门白白关掉）。
+    static func normalize(
         _ value: String
     ) -> String {
 
@@ -45,6 +50,16 @@ struct LyricMatcher {
         let resultArtist = normalize(record.artistName)
 
         var value = 0.0
+
+        // 2.0.6：优先选有逐字数据的候选——同一首歌多个版本时，
+        // 没逐字的记录即使歌名／歌手分高也不能赢，否则卡拉OK
+        // 拿到的是永远没 words 的行。lyricsfile 在位是真凭据；
+        // 只有 hasWordSync 标志、没文件时只给小分。
+        if !(record.lyricsfile?.isEmpty ?? true) {
+            value += 50
+        } else if record.hasWordSync == true {
+            value += 10
+        }
 
         if targetTitle == resultTitle {
             value += 60

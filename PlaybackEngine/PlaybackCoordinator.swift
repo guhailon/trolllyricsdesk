@@ -298,7 +298,20 @@ final class PlaybackCoordinator: ObservableObject {
 
         if cached != nil {
             message = "歌词匹配成功（本地）"
-            LyricLogger.log("本地歌词命中：\(title)")
+            // 2.0.6：本地命中也带逐字计数——重播旧歌走缓存不联网，
+            // 这行是唯一能自证缓存里逐字在不在的日志。
+            let cachedLines = cached ?? []
+            let cachedWordLines = cachedLines.filter {
+                !($0.words?.isEmpty ?? true)
+            }.count
+            let cachedWordTotal = cachedLines.reduce(0) {
+                $0 + ($1.words?.count ?? 0)
+            }
+            LyricLogger.log(
+                "本地歌词命中：\(title)"
+                + "（\(cachedLines.count) 行，逐字 \(cachedWordLines) 行，"
+                + "共 \(cachedWordTotal) 词）"
+            )
         }
     }
 
@@ -397,8 +410,7 @@ final class PlaybackCoordinator: ObservableObject {
                 let result = LyricMatcher.bestMatch(
                     records: records,
                     track: searchTrack
-                ),
-                let lrc = result.syncedLyrics
+                )
             else {
 
                 message = "没有找到匹配的同步歌词"
@@ -407,7 +419,23 @@ final class PlaybackCoordinator: ObservableObject {
                 return
             }
 
-            let lines = LyricParser.parse(lrc)
+            // 2.0.6：行级时间戳仍从 syncedLyrics 来；逐字时间戳优先从
+            // lyricsfile（YAML）取——syncedLyrics 里没有逐字数据，
+            // 以前只读它，卡拉OK永远拿不到 words。
+            // 只有 lyricsfile、没有 syncedLyrics 时，用它单独建行。
+            var lines: [LyricLine] = []
+            if let lrc = result.syncedLyrics, !lrc.isEmpty {
+                lines = LyricParser.parse(lrc)
+            }
+            if let lyricsFile = result.lyricsfile, !lyricsFile.isEmpty {
+                if lines.isEmpty {
+                    lines = LyricsFileParser.linesFromLyricsFile(lyricsFile)
+                } else {
+                    lines = LyricsFileParser.mergingWordSync(
+                        into: lines, lyricsFile: lyricsFile
+                    )
+                }
+            }
 
             guard !lines.isEmpty else {
 
@@ -416,6 +444,21 @@ final class PlaybackCoordinator: ObservableObject {
 
                 return
             }
+
+            // 2.0.6 诊断：解析后记一行行数／逐字行数／总词数——
+            // 下次卡拉OK再没效果，先看这行就知道是没拿到逐字
+            // 还是拿到了没亮起来。
+            let wordLineCount = lines.filter {
+                !($0.words?.isEmpty ?? true)
+            }.count
+            let wordTotal = lines.reduce(0) {
+                $0 + ($1.words?.count ?? 0)
+            }
+            LyricLogger.log(
+                "歌词匹配成功：\(searchTrack.title)"
+                + "（\(lines.count) 行，逐字 \(wordLineCount) 行，"
+                + "共 \(wordTotal) 词）"
+            )
 
             // 防止搜索期间歌曲已经切换（用最新原始状态比，不用可能滞后的 state）
             guard let current = latestState, trackKey(current.track) == trackKey(track) else {
@@ -433,7 +476,8 @@ final class PlaybackCoordinator: ObservableObject {
             syncLyrics(lines, at: current)
 
             message = "歌词匹配成功"
-            LyricLogger.log("歌词匹配成功：\(searchTrack.title)")
+            // 2.0.6：诊断行已在解析后记过（带行数／逐字行数／总词数），
+            // 这里不再重复记一行 plain 的，避免日志里两行成功自相矛盾。
 
         } catch is CancellationError {
 

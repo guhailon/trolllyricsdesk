@@ -9,6 +9,13 @@ struct LRCLyricsRecord: Codable, Identifiable {
     let instrumental: Bool?
     let plainLyrics: String?
     let syncedLyrics: String?
+    /// 2.0.6：逐字时间戳不在 syncedLyrics 里，在这个 YAML 字段里
+    /// （每行 words 数组带 start_ms）。LRCLIB 旧记录可能没有该字段，
+    /// 故 optional——解码缺失时为 nil，不影响旧记录。
+    let lyricsfile: String?
+    /// 2.0.6：LRCLIB 标的有无逐字同步（若服务端返回）；仅作打分参考，
+    /// 真正的逐字数据以 lyricsfile 为准。
+    let hasWordSync: Bool?
 }
 
 enum LRCLibError: LocalizedError {

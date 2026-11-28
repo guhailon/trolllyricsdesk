@@ -524,11 +524,16 @@ static void SpringBoardLockStatusChanged(
     }
 
     // Song change: one log line, then keep quiet until the next change.
+    // 2.0.6: append the current line's word count — the pill-side proof
+    // that word timings survived into the snapshot (0 here + karaoke
+    // never lighting up = the app never stored words; >0 here + no
+    // karaoke = the pill renderer is at fault).
     if (![lyrics.songIdentity isEqualToString:_lastSongIdentity]) {
         _lastSongIdentity = lyrics.songIdentity;
-        TLDHUDLog(@"hud: lyrics now %@ — %@ (%lu lines)",
+        TLDHUDLog(@"hud: lyrics now %@ — %@ (%lu lines, karaoke %lu words)",
                lyrics.track, lyrics.artist,
-               (unsigned long)lyrics.lineCount);
+               (unsigned long)lyrics.lineCount,
+               (unsigned long)lyrics.currentWords.count);
     }
     if (!_inLyricsMode) {
         _inLyricsMode = YES;
@@ -633,7 +638,7 @@ static void SpringBoardLockStatusChanged(
     // no snapshot means no lyric opacity, so label alpha is 1.0.
     _testLabel.alpha = 1.0;
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.5\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.6\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :

@@ -170,10 +170,11 @@ struct PlaybackDashboardView: View {
                             // 字段判断会翻转。统一用 LyricStore.lyricLocation（认出
                             // 固定的标识串），保证歌词永远显示在上面的大字位置。
                             let snapshot = LyricStore.load()
-                            let normalize: (String) -> String = { text in
-                                text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    .replacingOccurrences(of: " ", with: "")
-                            }
+                            // 2.0.6：歌卡逐字门复用 LyricMatcher 的字母数字
+                            // 归一化——旧闭包只去空格，「你好」和「你 好」
+                            // 会被判成两行，逐字门白白关掉。药丸与 LC 应用内
+                            // 区没有这道门，不动它们。
+                            let normalize: (String) -> String = LyricMatcher.normalize
                             let lyricTexts = Set(
                                 snapshot?.lyrics.map { normalize($0.text) } ?? []
                             )
