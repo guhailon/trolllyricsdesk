@@ -1,9 +1,9 @@
-# TrollStore 云端编译：TrollLyricsDesk v2.0.0
+# TrollStore 云端编译：TrollLyricsDesk v2.0.1
 # 做法照分屏那套（macOS runner + 签名，不需要任何密钥/ Secret，不需要 Mac）。
 # 区别：这是 Xcode 工程（SwiftUI App + Widget Extension），不用 Theos；
 # 先 xcodebuild 不签名导出（archive），再按 entitlements 签名，
 # 最后打成 .ipa。推代码就自动跑；跑完在该次运行的 Artifacts 里下载
-# 桌面歌词-2.0.0.ipa。
+# 桌面歌词-2.0.1.ipa。
 # build 24 起同时上传 dSYM（与 IPA 同一个 run 的产物）：archive 是
 # dwarf-with-dsym，xcarchive/dSYMs 里有 App 与 Widget 的 dSYM；以后定位
 # 崩溃不用再靠 offset 猜，拿 dSYM 直接符号化（验包时核对 dSYM 的 UUID
@@ -82,12 +82,12 @@ jobs:
 
       - name: Package IPA
         run: |
-          rm -rf Payload 桌面歌词-2.0.0.ipa
+          rm -rf Payload 桌面歌词-2.0.1.ipa
           mkdir Payload
           cp -r build/TrollLyricsDesk.xcarchive/Products/Applications/TrollLyricsDesk.app Payload/
-          zip -qr 桌面歌词-2.0.0.ipa Payload
-          ls -la 桌面歌词-2.0.0.ipa
-          unzip -l 桌面歌词-2.0.0.ipa
+          zip -qr 桌面歌词-2.0.1.ipa Payload
+          ls -la 桌面歌词-2.0.1.ipa
+          unzip -l 桌面歌词-2.0.1.ipa
 
       - name: Package dSYM
         # build 24：CI 同时上传 dSYM（与 IPA 同一个 run 的产物）。
@@ -95,19 +95,19 @@ jobs:
         # 配置被动过，这一步要响亮地失败，不要悄悄传个空包上去。
         run: |
           ls -la build/TrollLyricsDesk.xcarchive/dSYMs/
-          rm -f 桌面歌词-2.0.0-dSYM.zip
-          zip -qr 桌面歌词-2.0.0-dSYM.zip build/TrollLyricsDesk.xcarchive/dSYMs
-          ls -la 桌面歌词-2.0.0-dSYM.zip
-          unzip -l 桌面歌词-2.0.0-dSYM.zip
+          rm -f 桌面歌词-2.0.1-dSYM.zip
+          zip -qr 桌面歌词-2.0.1-dSYM.zip build/TrollLyricsDesk.xcarchive/dSYMs
+          ls -la 桌面歌词-2.0.1-dSYM.zip
+          unzip -l 桌面歌词-2.0.1-dSYM.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 桌面歌词-2.0.0
-          path: 桌面歌词-2.0.0.ipa
+          name: 桌面歌词-2.0.1
+          path: 桌面歌词-2.0.1.ipa
 
       - name: Upload dSYM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 桌面歌词-2.0.0-dSYM
-          path: 桌面歌词-2.0.0-dSYM.zip
+          name: 桌面歌词-2.0.1-dSYM
+          path: 桌面歌词-2.0.1-dSYM.zip

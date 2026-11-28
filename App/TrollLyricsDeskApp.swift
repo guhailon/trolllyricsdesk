@@ -194,6 +194,13 @@ final class TrollLyricsRuntime: NSObject {
     /// 构造主界面（ObjC SceneDelegate 放进 UIWindow.rootViewController）。
     @objc func makeRootViewController() -> UIViewController {
         let coordinator = ensurePlayback()
+        // 2.0.1：先从 Keychain 恢复激活标记，再构造 ActivationGateView。
+        // Gate 的 @AppStorage 在视图构造／求值时读 tld.activated，恢复必须
+        // 在它之前；这里是读数前最后一个关口——didFinishLaunching（start()）
+        // 虽然更早，但 SceneDelegate 与 AppDelegate 的调用顺序一旦变了就
+        // 不再保证，而这里不依赖任何调用顺序，最稳。sync 是幂等的，
+        // 场景重连时再调一次也无害。
+        ActivationKeychain.syncWithDefaults()
         // 1.0.3：未激活先全屏显示激活页，不进主界面；激活成功后
         // @AppStorage 实时切到主界面，不用重启。
         // 主界面改为播放状态页；原 ContentView 作为「设置」子页面从右上角齿轮进入。

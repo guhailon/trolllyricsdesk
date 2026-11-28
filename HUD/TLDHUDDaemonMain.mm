@@ -1,5 +1,5 @@
 // TLDHUDDaemonMain.mm
-// TrollLyricsDesk 2.0.0 — HUD daemon binary ONLY (helper inside the .app).
+// TrollLyricsDesk 2.0.1 — HUD daemon binary ONLY (helper inside the .app).
 // Hand-initialized UIKit in -hud mode adapted from TrollSpeed
 // (MIT © 2023 Lessica), sources/HUDApp.mm — one binary, daemon modes only:
 //   -hud    -> HUD daemon: GSInitialize / BKSDisplayServicesStart /

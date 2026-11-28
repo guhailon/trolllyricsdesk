@@ -171,6 +171,10 @@ struct ActivationView: View {
         do {
             let type = try await ActivationVerifier.verify(code: code)
             ActivationStore.markActivated(type: type)
+            // 2.0.1：同步写一份进 Keychain，重装后启动时恢复回来。
+            // 不放进 markActivated 里：它在 LyricStore.swift 中，Widget
+            // target 也编那份文件，而 ActivationKeychain.swift 只在 App target。
+            ActivationKeychain.write(type)
             if !LyricStore.isLiveContainer { WidgetCenter.shared.reloadAllTimelines() }
             LyricLogger.log("激活成功（\(type)）")
             // 1.0.6 第 7 项：激活成功后记一次快照，与「激活前」对照（窗在不在）。

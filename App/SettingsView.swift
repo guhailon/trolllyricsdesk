@@ -277,7 +277,7 @@ struct SettingsView: View {
                         testTextEnabled = LyricStore.isTestTextEnabled
                     }
 
-                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.0」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.1」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -314,7 +314,7 @@ struct SettingsView: View {
                     }
                 }
 
-                // 悬浮歌词（HUD 守护进程，2.0.0）
+                // 悬浮歌词（HUD 守护进程，2.0.1）
                 // 沿用 HUD-Test 设置页的写法：状态（PID 文件＋-check）＋
                 // Enable／Disable（后台队列调，不卡 UI）＋看日志。
                 // LC 模式下整个区段只显示禁用说明，绝不调 SetHUDEnabled

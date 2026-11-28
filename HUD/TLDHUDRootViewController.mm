@@ -304,7 +304,7 @@ static void SpringBoardLockStatusChanged(
     NSTimeInterval elapsed = [[NSDate date] timeIntervalSinceDate:_startDate];
     NSString *lockText = _isLocked ? @"LOCKED" : @"UNLOCKED";
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.0\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.1\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :

@@ -168,62 +168,25 @@ struct PlaybackDashboardView: View {
                             }
                         }
                     } else {
-                    // 悬浮窗操作提示（原先在悬浮窗卡片底部，现移到主界面；文案跟固定开关走）
-                    Text(positionLocked ? "悬浮窗口 · 已固定 · 双击隐藏" : "悬浮窗口 · 长按拖动 · 双击隐藏")
-                        .font(.system(size: 20, weight: .semibold))
+                    // 2.0.1：主页面这组旧悬浮窗控件已整组藏掉——它们管的都是
+                    // 已死的 FrontBoard 悬浮窗（FloatingLyricViewController，
+                    // 唯一消费方；2.0.0 起 TLDSFrontBoardOverlayDisabled = YES
+                    // 把整条路关掉，开关开了药丸也不会出来，Lee 2.0.0 真机已踩到）。
+                    // 藏掉的三样：「显示悬浮歌词窗」Toggle（floatingLyric.enabled）、
+                    // 「固定悬浮窗位置」Toggle（floatingLyric.positionLocked，
+                    // 只管同一悬浮窗的拖动，同样已死）、「悬浮窗歌词颜色」
+                    // 取色器（floatingLyric.textColorHex，HUD 药丸不读它，
+                    // 快照里只有透明度／字号）。只改 UI 呈现：三个存储键本身
+                    // 与 @AppStorage 声明、syncFloatingEnabled() 一律不动，
+                    // 以免牵连其他逻辑。药丸只从设置页开：
+                    Text("悬浮歌词药丸只从设置页「悬浮歌词（HUD 守护进程）」里启用打开")
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.white.opacity(0.85))
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
-
-                    // 悬浮歌词窗开关（放在「开始检测音乐」按钮上方）
-                    Toggle(
-                        "显示悬浮歌词窗",
-                        isOn: $floatingEnabled
-                    )
-                    .foregroundColor(.white)
-                    .tint(.purple)
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(15)
-                    // 双击悬浮窗隐藏时，通知到达后同步关掉这个开关
-                    .onReceive(NotificationCenter.default.publisher(
-                        for: LyricStore.floatingEnabledChanged
-                    )) { _ in
-                        syncFloatingEnabled()
-                    }
-                    // App 每次回到前台再校准一次（通知错过时的兜底）
-                    .onReceive(NotificationCenter.default.publisher(
-                        for: UIApplication.didBecomeActiveNotification
-                    )) { _ in
-                        syncFloatingEnabled()
-                    }
-                    .onAppear(perform: syncFloatingEnabled)
-
-                    // 固定悬浮窗位置（放在显示开关下方；打开后拖不动，位置保持上次存好的地方）
-                    Toggle(
-                        "固定悬浮窗位置",
-                        isOn: $positionLocked
-                    )
-                    .foregroundColor(.white)
-                    .tint(.purple)
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(15)
-
-                    // 悬浮歌词颜色取色器（放在开关下方、「开始检测音乐」按钮上方）
-                    HStack {
-                        Text("悬浮窗歌词颜色")
-                            .foregroundColor(.white)
-
-                        Spacer()
-
-                        ColorPicker("选择悬浮歌词颜色", selection: lyricTextColor)
-                            .labelsHidden()
-                            .frame(width: 28, height: 28)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(15)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(15)
                     }
 
                     Spacer()
