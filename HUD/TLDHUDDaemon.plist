@@ -37,7 +37,7 @@
 	<key>RunAtLoad</key>
 	<true/>
 	<key>ThrottleInterval</key>
-	<integer>5</integer>
+	<integer>15</integer>
 	<key>UserName</key>
 	<string>root</string>
 	<key>_AdditionalProperties</key>

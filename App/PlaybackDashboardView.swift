@@ -73,6 +73,7 @@ struct PlaybackDashboardView: View {
     /// PID 文件读取随行撤掉；refreshHUDStatus() 只剩更新 hudRunning，
     /// 供下面的 Toggle 绑定读真实状态。
     @State private var hudRunning = false
+    @State private var hudCheckGeneration = UUID()
     @State private var hudBusy = false
 
     /// 2.0.1/build 31：读 HUD 守护进程状态（SettingsView.swift:462 同款：
@@ -80,11 +81,21 @@ struct PlaybackDashboardView: View {
     private func refreshHUDStatus() {
         // 2.0.4（兼容补丁并入）：未知环境 fail-closed——门控不通过时
         // 直接报未运行，不调 -check（避免未知环境下误判守护进程状态）。
+        let generation = UUID()
+        hudCheckGeneration = generation
         guard RuntimeEnvironment.canUseNativeHUD else {
             hudRunning = false
             return
         }
-        hudRunning = TLDHUDIsEnabled()
+        // 2.0.7（ChatGPT 稳定性并入）：-check 要 spawn 子进程，挪到后台
+        // 队列，不堵主线程；代次守卫丢弃过期回调。
+        DispatchQueue.global(qos: .utility).async {
+            let running = TLDHUDIsEnabled()
+            DispatchQueue.main.async {
+                guard hudCheckGeneration == generation, !hudBusy else { return }
+                hudRunning = running
+            }
+        }
     }
 
     /// 2.0.3（Lee 定：一个开关替代两个大按键）：Toggle 绑定直接读

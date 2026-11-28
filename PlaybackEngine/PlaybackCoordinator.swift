@@ -128,8 +128,22 @@ final class PlaybackCoordinator: ObservableObject {
         // 原拼接键会误判成不停换歌；稳定标识只用固定部分，字段变化不再走换歌分支。
         let key = trackKey(newState.track)
 
+        // 2.0.7：歌名歌手互换防抖——相邻两次 poll 两字段正好互换
+        // （实测汽水音乐「哇欣／晴天（杰伦）」来回跳），是同一首歌
+        // 在交换字段，不是换歌；不重置、不重搜，落到同歌分支继续同步。
+        // 只认「相邻两次正好互换」：稳定换边后会再走一次换歌分支（只一次），不硬编。
+        let isFieldSwap = previous.map {
+            LyricMatcher.isSwappedPair(
+                (title: newState.track.title, artist: newState.track.artist),
+                (title: $0.track.title, artist: $0.track.artist)
+            )
+        } ?? false
+        if isFieldSwap {
+            LyricLogger.log("歌名歌手互换防抖：同一首歌，跳过换歌处理")
+        }
+
         // ---- 换歌：立刻写入新快照（含已有缓存歌词），再决定是否联网搜 ----
-        if key != lastTrackKey {
+        if key != lastTrackKey && !isFieldSwap {
 
             lastTrackKey = key
             lastStatus = newState.status
@@ -399,9 +413,51 @@ final class PlaybackCoordinator: ObservableObject {
 
         do {
 
-            let records = try await LRCLibClient.shared.search(
-                track: searchTrack
+            // 2.0.7：LRCLIB 搜索回退阶梯——歌名＋歌手搜不到（返回空）
+            // 才试下一组（去括号歌名＋歌手 → 去括号歌名 → 原歌名），
+            // 第一组有结果就停。404 当空结果继续阶梯，不当失败；
+            // 429／5xx 等真错误直接抛，走外层 catch，不白白重试。
+            let attempts = LyricMatcher.searchAttempts(
+                track: searchTrack.title,
+                artist: searchTrack.artist
             )
+            var records: [LRCLyricsRecord] = []
+            var usedAttempt = 0
+            var usedTrack = searchTrack
+            for (index, attempt) in attempts.enumerated() {
+                try Task.checkCancellation()
+                guard generation == searchGeneration else { return }
+                do {
+                    records = try await LRCLibClient.shared.search(
+                        track: attempt.track,
+                        artist: attempt.artist
+                    )
+                } catch let error as LRCLibError {
+                    if case .notFound = error {
+                        records = []
+                    } else {
+                        throw error
+                    }
+                }
+                // 2.0.7 诊断：记一行用的是哪组搜索条件、返回几条——
+                // 回退有没有发生、卡在哪一级，真机只看日志就能判。
+                LyricLogger.log(
+                    "歌词搜索：第\(index + 1)次 track=\(attempt.track)"
+                    + " artist=\(attempt.artist ?? "（无）")"
+                    + "（返回 \(records.count) 条）"
+                )
+                if !records.isEmpty {
+                    usedAttempt = index + 1
+                    usedTrack = MusicTrack(
+                        title: attempt.track,
+                        artist: attempt.artist ?? "",
+                        album: track.album,
+                        duration: track.duration,
+                        platform: track.platform
+                    )
+                    break
+                }
+            }
 
             try Task.checkCancellation()
             guard generation == searchGeneration, lastTrackKey == trackKey(track) else { return }
@@ -409,12 +465,15 @@ final class PlaybackCoordinator: ObservableObject {
             guard
                 let result = LyricMatcher.bestMatch(
                     records: records,
-                    track: searchTrack
+                    track: usedTrack
                 )
             else {
 
                 message = "没有找到匹配的同步歌词"
-                LyricLogger.log("没有找到匹配的同步歌词：\(searchTrack.title)")
+                LyricLogger.log(
+                    "没有找到匹配的同步歌词：\(searchTrack.title)"
+                    + "（已试 \(attempts.count) 组搜索条件）"
+                )
 
                 return
             }
@@ -456,7 +515,7 @@ final class PlaybackCoordinator: ObservableObject {
             }
             LyricLogger.log(
                 "歌词匹配成功：\(searchTrack.title)"
-                + "（\(lines.count) 行，逐字 \(wordLineCount) 行，"
+                + "（第\(usedAttempt)次搜索命中，\(lines.count) 行，逐字 \(wordLineCount) 行，"
                 + "共 \(wordTotal) 词）"
             )
 

@@ -152,6 +152,11 @@ static void SpringBoardLockStatusChanged(
     BOOL _dragging;
     BOOL _dragLogged;    // Changed logs only its first line per drag
     CGPoint _dragTouchOffset;  // touch point minus pill centre, view coords
+    // 2.0.7: watchdog stamp — last Began/Changed time (epoch seconds).
+    // If _dragging stays YES with no change for 5s, the finger must
+    // have lifted outside the pill (Ended never arrived); the tick
+    // forces the drag closed so the slider does not stay dead.
+    NSTimeInterval _lastDragChangeTime;
     BOOL _positionRestored;    // saved centre applied once, after 1st layout
     BOOL _positionLocked;      // re-read from the suite every timer tick
 }
@@ -244,6 +249,10 @@ static void SpringBoardLockStatusChanged(
     UIPanGestureRecognizer *pan =
         [[UIPanGestureRecognizer alloc]
             initWithTarget:self action:@selector(handlePillPan:)];
+    // 2.0.7: single-finger only, same as TrollSpeed (HUDRootViewController
+    // .mm:891-894) — a second finger can no longer disturb the drag.
+    pan.minimumNumberOfTouches = 1;
+    pan.maximumNumberOfTouches = 1;
     [_pill addGestureRecognizer:pan];
 
     _testLabel = [[UILabel alloc] init];
@@ -450,6 +459,7 @@ static void SpringBoardLockStatusChanged(
             }
             _dragging = YES;
             _dragLogged = NO;
+            _lastDragChangeTime = [[NSDate date] timeIntervalSince1970];
             CGPoint pillCenter = CGPointMake(
                 self.view.bounds.size.width / 2 + _pillCenterXConstraint.constant,
                 self.view.safeAreaInsets.top + _pillTopConstraint.constant
@@ -462,6 +472,7 @@ static void SpringBoardLockStatusChanged(
         }
         case UIGestureRecognizerStateChanged: {
             if (!_dragging) return;
+            _lastDragChangeTime = [[NSDate date] timeIntervalSince1970];
             CGPoint target = CGPointMake(location.x - _dragTouchOffset.x,
                                          location.y - _dragTouchOffset.y);
             [self movePillToCenter:target];
@@ -638,7 +649,7 @@ static void SpringBoardLockStatusChanged(
     // no snapshot means no lyric opacity, so label alpha is 1.0.
     _testLabel.alpha = 1.0;
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.6\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.7\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :
@@ -654,6 +665,18 @@ static void SpringBoardLockStatusChanged(
     // 2.0.2: re-read the lock flag every tick — cheap, and no unlock
     // event is needed for the main app's toggle to take effect.
     _positionLocked = [self readPositionLocked];
+    // 2.0.7: _dragging watchdog (backstop for the daemon's drag latch:
+    // if the latch's Cancelled never arrives either, a drag left
+    // hanging would keep the slider dead and the pill dim forever).
+    // No Changed for 5s while dragging means the drag is dead: close
+    // it, restore the pill, save the position.
+    if (_dragging &&
+        [[NSDate date] timeIntervalSince1970] - _lastDragChangeTime > 5.0) {
+        _dragging = NO;
+        _pill.alpha = 1.0;
+        [self savePillPosition];
+        TLDHUDLog(@"hud: pill drag watchdog reset (no change for 5s)");
+    }
     // 2.0.4: re-read the slider position keys every tick — the main
     // app's 横向／纵向 sliders write them; the pill follows within 1s.
     [self applySavedPillPositionIfChanged];

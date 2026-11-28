@@ -26,6 +26,9 @@
 #import <sys/utsname.h>
 #import <mach-o/dyld.h>
 #import <objc/runtime.h>
+#import <math.h>
+#import <fcntl.h>
+#import <sys/file.h>
 
 // 2.0.2: libproc.h 不在 iOS SDK 里（run 46109489987：'libproc.h' file
 // not found）——proc_pidpath 是 libSystem 的导出函数，链接不缺，只缺
@@ -132,6 +135,10 @@ static void TLDHIDEventCallback(void *target, void *refcon, IOHIDServiceRef serv
     static NSUInteger probeCount = 0;
     static NSTimeInterval lastCountLog = 0;
     static BOOL touchInjectLogged = NO;
+    // 2.0.7: drag latch (see the main-queue block below). Only the
+    // main-queue block reads/writes these, so no lock is needed.
+    static NSInteger activeDragPointerId = 0;
+    static NSUInteger dragInjectCount = 0;
     @synchronized (probeLock) {
         probeCount++;
         if (!event) {
@@ -153,7 +160,8 @@ static void TLDHIDEventCallback(void *target, void *refcon, IOHIDServiceRef serv
     }
     if (!event) return;
 
-    static UIApplication *app = [UIApplication sharedApplication];
+    UIApplication *app = [UIApplication sharedApplication];
+    if (!app) return;
 
     // iOS 15.1+ has a new API for handling HID events.
     if (@available(iOS 15.1, *)) {}
@@ -187,38 +195,22 @@ static void TLDHIDEventCallback(void *target, void *refcon, IOHIDServiceRef serv
             AXEventRepresentationCls = objc_getClass("AXEventRepresentation");
         });
 
+        if (![AXEventRepresentationCls respondsToSelector:@selector(representationWithHIDEvent:hidStreamIdentifier:)]) return;
         AXEventRepresentation *rep = [AXEventRepresentationCls representationWithHIDEvent:event hidStreamIdentifier:@"UIApplicationEvents"];
         if (!rep) return;
 
         dispatch_async(dispatch_get_main_queue(), ^(void) {
-            static UIWindow *keyWindow = nil;
-            static dispatch_once_t onceToken;
-            dispatch_once(&onceToken, ^{
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-                keyWindow = [[app windows] firstObject];
-#pragma clang diagnostic pop
-            });
-            if (!keyWindow) return;
+            UIWindow *keyWindow = [app.delegate respondsToSelector:@selector(window)] ? [app.delegate window] : nil;
+            if (!keyWindow || keyWindow.hidden || !keyWindow.rootViewController) return;
             CGPoint location = [rep location];
+            if (!isfinite(location.x) || !isfinite(location.y)) return;
 
-            // Gate 1: the pill window's own hitTest (narrows to the pill).
-            UIView *keyView = [keyWindow hitTest:location withEvent:nil];
-            if (!keyView) return;
-            // Gate 2: the pill frame from the root view controller.
-            UIViewController *rootVC = keyWindow.rootViewController;
-            if (![rootVC respondsToSelector:@selector(pillFrameInWindow)]) return;
-            CGRect pillFrame = [(TLDHUDRootViewController *)rootVC pillFrameInWindow];
-            BOOL pillNotEmpty =
-                pillFrame.size.width > 0 && pillFrame.size.height > 0;
-            BOOL insidePill =
-                location.x >= pillFrame.origin.x &&
-                location.x < pillFrame.origin.x + pillFrame.size.width &&
-                location.y >= pillFrame.origin.y &&
-                location.y < pillFrame.origin.y + pillFrame.size.height;
-            if (!pillNotEmpty || !insidePill) return;
-
+            // 2.0.7: phase + pointerId FIRST — the drag latch below
+            // needs them before either gate runs. (ChatGPT's HID
+            // safety checks stay: unknown phases and out-of-range
+            // ids are refused, never injected.)
             UITouchPhase phase = UITouchPhaseEnded;
+            BOOL phaseKnown = YES;
             if ([rep isTouchDown])
                 phase = UITouchPhaseBegan;
             else if ([rep isMove])
@@ -227,14 +219,110 @@ static void TLDHIDEventCallback(void *target, void *refcon, IOHIDServiceRef serv
                 phase = UITouchPhaseCancelled;
             else if ([rep isLift] || [rep isInRange] || [rep isInRangeLift])
                 phase = UITouchPhaseEnded;
+            else
+                phaseKnown = NO;
 
             NSInteger pointerId = [[[[rep handInfo] paths] firstObject] pathIdentity];
-            if (pointerId > 0) {
-                if (!touchInjectLogged) {
-                    touchInjectLogged = YES;
-                    TLDHUDLog(@"hid: touch in pill, injecting (phase %ld)", (long)phase);
+            if (pointerId <= 0 || pointerId > 98) return;
+
+            UIViewController *rootVC = keyWindow.rootViewController;
+
+            // 2.0.7: drag latch (root cause #1 — hidden_files/
+            // REPORT_2.0.7_DRAG_DIAGNOSIS.md). Once a Began passed
+            // both gates and was injected, later events from the SAME
+            // finger skip the gates: the pill always lags the finger
+            // by a full pipeline, so re-testing every Moved against
+            // the pill's CURRENT rect drops the drag the moment the
+            // finger outruns the pill. The latch only ever applies to
+            // the one finger that already passed the gates once;
+            // every other touch still goes through both gates below,
+            // and touches outside the pill are still dropped, never
+            // swallowed.
+            if (pointerId == activeDragPointerId) {
+                // View for the fetcher: for a latched drag the touch
+                // already exists (created at Began), so this is only
+                // a fallback — hitTest may return nil once the finger
+                // has left the pill.
+                UIView *injectView = [keyWindow hitTest:location withEvent:nil];
+                if (!injectView) injectView = rootVC.view;
+                if (!phaseKnown) {
+                    // Unmappable phase mid-drag: end the drag cleanly
+                    // instead of leaving the latch (and the pill's
+                    // _dragging) stuck forever.
+                    [TSEventFetcher receiveAXEventID:pointerId atGlobalCoordinate:location withTouchPhase:UITouchPhaseCancelled inWindow:keyWindow onView:injectView];
+                    activeDragPointerId = 0;
+                    TLDHUDLog(@"hid: drag latch cleared (unknown phase)");
+                    return;
                 }
-                [TSEventFetcher receiveAXEventID:MIN(MAX(pointerId, 1), 98) atGlobalCoordinate:location withTouchPhase:phase inWindow:keyWindow onView:keyView];
+                if (phase == UITouchPhaseBegan) {
+                    // Re-Began on a latched finger: the previous drag
+                    // never ended. Cancel it, then fall through to the
+                    // gates as a fresh touch.
+                    [TSEventFetcher receiveAXEventID:pointerId atGlobalCoordinate:location withTouchPhase:UITouchPhaseCancelled inWindow:keyWindow onView:injectView];
+                    activeDragPointerId = 0;
+                    TLDHUDLog(@"hid: drag latch cleared (re-began)");
+                } else {
+                    [TSEventFetcher receiveAXEventID:pointerId atGlobalCoordinate:location withTouchPhase:phase inWindow:keyWindow onView:injectView];
+                    // Throttled drag log: every 50th injected drag
+                    // event, so a real drag shows a live count without
+                    // spamming the log file.
+                    dragInjectCount++;
+                    if (dragInjectCount % 50 == 0) {
+                        TLDHUDLog(@"hid: drag inject count %lu (pointer %ld)",
+                                  (unsigned long)dragInjectCount, (long)pointerId);
+                    }
+                    if (phase == UITouchPhaseEnded || phase == UITouchPhaseCancelled) {
+                        activeDragPointerId = 0;
+                        TLDHUDLog(@"hid: drag latch cleared (phase %ld)", (long)phase);
+                    }
+                    return;
+                }
+            }
+            if (!phaseKnown) return;
+
+            // Gate 1: the pill window's own hitTest (narrows to the pill).
+            UIView *keyView = [keyWindow hitTest:location withEvent:nil];
+            if (!keyView) return;
+            // Gate 2: the pill frame from the root view controller.
+            // 2.0.7: hit rect is the pill rect expanded ~20pt on every
+            // side — the gate tests the finger's centroid, not its
+            // contact area, and a small pill is easy to miss at the
+            // edges. Appearance unchanged.
+            if (![rootVC respondsToSelector:@selector(pillFrameInWindow)]) return;
+            CGRect pillFrame = [(TLDHUDRootViewController *)rootVC pillFrameInWindow];
+            BOOL pillNotEmpty =
+                pillFrame.size.width > 0 && pillFrame.size.height > 0;
+            CGFloat pad = 20.0;
+            BOOL insidePill =
+                location.x >= pillFrame.origin.x - pad &&
+                location.x < pillFrame.origin.x + pillFrame.size.width + pad &&
+                location.y >= pillFrame.origin.y - pad &&
+                location.y < pillFrame.origin.y + pillFrame.size.height + pad;
+            if (!pillNotEmpty || !insidePill) {
+                // Safety net for the latch: a drag whose finger left
+                // the pill gets a Cancelled instead of a silent drop,
+                // so handlePillPan can clear _dragging and save the
+                // position. (Normally unreachable — latched events
+                // return above — but cheap insurance.)
+                if (pointerId == activeDragPointerId) {
+                    [TSEventFetcher receiveAXEventID:pointerId atGlobalCoordinate:location withTouchPhase:UITouchPhaseCancelled inWindow:keyWindow onView:keyView];
+                    activeDragPointerId = 0;
+                    TLDHUDLog(@"hid: drag latch cleared (gate drop)");
+                }
+                return;
+            }
+
+            if (!touchInjectLogged) {
+                touchInjectLogged = YES;
+                TLDHUDLog(@"hid: touch in pill, injecting (phase %ld)", (long)phase);
+            }
+            [TSEventFetcher receiveAXEventID:pointerId atGlobalCoordinate:location withTouchPhase:phase inWindow:keyWindow onView:keyView];
+            if (phase == UITouchPhaseBegan) {
+                activeDragPointerId = pointerId;
+                TLDHUDLog(@"hid: drag latch set (pointer %ld)", (long)pointerId);
+            } else if ((phase == UITouchPhaseEnded || phase == UITouchPhaseCancelled) &&
+                       pointerId == activeDragPointerId) {
+                activeDragPointerId = 0;
             }
         });
     }
@@ -258,15 +346,26 @@ int main(int argc, char *argv[])
 
         if (strcmp(argv[1], "-hud") == 0)
         {
+            // Root-owned lock in the root home directory; held for process lifetime.
+            NSString *lockPath = @"/var/root/com.ycwl.Lyrics.hud.lock";
+            int lockFD = open(lockPath.fileSystemRepresentation, O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0600);
+            if (lockFD < 0 || flock(lockFD, LOCK_EX | LOCK_NB) != 0) {
+                if (lockFD >= 0) close(lockFD);
+                TLDHUDLog(@"hud: singleton lock unavailable errno=%d", errno);
+                return EXIT_FAILURE;
+            }
             pid_t pid = getpid();
             TLDHUDLog(@"hud: start pid %d version %@ build %@", pid,
                       TLDHUD_VERSION_STRING, TLDHUD_BUILD_STRING);
 
             NSString *pidString = [NSString stringWithFormat:@"%d", pid];
-            [pidString writeToFile:pidPath
+            if (![pidString writeToFile:pidPath
                         atomically:YES
                           encoding:NSUTF8StringEncoding
-                             error:nil];
+                             error:nil]) {
+                TLDHUDLog(@"hud: PID file write failed");
+                return EXIT_FAILURE;
+            }
 
             [UIScreen initialize];
             CFRunLoopGetCurrent();
@@ -296,14 +395,19 @@ int main(int argc, char *argv[])
 
             [UIApplication.sharedApplication __completeAndRunAsPlugin];
 
+            // Main-loop heartbeat: diagnostic only, not proof of on-screen visibility.
+            static NSTimer *heartbeat;
+            heartbeat = [NSTimer scheduledTimerWithTimeInterval:10.0 repeats:YES block:^(NSTimer *timer) {
+                TLDHUDLog(@"hud: heartbeat pid=%d uptime=%.1f", pid, NSProcessInfo.processInfo.systemUptime);
+            }];
             static int springboardBootToken = 0;
             notify_register_dispatch("SBSpringBoardDidLaunchNotification", &springboardBootToken, dispatch_get_main_queue(), ^(int token) {
                 notify_cancel(token);
                 notify_post("com.ycwl.Lyrics.hud.dismissal");
-                // Re-enable HUD after SpringBoard is launched.
-                TLDHUDSetEnabled(YES);
-                // Exit the current instance of HUD.
-                kill(pid, SIGKILL);
+                // launchd KeepAlive restarts managed instances. Never unload our own job.
+                // Direct instances require manual re-enable; log this explicitly.
+                TLDHUDLog(@"hud: SpringBoard relaunched; exiting for managed restart (direct mode requires re-enable)");
+                exit(EXIT_FAILURE);
             });
 
             CFRunLoopRun();
@@ -320,7 +424,10 @@ int main(int argc, char *argv[])
                     TLDHUDLog(@"hud: refusing stale or unverified PID %d", pid);
                     return EXIT_FAILURE;
                 }
-                kill(pid, SIGKILL);
+                if (kill(pid, SIGKILL) != 0) {
+                    TLDHUDLog(@"hud: stop failed errno=%d", errno);
+                    return EXIT_FAILURE;
+                }
                 unlink([pidPath UTF8String]);
                 TLDHUDLog(@"hud: -exit killed pid %d", pid);
             }

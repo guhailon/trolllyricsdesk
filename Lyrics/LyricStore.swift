@@ -30,7 +30,7 @@ enum LyricStore {
     /// 故意写成长串（19 字节 UTF-8）：≤15 字节的字串在 Release 下会被编译器
     /// 压成 small-string immediate 进代码段，字节扫描不到；长字串进 __cstring，
     /// 验包能直接搜到 "build 26"。
-    static let versionTag = "build 36（2.0.6）"
+    static let versionTag = "build 37（2.0.7）"
 
     /// 是否跑在 LiveContainer 宿主里（只作运行时检测，不可靠权限证明）。
     /// 信号（按优先级）：
@@ -439,7 +439,7 @@ extension LyricStore {
     static func testText() -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm:ss"
-        return "悬浮测试 · 桌面歌词 2.0.6 · \(fmt.string(from: Date()))"
+        return "悬浮测试 · 桌面歌词 2.0.7 · \(fmt.string(from: Date()))"
     }
 }
 

@@ -166,6 +166,7 @@ struct SettingsView: View {
     /// 2.0.0：HUD 守护进程状态（PID 文件＋-check 的实时结果，不是偏好设置）。
     @State private var hudStatusText = "守护进程：未知"
     @State private var hudRunning = false
+    @State private var hudCheckGeneration = UUID()
     @State private var hudBusy = false
 
     var body: some View {
@@ -277,7 +278,7 @@ struct SettingsView: View {
                         testTextEnabled = LyricStore.isTestTextEnabled
                     }
 
-                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.6」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.7」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -462,24 +463,34 @@ struct SettingsView: View {
     private func refreshHUDStatus() {
         // 2.0.4（兼容补丁并入）：未知环境 fail-closed——门控不通过时
         // 直接报未运行，不调 -check。
+        let generation = UUID()
+        hudCheckGeneration = generation
         guard RuntimeEnvironment.canUseNativeHUD else {
             hudRunning = false
             hudStatusText = "当前环境不支持原生 HUD"
             return
         }
-        let running = TLDHUDIsEnabled()
-        hudRunning = running
-        if running,
-           let pidString = try? String(
-               contentsOfFile: TLDHUDPIDPath(),
-               encoding: .utf8
-           ) {
-            let pid = pidString.trimmingCharacters(in: .whitespacesAndNewlines)
-            hudStatusText = "运行中（pid \(pid)）"
-        } else if running {
-            hudStatusText = "运行中"
-        } else {
-            hudStatusText = "未运行"
+        // 2.0.7（ChatGPT 稳定性并入）：-check 要 spawn 子进程，挪到后台
+        // 队列，不堵主线程；代次守卫丢弃过期回调。注意：SettingsView 是
+        // 死页面（从未实例化），此改动对运行期零影响，仅与上游保持一致。
+        DispatchQueue.global(qos: .utility).async {
+            let running = TLDHUDIsEnabled()
+            DispatchQueue.main.async {
+                guard hudCheckGeneration == generation, !hudBusy else { return }
+                hudRunning = running
+                if running,
+                   let pidString = try? String(
+                       contentsOfFile: TLDHUDPIDPath(),
+                       encoding: .utf8
+                   ) {
+                    let pid = pidString.trimmingCharacters(in: .whitespacesAndNewlines)
+                    hudStatusText = "运行中（pid \(pid)）"
+                } else if running {
+                    hudStatusText = "运行中"
+                } else {
+                    hudStatusText = "未运行"
+                }
+            }
         }
     }
 

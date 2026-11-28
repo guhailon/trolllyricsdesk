@@ -40,6 +40,92 @@ struct LyricMatcher {
             }
     }
 
+    // MARK: - 2.0.7：歌词搜索回退（翻唱歌手搜不到）
+
+    /// 去掉歌名里的括号限定词：「晴天（杰伦）」→「晴天」，
+    /// 「Hello (Remix)」→「Hello」。中英文括号都处理，多组都删；
+    /// 括号不成对、或删完为空时返回原串，不动。
+    static func stripBracketQualifier(
+        _ title: String
+    ) -> String {
+
+        let opens = title.filter { $0 == "(" || $0 == "（" }.count
+        let closes = title.filter { $0 == ")" || $0 == "）" }.count
+        guard opens > 0, opens == closes else { return title }
+
+        var out = ""
+        var depth = 0
+        for ch in title {
+            if ch == "(" || ch == "（" {
+                depth += 1
+                continue
+            }
+            if ch == ")" || ch == "）" {
+                depth = max(0, depth - 1)
+                continue
+            }
+            if depth == 0 { out.append(ch) }
+        }
+
+        let stripped = out
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripped.isEmpty ? title : stripped
+    }
+
+    /// LRCLIB 搜索回退阶梯（由严到松，去重）：
+    ///   1. 歌名＋歌手
+    ///   2. 去括号歌名＋歌手
+    ///   3. 去括号歌名（不带歌手）
+    ///   4. 原歌名（不带歌手）
+    /// 实测：track=晴天＋artist=哇欣→[]（库里《晴天》只有周杰伦版，
+    /// artist_name 会把翻唱版本滤空）；只拿歌名搜→20 条。
+    /// 括号限定词同样让 track_name 匹配不到（「晴天（杰伦）」→[]）。
+    /// 某一组返回空才试下一组；第一组有结果就停，不多发请求。
+    static func searchAttempts(
+        track: String,
+        artist: String
+    ) -> [(track: String, artist: String?)] {
+
+        let stripped = stripBracketQualifier(track)
+        let trimmedArtist = artist.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let withArtist: String? = trimmedArtist.isEmpty ? nil : trimmedArtist
+
+        var attempts: [(track: String, artist: String?)] = []
+        func add(_ t: String, _ a: String?) {
+            let key = t.lowercased() + "|" + (a ?? "").lowercased()
+            guard !attempts.contains(where: {
+                $0.track.lowercased() + "|" + ($0.artist ?? "").lowercased() == key
+            }) else { return }
+            attempts.append((t, a))
+        }
+        add(track, withArtist)
+        add(stripped, withArtist)
+        add(stripped, nil)
+        add(track, nil)
+        return attempts
+    }
+
+    /// 歌名歌手互换防抖：相邻两次 poll 两字段正好互换，是同一首歌
+    /// 在交换字段，不是换歌。实测汽水音乐「哇欣／晴天（杰伦）」
+    /// 相邻两秒来回跳；只认「正好互换」，稳定换边后仍会走一次
+    /// 换歌分支（只一次），不硬编。
+    static func isSwappedPair(
+        _ a: (title: String, artist: String),
+        _ b: (title: String, artist: String)
+    ) -> Bool {
+
+        func norm(_ s: String) -> String {
+            s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        let (at, aa, bt, ba) = (norm(a.title), norm(a.artist), norm(b.title), norm(b.artist))
+        guard !at.isEmpty, !aa.isEmpty else { return false }
+        return at == ba && aa == bt
+    }
+
     private static func score(
         _ record: LRCLyricsRecord,
         track: MusicTrack

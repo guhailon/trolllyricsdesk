@@ -46,13 +46,18 @@
         // CoreGraphics, and CGRectContainsPoint / CGRectIsEmpty /
         // CGRectZero are extern symbols there (run 46109741847 link
         // error) — CGPointMake is inline, these are not.
+        // 2.0.7: hit rect is the pill rect expanded ~20pt on every
+        // side (same padding as Gate 2 in TLDHUDDaemonMain.mm) — the
+        // gate tests the finger's centroid, not its contact area.
+        // Appearance unchanged.
         BOOL pillNotEmpty =
             pillFrame.size.width > 0 && pillFrame.size.height > 0;
+        CGFloat pad = 20.0;
         BOOL insidePill =
-            point.x >= pillFrame.origin.x &&
-            point.x < pillFrame.origin.x + pillFrame.size.width &&
-            point.y >= pillFrame.origin.y &&
-            point.y < pillFrame.origin.y + pillFrame.size.height;
+            point.x >= pillFrame.origin.x - pad &&
+            point.x < pillFrame.origin.x + pillFrame.size.width + pad &&
+            point.y >= pillFrame.origin.y - pad &&
+            point.y < pillFrame.origin.y + pillFrame.size.height + pad;
         if (pillNotEmpty && insidePill) {
             return hit;
         }

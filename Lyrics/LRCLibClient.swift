@@ -94,18 +94,42 @@ final class LRCLibClient {
         track: MusicTrack
     ) async throws -> [LRCLyricsRecord] {
 
-        let request = try makeRequest(
-            path: "/api/search",
-            queryItems: [
-                URLQueryItem(
-                    name: "track_name",
-                    value: track.title
-                ),
+        return try await search(
+            track: track.title,
+            artist: track.artist
+        )
+    }
+
+    /// 2.0.7：歌词搜索回退——只拿歌名搜时不带 artist_name 参数。
+    /// LRCLIB 收到空 artist_name 仍会按歌手过滤，翻唱歌手
+    /// （如「哇欣」唱《晴天》，库里只有周杰伦版）永远搜不到；
+    /// 不带该参数才真正是「只按歌名搜」。
+    func search(
+        track title: String,
+        artist: String?
+    ) async throws -> [LRCLyricsRecord] {
+
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(
+                name: "track_name",
+                value: title
+            )
+        ]
+        if let artist,
+            !artist.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ).isEmpty {
+            queryItems.append(
                 URLQueryItem(
                     name: "artist_name",
-                    value: track.artist
+                    value: artist
                 )
-            ]
+            )
+        }
+
+        let request = try makeRequest(
+            path: "/api/search",
+            queryItems: queryItems
         )
 
         let (data, response) =

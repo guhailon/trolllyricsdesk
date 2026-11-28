@@ -18,6 +18,8 @@
 #import <errno.h>
 #import <mach-o/dyld.h>
 #import <sys/wait.h>
+#import <signal.h>
+#import <unistd.h>
 
 #import "TLDHUDHelper.h"
 #import "TLDHUDPaths.h"
@@ -60,9 +62,21 @@ static int TLDHUDSpawnAsRoot(const char *path, char *const args[], BOOL wait)
     // Wait for the child, retrying on EINTR (a signal must not spin us).
     int status = 0;
     pid_t w = 0;
+    NSTimeInterval deadline = NSProcessInfo.processInfo.systemUptime + 8.0;
     do {
-        w = waitpid(task_pid, &status, 0);
-    } while (w == -1 && errno == EINTR);
+        w = waitpid(task_pid, &status, WNOHANG);
+        if (w == task_pid || (w < 0 && errno != EINTR)) break;
+        if (NSProcessInfo.processInfo.systemUptime >= deadline) {
+            TLDHUDLog(@"main: command timeout pid %d", task_pid);
+            kill(task_pid, SIGKILL);
+            // Reap asynchronously; never wait indefinitely on the caller.
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                int ignored; while (waitpid(task_pid, &ignored, 0) < 0 && errno == EINTR) {}
+            });
+            return -1;
+        }
+        [NSThread sleepForTimeInterval:0.05];
+    } while (YES);
     if (w != -1 && WIFEXITED(status)) {
         TLDHUDLog(@"main: spawned %@ pid %d exit %d", @(path), task_pid, WEXITSTATUS(status));
         return WEXITSTATUS(status);
@@ -99,8 +113,9 @@ static BOOL TLDHUDInstallDaemonPlist(void)
     return rc == 0;
 }
 
-void TLDHUDSetEnabled(BOOL isEnabled)
+static void TLDHUDSetEnabledLocked(BOOL isEnabled)
 {
+    if (isEnabled && TLDHUDIsEnabled()) return;
     notify_post(NOTIFY_DISMISSAL_HUD);
     NSString *plistPath = TLDHUDDaemonPlistPath();
     NSString *launchctl = TLDHUDLaunchctlPath();
@@ -183,10 +198,16 @@ void TLDHUDSetEnabled(BOOL isEnabled)
     [NSThread sleepForTimeInterval:FADE_OUT_DURATION];
     if ([[NSFileManager defaultManager] fileExistsAtPath:plistPath] && launchctl) {
         char *args[] = { (char *)[launchctl UTF8String], (char *)"unload", (char *)[plistPath UTF8String], NULL };
-        TLDHUDSpawnAsRoot([launchctl UTF8String], args, YES);
-        TLDHUDLog(@"main: launchctl unload %@", plistPath);
-        return;
+        int rc = TLDHUDSpawnAsRoot([launchctl UTF8String], args, YES);
+        TLDHUDLog(@"main: launchctl unload %@ rc %d", plistPath, rc);
+        if (rc == 0 && !TLDHUDIsEnabled()) return;
     }
     int rc = TLDHUDSpawnSelfAsRoot("-exit");
     TLDHUDLog(@"main: -exit spawn rc %d", rc);
+}
+
+void TLDHUDSetEnabled(BOOL isEnabled) {
+    static NSObject *lock; static dispatch_once_t once;
+    dispatch_once(&once, ^{ lock = [NSObject new]; });
+    @synchronized(lock) { TLDHUDSetEnabledLocked(isEnabled); }
 }

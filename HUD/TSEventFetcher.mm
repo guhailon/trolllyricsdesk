@@ -133,8 +133,14 @@ static void __TSEventFetcherCallback(void *info)
   }
   else
   {
+    // 2.0.7: do not drop the first Moved after Began. TrollSpeed's
+    // early return assumed the runloop source had already stationarified
+    // the Began touch; in a burst the source callback may not have run
+    // yet, so the first Moved was silently dropped and the pan gesture
+    // got low-rate, jumpy updates (drag felt stiff). Stationarify
+    // first, then apply this move — same end state, no lost update.
     if (touch.phase == UITouchPhaseBegan && phase == UITouchPhaseMoved)
-      return deleted;
+      [touch setPhaseAndUpdateTimestamp:UITouchPhaseStationary];
     [touch setLocationInWindow:coordinate];
   }
 

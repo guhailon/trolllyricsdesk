@@ -53,10 +53,27 @@
     // SBGetScreenLockStatus). The registration call itself is direct
     // (the original used NSInvocation; same method, same arguments).
     _windowHostingController = [[objc_getClass("SBSAccessibilityWindowHostingController") alloc] init];
-    unsigned int contextId = [self.window _contextId];
-    double windowLevel = [self.window windowLevel];
-    [_windowHostingController registerWindowWithContextID:contextId atLevel:windowLevel];
-    TLDHUDLog(@"hud: window registered contextId=%u level=%f", contextId, windowLevel);
+    @try {
+        if (![self.window respondsToSelector:@selector(_contextId)] ||
+            ![_windowHostingController respondsToSelector:@selector(registerWindowWithContextID:atLevel:)]) {
+            TLDHUDLog(@"hud: hosting API unavailable");
+            self.window.hidden = YES;
+            return NO;
+        }
+        unsigned int contextId = [self.window _contextId];
+        if (!contextId) {
+            TLDHUDLog(@"hud: invalid hosting context");
+            self.window.hidden = YES;
+            return NO;
+        }
+        double windowLevel = self.window.windowLevel;
+        [_windowHostingController registerWindowWithContextID:contextId atLevel:windowLevel];
+        TLDHUDLog(@"hud: registration requested contextId=%u level=%f (visibility unverified)", contextId, windowLevel);
+    } @catch (NSException *exception) {
+        self.window.hidden = YES;
+        TLDHUDLog(@"hud: hosting exception %@", exception.name);
+        return NO;
+    }
 
     return YES;
 }
