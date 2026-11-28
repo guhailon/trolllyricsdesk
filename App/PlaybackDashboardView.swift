@@ -30,6 +30,33 @@ struct PlaybackDashboardView: View {
     /// 齿轮自绘菜单开关（系统 Menu 宽度由系统写死，改不了；自绘可收窄）。
     @State private var showGearMenu = false
 
+    /// 2.0.1/build 31：HUD 守护进程状态（PID 文件＋-check 的实时结果，
+    /// 不是偏好设置）。写法复用 SettingsView.swift:167-169／462-479。
+    /// Lee 定放主页面：2.0.0 时药丸只能从设置页开，他进不去那个页面，
+    /// 所以 Enable 直接放在这里（死开关原位置）。
+    @State private var hudStatusText = "守护进程：未知"
+    @State private var hudRunning = false
+    @State private var hudBusy = false
+
+    /// 2.0.1/build 31：读 HUD 守护进程状态（SettingsView.swift:462 同款：
+    /// -check 为准，PID 文件只用来显示 pid）。
+    private func refreshHUDStatus() {
+        let running = TLDHUDIsEnabled()
+        hudRunning = running
+        if running,
+           let pidString = try? String(
+               contentsOfFile: TLDHUDPIDPath(),
+               encoding: .utf8
+           ) {
+            let pid = pidString.trimmingCharacters(in: .whitespacesAndNewlines)
+            hudStatusText = "运行中（pid \(pid)）"
+        } else if running {
+            hudStatusText = "运行中"
+        } else {
+            hudStatusText = "未运行"
+        }
+    }
+
     /// 从共享存储读回开关值并赋给 @AppStorage，强制刷新开关 UI。
     /// 悬浮窗双击隐藏写入的是另一个 UserDefaults 实例，@AppStorage 不会自动感应。
     private func syncFloatingEnabled() {
@@ -178,15 +205,107 @@ struct PlaybackDashboardView: View {
                     // 取色器（floatingLyric.textColorHex，HUD 药丸不读它，
                     // 快照里只有透明度／字号）。只改 UI 呈现：三个存储键本身
                     // 与 @AppStorage 声明、syncFloatingEnabled() 一律不动，
-                    // 以免牵连其他逻辑。药丸只从设置页开：
-                    Text("悬浮歌词药丸只从设置页「悬浮歌词（HUD 守护进程）」里启用打开")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.85))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(15)
+                    // 以免牵连其他逻辑。
+                    // 2.0.1/build 31：原位置那句「药丸只从设置页开」的说明
+                    // 换成真正能用的 HUD 区段（Lee 定放主页面——设置页
+                    // SettingsView 是死页面，他进不去）。调用与文案复用
+                    // SettingsView.swift:322 的现成写法，不重写 daemon 逻辑。
+                    // LC 模式下只显示禁用说明，绝不调 SetHUDEnabled。
+                    VStack(spacing: 12) {
+                        Text("悬浮歌词（HUD 守护进程）")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if LyricStore.isLiveContainer {
+                            Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            HStack {
+                                Text("守护进程状态")
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Text(hudStatusText)
+                                    .foregroundColor(hudRunning ? .green : .red)
+                            }
+                            .onAppear {
+                                refreshHUDStatus()
+                            }
+
+                            Button {
+                                hudBusy = true
+                                hudStatusText = "正在启用…"
+                                DispatchQueue.global(qos: .userInitiated).async {
+                                    TLDHUDLogMessage("main: enable requested")
+                                    TLDHUDSetEnabled(true)
+                                    TLDHUDLogMessage("main: enable done")
+                                    DispatchQueue.main.async {
+                                        hudBusy = false
+                                        refreshHUDStatus()
+                                    }
+                                }
+                            } label: {
+                                Label(
+                                    "启用 HUD 守护进程",
+                                    systemImage: "play.fill"
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.purple)
+                                .foregroundColor(.white)
+                                .cornerRadius(15)
+                            }
+                            .disabled(hudBusy)
+
+                            Button {
+                                hudBusy = true
+                                hudStatusText = "正在停用…"
+                                DispatchQueue.global(qos: .userInitiated).async {
+                                    TLDHUDLogMessage("main: disable requested")
+                                    TLDHUDSetEnabled(false)
+                                    TLDHUDLogMessage("main: disable done")
+                                    DispatchQueue.main.async {
+                                        hudBusy = false
+                                        refreshHUDStatus()
+                                    }
+                                }
+                            } label: {
+                                Label(
+                                    "停用 HUD 守护进程",
+                                    systemImage: "stop.fill"
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white.opacity(0.14))
+                                .foregroundColor(.white)
+                                .cornerRadius(15)
+                            }
+                            .disabled(hudBusy)
+
+                            Text("启用后歌词药丸显示在桌面与其它 App 之上，锁屏解锁后仍在跟；停用后药丸消失。每次启用都会重写 daemon 配置（重装后容器路径变了也不怕）。")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            NavigationLink {
+                                HUDLogView()
+                            } label: {
+                                Label(
+                                    "查看守护进程日志",
+                                    systemImage: "doc.text"
+                                )
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20)
                     }
 
                     Spacer()
