@@ -36,7 +36,7 @@ jobs:
 
       - name: Engine regression tests
         run: |
-          swiftc Lyrics/LyricLine.swift Lyrics/LyricParser.swift MusicProviders/MusicTrack.swift PlaybackEngine/PlaybackState.swift EngineTests/main.swift -o /tmp/tld-engine-tests
+          swiftc Lyrics/LyricLine.swift Lyrics/LyricParser.swift Lyrics/LRCLibClient.swift MusicProviders/MusicTrack.swift PlaybackEngine/PlaybackState.swift PlaybackEngine/LyricMatcher.swift EngineTests/main.swift -o /tmp/tld-engine-tests
           /tmp/tld-engine-tests
 
       - name: Install zsign

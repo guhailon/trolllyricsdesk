@@ -598,6 +598,7 @@ try:
         "App/PlaybackDashboardView.swift", "App/SettingsView.swift",
         "Diagnostics/DiagnosticsView.swift",
         "HUD/TLDHUDRootViewController.mm", "HUD/TLDHUDVersion.h",
+        "EngineTests/main.swift",
         "Lyrics/LRCLibClient.swift", "Lyrics/LyricParser.swift",
         "Lyrics/LyricStore.swift",
         "PlaybackEngine/LyricMatcher.swift",
@@ -1011,8 +1012,9 @@ try:
     if not msgs:
         open_item("未提交：提交顺序断言等提交后再跑", "HEAD == BASE，尚无新提交")
     else:
-        check("提交顺序：v2.0.6 两笔（2.0.6 产品＋RUN 文档）",
-              len(msgs) == 2 and msgs[1].startswith("2.0.6/build 36")
+        check("提交顺序：v2.0.6 三笔（2.0.6 产品＋引擎测试修＋RUN 文档）",
+              len(msgs) == 3 and msgs[2].startswith("2.0.6/build 36：卡拉OK修复")
+              and msgs[1].startswith("2.0.6/build 36：修 run 46134758976")
               and msgs[0].startswith("RUN_2.0.6"), str(msgs))
 except subprocess.CalledProcessError as e:
     open_item("git log 读不到，分支顺序断言跳过", str(e))
@@ -1360,6 +1362,14 @@ check("P2：LyricMatcher.normalize 已去 private（供歌卡／解析器复用�
       and "private static func normalize(" not in lm)
 check("P2：药丸与 LC 应用内区没有逐字门——不动（RootVC／应用内渲染无 normalize 门）",
       "LyricMatcher.normalize" not in rv)
+by = read(".github/workflows/build.yml")
+check("P0 回归门：CI 引擎测试 swiftc 列表含 LyricMatcher＋LRCLibClient（run 46134758976 教训：LyricParser 引 LyricMatcher，列表缺了就编不过）",
+      "PlaybackEngine/LyricMatcher.swift" in by
+      and "Lyrics/LRCLibClient.swift" in by
+      and "EngineTests/main.swift" in by)
+check("P0 回归门：EngineTests 覆盖 lyricsfile 解析＋合并（CI 里跑）",
+      "LyricsFileParser.parse(yaml)" in read("EngineTests/main.swift")
+      and "mergingWordSync(into: rows, lyricsFile: yaml)" in read("EngineTests/main.swift"))
 
 print("\n== OPEN（需 macOS／真机） ==")
 open_item("真机：卡拉OK（2.0.6 新）——有逐字词的歌药丸逐字亮、歌卡逐字亮；日志里找「歌词匹配成功：…（N 行，逐字 M 行，共 W 词）」与守护进程「hud: lyrics now … karaoke N words」",
