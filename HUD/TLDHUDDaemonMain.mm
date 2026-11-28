@@ -15,7 +15,13 @@
 
 #import <notify.h>
 #import <signal.h>
-#import <libproc.h>
+// libproc.h 不在 iOS SDK 里（只在 macOS SDK 有）；proc_pidpath 由 iOS 的
+// libSystem 导出，这里只前向声明（与头文件同一签名）＋补常量定义，
+// 行为与 #import <libproc.h> 完全一致，纯编译修复。
+extern int proc_pidpath(int pid, void *buffer, uint32_t buffersize);
+#ifndef PROC_PIDPATHINFO_MAXSIZE
+#define PROC_PIDPATHINFO_MAXSIZE 4096
+#endif
 #import <limits.h>
 #import <stdlib.h>
 #import <unistd.h>
