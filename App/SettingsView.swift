@@ -277,7 +277,7 @@ struct SettingsView: View {
                         testTextEnabled = LyricStore.isTestTextEnabled
                     }
 
-                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.2」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
+                    Text("打开后悬浮窗显示「悬浮测试 · 桌面歌词 2.0.3」＋时间，不依赖音乐、不读歌词；LiveContainer 宿主模式下测试文字显示在主界面应用内歌词区（宿主本来就没有悬浮窗）；关闭后恢复正常歌词，不残留测试文字。")
                         .font(.caption)
                         .foregroundColor(.secondary)
 

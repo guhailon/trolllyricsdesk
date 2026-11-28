@@ -22,8 +22,8 @@ struct PlaybackDashboardView: View {
     private var positionLocked = false
 
     /// 2.0.2：药丸固定位置开关——新键 hudPill.positionLocked（不要复用
-    /// 上面那把已死的 floatingLyric.positionLocked）。开 = 长按拖动不响应，
-    /// 关 = 可以长按拖动；默认关。守护进程每秒 tick 重读。
+    /// 上面那把已死的 floatingLyric.positionLocked）。开 = 拖动不响应，
+    /// 关 = 可以拖动；默认关。守护进程每秒 tick 重读。
     @AppStorage("hudPill.positionLocked", store: LyricStore.defaults)
     private var hudPillPositionLocked = false
 
@@ -36,30 +36,48 @@ struct PlaybackDashboardView: View {
     /// 齿轮自绘菜单开关（系统 Menu 宽度由系统写死，改不了；自绘可收窄）。
     @State private var showGearMenu = false
 
-    /// 2.0.1/build 31：HUD 守护进程状态（PID 文件＋-check 的实时结果，
-    /// 不是偏好设置）。写法复用 SettingsView.swift:167-169／462-479。
+    /// 2.0.1/build 31：HUD 守护进程状态（-check 的实时结果，不是偏好
+    /// 设置）。写法复用 SettingsView.swift:167-169／462-479。
     /// Lee 定放主页面：2.0.0 时药丸只能从设置页开，他进不去那个页面，
     /// 所以 Enable 直接放在这里（死开关原位置）。
-    @State private var hudStatusText = "守护进程：未知"
+    /// 2.0.3：状态行已藏掉（开关本身就表示开／关），hudStatusText 与
+    /// PID 文件读取随行撤掉；refreshHUDStatus() 只剩更新 hudRunning，
+    /// 供下面的 Toggle 绑定读真实状态。
     @State private var hudRunning = false
     @State private var hudBusy = false
 
     /// 2.0.1/build 31：读 HUD 守护进程状态（SettingsView.swift:462 同款：
-    /// -check 为准，PID 文件只用来显示 pid）。
+    /// -check 为准）。2.0.3 起不再读 PID 文件（pid 只在日志里，不显示了）。
     private func refreshHUDStatus() {
-        let running = TLDHUDIsEnabled()
-        hudRunning = running
-        if running,
-           let pidString = try? String(
-               contentsOfFile: TLDHUDPIDPath(),
-               encoding: .utf8
-           ) {
-            let pid = pidString.trimmingCharacters(in: .whitespacesAndNewlines)
-            hudStatusText = "运行中（pid \(pid)）"
-        } else if running {
-            hudStatusText = "运行中"
-        } else {
-            hudStatusText = "未运行"
+        hudRunning = TLDHUDIsEnabled()
+    }
+
+    /// 2.0.3（Lee 定：一个开关替代两个大按键）：Toggle 绑定直接读
+    /// hudRunning（-check 实时结果，不是偏好值）；拨动即调
+    /// TLDHUDSetEnabled，走原来按钮那套后台队列＋hudBusy 防连点，
+    /// 完事 refreshHUDStatus() 回写真实状态。不用 @AppStorage 存
+    /// 开关状态（那就是旧死开关的毛病），也不复用
+    /// floatingLyric.enabled 那个死键。
+    private var hudEnabledToggle: Binding<Bool> {
+        Binding(
+            get: { hudRunning },
+            set: { newValue in setHUDEnabled(newValue) }
+        )
+    }
+
+    private func setHUDEnabled(_ enabled: Bool) {
+        guard !hudBusy else { return }
+        hudBusy = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            TLDHUDLogMessage(enabled ? "main: enable requested"
+                                     : "main: disable requested")
+            TLDHUDSetEnabled(enabled)
+            TLDHUDLogMessage(enabled ? "main: enable done"
+                                     : "main: disable done")
+            DispatchQueue.main.async {
+                hudBusy = false
+                refreshHUDStatus()
+            }
         }
     }
 
@@ -107,7 +125,7 @@ struct PlaybackDashboardView: View {
                     }
 
                     // 播放状态卡片：始终显示。没在放歌时保留卡片并给出提示，
-                    // 只有检测到播放器播放时才显示歌名 / 歌手 / 状态 / 进度。
+                    // 只有检测到播放器播放时才显示歌词 / 状态。
                     VStack(spacing: 12) {
 
                         if let state = coordinator.state {
@@ -132,7 +150,10 @@ struct PlaybackDashboardView: View {
                                 lyricTexts: lyricTexts
                             )
                             let topText = location == .artist ? secondary : title
-                            let bottomText = location == .artist ? title : secondary
+                            // 2.0.3（Lee 定：直接藏掉，只留歌词）：身份行
+                            // bottomText（歌名 · 歌手）不再渲染，卡片只留
+                            // 上行歌词＋PLAYING；state.track 原文、
+                            // 快照写入、识别都不动。
 
                             // 2.0.2：歌名／歌手只在显示时按简繁开关转换——
                             // state.track 是 MediaRemote 原文，识别／缓存／
@@ -142,20 +163,15 @@ struct PlaybackDashboardView: View {
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
 
-                            Text(LyricStore.convertForDisplay(bottomText))
-                                .foregroundColor(.white.opacity(0.75))
-
                             Text(
                                 state.status.rawValue.uppercased()
                             )
                             .font(.caption.bold())
                             .foregroundColor(.white.opacity(0.9))
 
-                            Text(
-                                "进度：\(Int(state.position)) 秒"
-                            )
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
+                            // 2.0.3（Lee 定：进度行藏掉）——进度显示行已删；
+                            // 歌卡只剩歌词行＋PLAYING。position 照常更新，
+                            // 只是不显示。
 
                         } else {
 
@@ -221,77 +237,25 @@ struct PlaybackDashboardView: View {
                     // SettingsView.swift:322 的现成写法，不重写 daemon 逻辑。
                     // LC 模式下只显示禁用说明，绝不调 SetHUDEnabled。
                     VStack(spacing: 12) {
-                        Text("悬浮歌词（HUD 守护进程）")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
+                        // 2.0.3（Lee 定：区段标题藏掉，只留控件）——
+                        // 区段标题「悬浮歌词（HUD 守护进程）」已删，开关、
+                        // 固定位置、颜色、说明文字、日志入口都原样留着。
                         if LyricStore.isLiveContainer {
                             Text("LiveContainer 模式下不可用——宿主跑不了 root 守护进程，只显示应用内歌词。")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.7))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
-                            HStack {
-                                Text("守护进程状态")
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Text(hudStatusText)
-                                    .foregroundColor(hudRunning ? .green : .red)
-                            }
-                            .onAppear {
-                                refreshHUDStatus()
-                            }
-
-                            Button {
-                                hudBusy = true
-                                hudStatusText = "正在启用…"
-                                DispatchQueue.global(qos: .userInitiated).async {
-                                    TLDHUDLogMessage("main: enable requested")
-                                    TLDHUDSetEnabled(true)
-                                    TLDHUDLogMessage("main: enable done")
-                                    DispatchQueue.main.async {
-                                        hudBusy = false
-                                        refreshHUDStatus()
-                                    }
-                                }
-                            } label: {
-                                Label(
-                                    "启用 HUD 守护进程",
-                                    systemImage: "play.fill"
-                                )
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.purple)
+                            // 2.0.3（Lee 定：一个开关替代两个大按键＋状态行
+                            // 藏掉）：开关本身就表示开／关。Toggle 出现时刷
+                            // 一次真实状态（onAppear）；body 每 0.25s 重建
+                            // 不调 -check，那样太贵。
+                            Toggle("启用悬浮歌词", isOn: hudEnabledToggle)
                                 .foregroundColor(.white)
-                                .cornerRadius(15)
-                            }
-                            .disabled(hudBusy)
-
-                            Button {
-                                hudBusy = true
-                                hudStatusText = "正在停用…"
-                                DispatchQueue.global(qos: .userInitiated).async {
-                                    TLDHUDLogMessage("main: disable requested")
-                                    TLDHUDSetEnabled(false)
-                                    TLDHUDLogMessage("main: disable done")
-                                    DispatchQueue.main.async {
-                                        hudBusy = false
-                                        refreshHUDStatus()
-                                    }
+                                .disabled(hudBusy)
+                                .onAppear {
+                                    refreshHUDStatus()
                                 }
-                            } label: {
-                                Label(
-                                    "停用 HUD 守护进程",
-                                    systemImage: "stop.fill"
-                                )
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.white.opacity(0.14))
-                                .foregroundColor(.white)
-                                .cornerRadius(15)
-                            }
-                            .disabled(hudBusy)
 
                             // 2.0.2：药丸固定位置（新键 hudPill.positionLocked，
                             // 默认关）＋悬浮歌词颜色（复用旧键
@@ -304,11 +268,9 @@ struct PlaybackDashboardView: View {
                             ColorPicker("悬浮歌词颜色", selection: lyricTextColor)
                                 .foregroundColor(.white)
 
-                            Text("启用后歌词药丸显示在桌面与其它 App 之上，锁屏解锁后仍在跟；停用后药丸消失。每次启用都会重写 daemon 配置（重装后容器路径变了也不怕）。")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
+                            // 2.0.3（Lee 定：区段说明文字藏掉）——上面那段
+                            // 「启用后歌词药丸显示在桌面…」说明文字已删；
+                            // 区段只剩开关＋固定位置＋颜色＋日志入口。
                             NavigationLink {
                                 HUDLogView()
                             } label: {

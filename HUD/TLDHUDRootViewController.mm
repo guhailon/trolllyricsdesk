@@ -48,7 +48,7 @@ extern char **environ;
 - (CGPoint)clampedPillCenterForCenter:(CGPoint)center;
 - (void)applySavedPillPositionIfNeeded;
 - (void)savePillPosition;
-- (void)handlePillLongPress:(UILongPressGestureRecognizer *)recognizer;
+- (void)handlePillPan:(UIPanGestureRecognizer *)recognizer;
 @end
 
 #define NOTIFY_UI_LOCKSTATE "com.apple.springboard.lockstate"
@@ -147,6 +147,7 @@ static void SpringBoardLockStatusChanged(
     NSLayoutConstraint *_pillTopConstraint;
     NSLayoutConstraint *_pillCenterXConstraint;
     BOOL _dragging;
+    BOOL _dragLogged;    // Changed logs only its first line per drag
     CGPoint _dragTouchOffset;  // touch point minus pill centre, view coords
     BOOL _positionRestored;    // saved centre applied once, after 1st layout
     BOOL _positionLocked;      // re-read from the suite every timer tick
@@ -231,16 +232,15 @@ static void SpringBoardLockStatusChanged(
     _pill.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:_pill];
 
-    // Long-press drag only — no tap / double-tap gestures are added.
-    // allowableMovement is deliberately huge: the finger may already be
-    // moving when the 0.5s press fires, and the default 10pt would kill
-    // the gesture before Began. Once Began fires, movement is unlimited.
-    UILongPressGestureRecognizer *longPress =
-        [[UILongPressGestureRecognizer alloc]
-            initWithTarget:self action:@selector(handlePillLongPress:)];
-    longPress.minimumPressDuration = 0.5;
-    longPress.allowableMovement = 10000;
-    [_pill addGestureRecognizer:longPress];
+    // 2.0.3: direct pan drag — no press-and-hold, no tap / double-tap
+    // gestures. The 2.0.2 press-and-hold never fired on Lee's phone (fixed
+    // lock or not), so the pill now moves the moment the finger drags it,
+    // like the old floating window did. A pan fires on movement, so there
+    // is no press duration or allowable-movement tuning to get wrong.
+    UIPanGestureRecognizer *pan =
+        [[UIPanGestureRecognizer alloc]
+            initWithTarget:self action:@selector(handlePillPan:)];
+    [_pill addGestureRecognizer:pan];
 
     _testLabel = [[UILabel alloc] init];
     _testLabel.numberOfLines = 0;
@@ -386,16 +386,22 @@ static void SpringBoardLockStatusChanged(
     [defaults synchronize];
 }
 
-// Long-press drag. Locked = return immediately, no feedback, pill stays.
-// Began: remember the grab offset, dim the pill. Changed: follow the
-// finger (clamped on-screen). Ended/Cancelled: restore looks, persist.
-- (void)handlePillLongPress:(UILongPressGestureRecognizer *)recognizer
+// Direct pan drag (2.0.3 — replaces the 2.0.2 press-and-hold, which never
+// fired on Lee's phone). Locked = one log line and return immediately,
+// no feedback, pill stays. Began: remember the grab offset, dim the
+// pill. Changed: follow the finger (clamped on-screen), log only the
+// first line. Ended/Cancelled: restore looks, persist the centre.
+- (void)handlePillPan:(UIPanGestureRecognizer *)recognizer
 {
-    if (_positionLocked) return;
     CGPoint location = [recognizer locationInView:self.view];
     switch (recognizer.state) {
         case UIGestureRecognizerStateBegan: {
+            if (_positionLocked) {
+                TLDHUDLog(@"hud: pill drag blocked (locked)");
+                return;
+            }
             _dragging = YES;
+            _dragLogged = NO;
             CGPoint pillCenter = CGPointMake(
                 self.view.bounds.size.width / 2 + _pillCenterXConstraint.constant,
                 self.view.safeAreaInsets.top + _pillTopConstraint.constant
@@ -403,6 +409,7 @@ static void SpringBoardLockStatusChanged(
             _dragTouchOffset = CGPointMake(location.x - pillCenter.x,
                                            location.y - pillCenter.y);
             _pill.alpha = 0.6;
+            TLDHUDLog(@"hud: pill drag began (locked=NO)");
             break;
         }
         case UIGestureRecognizerStateChanged: {
@@ -411,6 +418,12 @@ static void SpringBoardLockStatusChanged(
                                          location.y - _dragTouchOffset.y);
             [self movePillToCenter:target];
             [self.view layoutIfNeeded];
+            if (!_dragLogged) {
+                _dragLogged = YES;
+                CGPoint clamped = [self clampedPillCenterForCenter:target];
+                TLDHUDLog(@"hud: pill drag changed to (%.0f, %.0f)",
+                          clamped.x, clamped.y);
+            }
             break;
         }
         case UIGestureRecognizerStateEnded:
@@ -419,6 +432,14 @@ static void SpringBoardLockStatusChanged(
             _dragging = NO;
             _pill.alpha = 1.0;
             [self savePillPosition];
+            CGPoint saved = CGPointMake(
+                self.view.bounds.size.width / 2 + _pillCenterXConstraint.constant,
+                self.view.safeAreaInsets.top + _pillTopConstraint.constant
+                    + _pill.bounds.size.height / 2);
+            TLDHUDLog(@"hud: pill drag %@ (saved centre %.0f, %.0f)",
+                      recognizer.state == UIGestureRecognizerStateEnded
+                          ? @"ended" : @"cancelled",
+                      saved.x, saved.y);
             break;
         }
         default:
@@ -468,21 +489,18 @@ static void SpringBoardLockStatusChanged(
 
     // 2.0.2: lyric colour comes from the main app's picker (white when the
     // key was never written); sizes come from the snapshot fontSize
-    // (default 23): the current line IS fontSize, the other three lines
+    // (default 23): the current line IS fontSize, the other two lines
     // scale by the old 11/17 ratio. The snapshot opacity rides on the
     // label's own alpha, so the final alpha is tier x opacity, never
     // overwritten by either side.
+    // 2.0.3 (Lee 定：直接藏掉，只留歌词）：songLine（歌名 · 歌手）不再
+    // 渲染，只留 previous／current／next 三行；快照里的 songLine 构造照常
+    // （识别／逐歌偏移继续用原文）。
     UIColor *baseColor = [self pillLyricColor];
     CGFloat baseSize = lyrics.fontSize;
     CGFloat smallSize = baseSize * 11.0 / 17.0;
     NSMutableAttributedString *text =
         [[NSMutableAttributedString alloc] init];
-    NSDictionary *songAttrs = @{
-        NSFontAttributeName :
-            [UIFont systemFontOfSize:smallSize weight:UIFontWeightRegular],
-        NSForegroundColorAttributeName :
-            [baseColor colorWithAlphaComponent:0.65],
-    };
     NSDictionary *dimAttrs = @{
         NSFontAttributeName :
             [UIFont systemFontOfSize:smallSize weight:UIFontWeightRegular],
@@ -494,14 +512,6 @@ static void SpringBoardLockStatusChanged(
             [UIFont boldSystemFontOfSize:baseSize],
         NSForegroundColorAttributeName : baseColor,
     };
-    if (lyrics.songLine.length > 0) {
-        [text appendAttributedString:
-            [[NSAttributedString alloc] initWithString:lyrics.songLine
-                                            attributes:songAttrs]];
-        [text appendAttributedString:
-            [[NSAttributedString alloc] initWithString:@"\n"
-                                            attributes:songAttrs]];
-    }
     if (lyrics.previousLine.length > 0) {
         [text appendAttributedString:
             [[NSAttributedString alloc] initWithString:lyrics.previousLine
@@ -538,7 +548,7 @@ static void SpringBoardLockStatusChanged(
     // no snapshot means no lyric opacity, so label alpha is 1.0.
     _testLabel.alpha = 1.0;
     _testLabel.attributedText = [[NSAttributedString alloc]
-        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.2\nT+%.0fs · %@",
+        initWithString:[NSString stringWithFormat:@"桌面歌詞 2.0.3\nT+%.0fs · %@",
                         elapsed, lockText]
         attributes:@{
             NSFontAttributeName :
